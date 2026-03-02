@@ -5,15 +5,17 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 import User from './models/User.js';
-import Schedule from './models/Schedule.js';
-import { setMockMode, getMockMode, mockUsers, mockSchedules } from './utils/mockMode.js';
-import { seedDemoBookings } from './scripts/seedDemoBookings.js';
-import { seedModernBarber } from './scripts/seedModernBarber.js';
+import Service from './models/Service.js';
+import Booking from './models/Booking.js';
+import { setMockMode } from './utils/mockMode.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5050;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const ENABLE_DEMO_SEEDING = process.env.ENABLE_DEMO_SEEDING === 'true';
+const PURGE_DEMO_DATA = process.env.PURGE_DEMO_DATA === 'true';
+const ALLOW_MOCK_MODE = process.env.ALLOW_MOCK_MODE === 'true';
 
 // Middleware - CORS Configuration for Production with Dynamic Subdomain Support
 const allowedOrigins = [
@@ -69,67 +71,84 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 
-/**
- * ROBUST SEEDING LOGIC
- * Ensures Barber exists before seeding bookings to avoid '_id' errors.
- */
-const performSystemSeeding = async () => {
-  try {
-    console.log('🏗️ Starting System Seeding...');
+const purgeDemoData = async () => {
+  const demoEmails = ['barber@nile.ng', 'admin@nile.ng'];
+  const demoUsers = await User.find({ email: { $in: demoEmails } }).select('_id');
+  const demoProviderIds = demoUsers.map((user) => user._id);
 
-    // 1. Seed/Verify Barber with comprehensive data (services, gallery, testimonials, social handles)
-    const barber = await seedModernBarber();
-    if (barber) {
-      console.log('🏠 THE MODERN BARBER SEEDED | barber@nile.ng');
-    }
-
-    // 2. Seed/Verify Admin
-    const admin = await User.findOne({ email: 'admin@nile.ng' });
-    if (!admin) {
-      await User.create({
-        email: 'admin@nile.ng',
-        password: 'alphaadmin2026',
-        name: 'Nile Admin',
-        role: 'admin',
-        businessName: 'Nile Booking',
-        phone: '+234 812 384 3076',
-      });
-      console.log('✅ ADMIN SEEDED | admin@nile.ng');
-    }
-
-    // 3. Seed Demo Bookings (Pass the barber ID explicitly to avoid undefined)
-    await seedDemoBookings(barber._id);
-    console.log('✅ TOTAL SYSTEM SEED COMPLETE');
-
-  } catch (error) {
-    console.error('❌ Seeding Error:', error.message);
+  if (demoProviderIds.length > 0) {
+    await Promise.all([
+      Booking.deleteMany({
+        $or: [
+          { provider: { $in: demoProviderIds } },
+          { bookingNumber: { $regex: '^NB-DEMO-' } },
+        ],
+      }),
+      Service.deleteMany({ provider: { $in: demoProviderIds } }),
+      User.deleteMany({ _id: { $in: demoProviderIds } }),
+    ]);
+  } else {
+    await Booking.deleteMany({ bookingNumber: { $regex: '^NB-DEMO-' } });
   }
+
+  console.log('✅ Demo data purge completed');
 };
 
 /**
  * DATABASE INITIALIZATION
- * Prioritizes Local DB if Atlas fails.
+ * Production: uses MONGODB_URI only.
+ * Development: falls back to local MongoDB.
  */
 const initializeDatabase = async () => {
   const localUri = 'mongodb://127.0.0.1:27017/nile_booking_dev';
   const atlasUri = process.env.MONGODB_URI;
+  const connectOptions = {
+    serverSelectionTimeoutMS: 10000,
+    connectTimeoutMS: 10000,
+  };
+
+  if (!atlasUri && IS_PRODUCTION) {
+    throw new Error('MONGODB_URI is required in production');
+  }
 
   try {
-    const conn = await mongoose.connect(atlasUri || localUri);
+    const conn = await mongoose.connect(atlasUri || localUri, connectOptions);
     console.log(`🏠 DATABASE CONNECTED: ${conn.connection.host}`);
-    
-    // Trigger Seeding only after successful connection
-    await performSystemSeeding();
-  } catch (error) {
-    console.error('❌ DB Connection Failed. Falling back to Local...');
-    try {
-      await mongoose.connect(localUri);
-      console.log('🏠 LOCAL DB CONNECTED');
-      await performSystemSeeding();
-    } catch (localError) {
-      console.error('❌ All DB Connections failed. Enabling MOCK MODE.');
-      setMockMode(true);
+
+    if (PURGE_DEMO_DATA) {
+      await purgeDemoData();
     }
+
+    if (ENABLE_DEMO_SEEDING) {
+      console.log('⚠️ Demo seeding is enabled by environment configuration');
+    }
+  } catch (error) {
+    if (!IS_PRODUCTION && atlasUri) {
+      console.error('❌ Atlas DB failed. Falling back to local MongoDB...');
+      try {
+        const localConn = await mongoose.connect(localUri, connectOptions);
+        console.log(`🏠 LOCAL DB CONNECTED: ${localConn.connection.host}`);
+        if (PURGE_DEMO_DATA) {
+          await purgeDemoData();
+        }
+        return;
+      } catch (localError) {
+        if (ALLOW_MOCK_MODE) {
+          console.error('❌ All DB connections failed. Enabling MOCK MODE.');
+          setMockMode(true);
+          return;
+        }
+        throw localError;
+      }
+    }
+
+    if (!IS_PRODUCTION && ALLOW_MOCK_MODE) {
+      console.error('❌ DB connection failed. Enabling MOCK MODE.');
+      setMockMode(true);
+      return;
+    }
+
+    throw error;
   }
 };
 
@@ -138,8 +157,8 @@ const startServer = async () => {
   try {
     await initializeDatabase();
   } catch (error) {
-    console.error('❌ Initialization error. Enabling MOCK MODE.');
-    setMockMode(true);
+    console.error('❌ Initialization error:', error.message);
+    process.exit(1);
   }
 
   app.listen(PORT, () => {
