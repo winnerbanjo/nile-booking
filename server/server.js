@@ -14,7 +14,9 @@ const app = express();
 const PORT = Number(process.env.PORT) || 5050;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const ENABLE_DEMO_SEEDING = process.env.ENABLE_DEMO_SEEDING === 'true';
-const PURGE_DEMO_DATA = process.env.PURGE_DEMO_DATA === 'true';
+const PURGE_DEMO_DATA = process.env.PURGE_DEMO_DATA
+  ? process.env.PURGE_DEMO_DATA === 'true'
+  : IS_PRODUCTION;
 const ALLOW_MOCK_MODE = process.env.ALLOW_MOCK_MODE === 'true';
 
 // Middleware - CORS Configuration for Production with Dynamic Subdomain Support
