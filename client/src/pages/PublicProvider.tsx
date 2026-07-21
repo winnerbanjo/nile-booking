@@ -38,6 +38,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     notes: '',
   });
   const [loading, setLoading] = useState(true);
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
   useEffect(() => {
     if (slug) {
@@ -50,6 +51,19 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     if (data) {
       document.title = `${data.provider.businessName} | Official Booking Site`;
     }
+  }, [data]);
+
+  // Banner auto-scroll — runs whenever data loads (bannerList is derived from data)
+  useEffect(() => {
+    if (!data) return;
+    const images = data.provider.headerImages && data.provider.headerImages.length > 0
+      ? data.provider.headerImages
+      : [data.provider.headerImage || DEFAULT_HEADER_BANNER];
+    if (images.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % images.length);
+    }, 4500);
+    return () => clearInterval(timer);
   }, [data]);
 
   useEffect(() => {
@@ -268,19 +282,12 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     );
   }
 
-  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
-
   const bannerList = data.provider.headerImages && data.provider.headerImages.length > 0
     ? data.provider.headerImages
     : [data.provider.headerImage || DEFAULT_HEADER_BANNER];
 
-  useEffect(() => {
-    if (bannerList.length <= 1) return;
-    const timer = setInterval(() => {
-      setActiveBannerIndex((prev) => (prev + 1) % bannerList.length);
-    }, 4500);
-    return () => clearInterval(timer);
-  }, [bannerList.length]);
+  // Banner auto-scroll is managed by a top-level useEffect below — see the
+  // useEffect with [data] dependency that calls setActiveBannerIndex via interval.
 
   const merchantLogoUrl = data.provider.logo || data.provider.profileImage;
   const socialHandles = data.provider.socialHandles || {};
