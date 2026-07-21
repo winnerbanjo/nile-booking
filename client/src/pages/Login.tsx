@@ -181,33 +181,6 @@ export const Login: React.FC = () => {
               </Link>
             </p>
           </div>
-
-          {/* Quick Demo Autofill Hint */}
-          <div className="bg-zinc-50 border border-zinc-200/80 rounded-lg p-3.5 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-700">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              1-Click Demo Login
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('barber@nile.ng', 'password123')}
-                className="p-2 text-left bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 text-[11px] transition-colors"
-              >
-                <div className="font-semibold text-zinc-900">Provider Demo</div>
-                <div className="text-zinc-500 font-mono text-[10px]">barber@nile.ng</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDemoLogin('admin@nile.ng', 'password123')}
-                className="p-2 text-left bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 text-[11px] transition-colors"
-              >
-                <div className="font-semibold text-zinc-900">Admin Demo</div>
-                <div className="text-zinc-500 font-mono text-[10px]">admin@nile.ng</div>
-              </button>
-            </div>
-          </div>
-
         </div>
 
       </div>
