@@ -31,9 +31,14 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminLogin } from './pages/admin/AdminLogin';
 import { ReceiptVerification } from './pages/admin/ReceiptVerification';
 import { Providers } from './pages/admin/Providers';
-import { Bookings } from './pages/admin/Bookings';
-import { Customers } from './pages/admin/Customers';
+
+import { Bookings as AdminBookings } from './pages/admin/Bookings';
+import { Customers as AdminCustomers } from './pages/admin/Customers';
 import { Transactions } from './pages/admin/Transactions';
+import { Risk } from './pages/admin/Risk';
+import { Payouts } from './pages/admin/Payouts';
+import { Refunds } from './pages/admin/Refunds';
+import { Settings as AdminSettings } from './pages/admin/Settings';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { Navbar } from './components/marketing/Navbar';
 import { Footer } from './components/marketing/Footer';
@@ -288,7 +293,7 @@ function MainApp() {
             element={
               <ProtectedAdminRoute>
                 <AdminLayout>
-                  <Bookings />
+                  <AdminBookings />
                 </AdminLayout>
               </ProtectedAdminRoute>
             }
@@ -298,7 +303,7 @@ function MainApp() {
             element={
               <ProtectedAdminRoute>
                 <AdminLayout>
-                  <Customers />
+                  <AdminCustomers />
                 </AdminLayout>
               </ProtectedAdminRoute>
             }
@@ -322,6 +327,46 @@ function MainApp() {
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Financial Overview</h1>
                     <p className="text-gray-500">Coming Soon</p>
                   </div>
+                </AdminLayout>
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/risk"
+            element={
+              <ProtectedAdminRoute>
+                <AdminLayout>
+                  <Risk />
+                </AdminLayout>
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/payouts"
+            element={
+              <ProtectedAdminRoute>
+                <AdminLayout>
+                  <Payouts />
+                </AdminLayout>
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/refunds"
+            element={
+              <ProtectedAdminRoute>
+                <AdminLayout>
+                  <Refunds />
+                </AdminLayout>
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/settings"
+            element={
+              <ProtectedAdminRoute>
+                <AdminLayout>
+                  <AdminSettings />
                 </AdminLayout>
               </ProtectedAdminRoute>
             }
