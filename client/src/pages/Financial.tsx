@@ -1,109 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { bookingApi, paymentApi, authApi } from '../lib/api';
-import { Card, CardContent } from '../components/ui/card';
+import { bookingApi, authApi, paymentApi } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { DollarSign, TrendingUp, Clock, CheckCircle, Copy, CreditCard, Shield, ArrowUpRight, ArrowDownRight, Loader2, Building2 } from 'lucide-react';
-import type { BookingStats, Booking, Transaction, User } from '../types';
-import { motion, AnimatePresence } from 'framer-motion';
+import { DollarSign, TrendingUp, Clock, Shield, ArrowUpRight, Building2, CheckCircle2 } from 'lucide-react';
+import type { BookingStats, Booking, User } from '../types';
 import { format } from 'date-fns';
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.06,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const fadeInUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: [0.6, -0.05, 0.01, 0.99] },
-  },
-};
-
-const floatAnimation = {
-  y: [-2, 2],
-  transition: {
-    duration: 3,
-    repeat: Infinity,
-    repeatType: 'reverse' as const,
-    ease: 'easeInOut',
-  },
-};
-
-const glassCardClass = "bg-white/40 backdrop-blur-xl border border-white/40 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)]";
 
 export const Financial: React.FC = () => {
   const [stats, setStats] = useState<BookingStats | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [banks, setBanks] = useState<Array<{ name: string; code: string; slug: string }>>([]);
+  const [banks, setBanks] = useState<Array<{ name: string; code: string }>>([]);
   const [bankAccount, setBankAccount] = useState({
     bankCode: '',
     accountNumber: '',
     accountName: '',
   });
 
-  // Mock transaction data
-  const mockTransactions: (Booking & { transactionType?: string })[] = [
+  const mockTransactions = [
     {
       _id: '1',
       bookingNumber: 'NB-001',
-      customer: { name: 'Adeola Johnson', email: 'adeola@example.com', phone: '+2348123456789' },
-      provider: 'provider-1',
-      service: { _id: 's1', name: 'Faded Cut', price: 15000 } as any,
+      customer: { name: 'Adeola Johnson', email: 'adeola@example.com' },
+      service: { name: 'Skin Fade' },
       date: new Date().toISOString(),
-      timeSlot: { startTime: '10:00', endTime: '11:00' },
+      pricing: { totalAmount: 15000 },
       status: 'completed',
       paymentStatus: 'paid',
-      paymentType: 'full',
-      pricing: { servicePrice: 15000, depositAmount: 0, totalAmount: 15000, currency: 'NGN' },
-      paymentGateway: 'paystack',
-      updatedAt: new Date().toISOString(),
-      transactionType: 'Deposit Paid',
+      gateway: 'Paystack',
     },
     {
       _id: '2',
       bookingNumber: 'NB-002',
-      customer: { name: 'Chukwu Emeka', email: 'chukwu@example.com', phone: '+2348123456790' },
-      provider: 'provider-1',
-      service: { _id: 's2', name: 'Line Up', price: 12000 } as any,
+      customer: { name: 'Chukwu Emeka', email: 'chukwu@example.com' },
+      service: { name: 'Beard Trim' },
       date: new Date().toISOString(),
-      timeSlot: { startTime: '11:30', endTime: '12:00' },
+      pricing: { totalAmount: 12000 },
       status: 'confirmed',
-      paymentStatus: 'partial',
-      paymentType: 'deposit',
-      pricing: { servicePrice: 12000, depositAmount: 6000, totalAmount: 12000, currency: 'NGN' },
-      paymentGateway: 'flutterwave',
-      updatedAt: new Date().toISOString(),
-      transactionType: 'Fully Paid',
+      paymentStatus: 'paid',
+      gateway: 'Flutterwave',
     },
     {
       _id: '3',
       bookingNumber: 'NB-003',
-      customer: { name: 'Tunde Adeyemi', email: 'tunde@example.com', phone: '+2348123456791' },
-      provider: 'provider-1',
-      service: { _id: 's3', name: '1hr Strategy Session', price: 50000 } as any,
+      customer: { name: 'Tunde Adeyemi', email: 'tunde@example.com' },
+      service: { name: 'Full Service' },
       date: new Date().toISOString(),
-      timeSlot: { startTime: '14:00', endTime: '15:00' },
-      status: 'completed',
-      paymentStatus: 'paid',
-      paymentType: 'full',
-      pricing: { servicePrice: 50000, depositAmount: 0, totalAmount: 50000, currency: 'NGN' },
-      paymentGateway: 'paystack',
-      updatedAt: new Date().toISOString(),
-      transactionType: 'Payout Successful',
+      pricing: { totalAmount: 18000 },
+      status: 'pending',
+      paymentStatus: 'pending_verification',
+      gateway: 'Bank Transfer',
     },
   ];
 
@@ -147,375 +96,199 @@ export const Financial: React.FC = () => {
         bookingApi.getBookings({ limit: 50 }),
       ]);
       setStats(statsData);
-      setBookings(bookingsData.bookings);
+      setBookings(bookingsData.bookings || []);
     } catch (error) {
       console.error('Failed to load financial data:', error);
-      // Use mock data on error
       setStats({
-        totalBookings: 24,
-        confirmedBookings: 20,
-        completedBookings: 18,
-        pendingBookings: 4,
-        totalRevenue: 1250000,
-        pendingPayouts: 450000,
-        successRate: 87,
+        totalBookings: 0,
+        confirmedBookings: 0,
+        completedBookings: 0,
+        pendingBookings: 0,
+        totalRevenue: 0,
+        pendingPayouts: 0,
+        successRate: 0,
       });
-      setBookings(mockTransactions as any);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCopyAccountNumber = () => {
-    navigator.clipboard.writeText('8123843076');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const getStatusBadge = (status: string, paymentStatus: string) => {
-    if (status === 'completed' && paymentStatus === 'paid') {
-      return { label: 'Payout Successful', color: 'bg-[#22c55e] text-white' };
-    }
-    if (paymentStatus === 'paid') {
-      return { label: 'Fully Paid', color: 'bg-blue-500 text-white' };
-    }
-    if (paymentStatus === 'partial') {
-      return { label: 'Deposit Paid', color: 'bg-yellow-500 text-white' };
-    }
-    return { label: 'Pending', color: 'bg-gray-500 text-white' };
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-[#F5F5F7]">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-light">Loading financial data...</p>
+          <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-3 text-xs text-zinc-500 font-normal">Loading financial stats...</p>
         </div>
       </div>
     );
   }
 
-  if (!stats) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-[#F5F5F7]">
-        <div className="text-center">
-          <h1 className="text-2xl font-black text-gray-900 mb-2 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-            Failed to load financial data
-          </h1>
-        </div>
-      </div>
-    );
-  }
-
-  const availableBalance = stats.totalRevenue - stats.pendingPayouts;
+  const availableBalance = (stats?.totalRevenue || 1250000) - (stats?.pendingPayouts || 450000);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-[#F5F5F7] bg-fixed p-4 md:p-8">
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="max-w-7xl mx-auto space-y-8"
-      >
+    <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
         {/* Header */}
-        <motion.div variants={fadeInUp} className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200/80 pb-6">
           <div>
-            <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-2" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-              Financial Engine
+            <h1 className="text-2xl md:text-3xl font-semibold text-zinc-900 tracking-tight">
+              Financial Overview
             </h1>
-            <p className="text-base text-gray-600 font-light tracking-tight" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-              Branded Accounts | Revenue Flow | Transaction Intelligence
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Revenue Tracking Bento Grid */}
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Available for Payout */}
-          <motion.div
-            variants={fadeInUp}
-            animate={floatAnimation}
-            className={`${glassCardClass} p-6 hover:bg-white/50 transition-all duration-300`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <ArrowUpRight className="w-6 h-6 text-[#22c55e]" strokeWidth={1.5} />
-              <CheckCircle className="w-4 h-4 text-[#22c55e]" />
-            </div>
-            <h3 className="text-xs font-semibold text-gray-600 mb-2 tracking-tight uppercase" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-              Available for Payout
-            </h3>
-            <p className="text-5xl font-black text-gray-900 tracking-tighter mb-2" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-              ₦{(availableBalance / 1000).toFixed(0)}K
-            </p>
-            <p className="text-xs text-gray-500 font-light">Ready for instant withdrawal</p>
-          </motion.div>
-
-          {/* Pending Escrow */}
-          <motion.div
-            variants={fadeInUp}
-            animate={floatAnimation}
-            className={`${glassCardClass} p-6 hover:bg-white/50 transition-all duration-300`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <Clock className="w-6 h-6 text-yellow-500" strokeWidth={1.5} />
-              <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
-            </div>
-            <h3 className="text-xs font-semibold text-gray-600 mb-2 tracking-tight uppercase" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-              Pending Escrow
-            </h3>
-            <p className="text-4xl font-black text-gray-900 tracking-tighter mb-2" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-              ₦{(stats.pendingPayouts / 1000).toFixed(0)}K
-            </p>
-            <p className="text-xs text-gray-500 font-light">From upcoming bookings</p>
-          </motion.div>
-
-          {/* Lifetime Earnings */}
-          <motion.div
-            variants={fadeInUp}
-            animate={floatAnimation}
-            className={`${glassCardClass} p-6 hover:bg-white/50 transition-all duration-300`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <TrendingUp className="w-6 h-6 text-[#22c55e]" strokeWidth={1.5} />
-              <DollarSign className="w-4 h-4 text-gray-400" />
-            </div>
-            <h3 className="text-xs font-semibold text-gray-600 mb-2 tracking-tight uppercase" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-              Lifetime Earnings
-            </h3>
-            <p className="text-4xl font-black text-gray-900 tracking-tighter mb-2" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-              ₦{(stats.totalRevenue / 1000).toFixed(0)}K
-            </p>
-            <p className="text-xs text-gray-500 font-light">All-time revenue</p>
-          </motion.div>
-        </div>
-
-        {/* Withdraw Funds */}
-        <motion.div variants={fadeInUp} className={`${glassCardClass} p-6`}>
-          <div>
-            <h2 className="text-xl font-black text-gray-900 mb-2 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-              Withdraw Funds
-            </h2>
-            <p className="text-sm text-gray-600 font-light mb-6">
-              Transfer available balance to your personal bank account
+            <p className="text-sm text-zinc-500 mt-1 font-normal">
+              Manage revenue balances, rolling payouts, and bank settlement details
             </p>
           </div>
           <Button
             onClick={() => setShowPayoutModal(true)}
-            className="w-full rounded-full bg-[#22c55e] text-white hover:bg-green-600 px-6 py-6 h-auto font-semibold"
+            className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-9 px-4 text-xs font-medium self-start md:self-auto shadow-sm"
           >
-            <ArrowUpRight className="w-4 h-4 mr-2" />
-            Withdraw to Personal Bank
+            <ArrowUpRight className="w-3.5 h-3.5 mr-1.5" />
+            Request Payout
           </Button>
-        </motion.div>
+        </div>
 
-        {/* Transaction History - Clean List */}
-        <motion.div variants={fadeInUp} className={`${glassCardClass} p-6`}>
-          <h2 className="text-xl font-black text-gray-900 mb-6 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-            Transaction History
-          </h2>
+        {/* 3 Stripe Metric Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Available Balance</span>
+              <div className="w-7 h-7 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                ₦{availableBalance.toLocaleString()}
+              </div>
+              <div className="text-xs text-zinc-500 mt-1 font-normal">Ready for immediate settlement</div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Pending Escrow</span>
+              <div className="w-7 h-7 rounded bg-amber-50 text-amber-600 flex items-center justify-center">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                ₦{(stats?.pendingPayouts || 450000).toLocaleString()}
+              </div>
+              <div className="text-xs text-zinc-500 mt-1 font-normal">Awaiting appointment completion</div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Lifetime Volume</span>
+              <div className="w-7 h-7 rounded bg-zinc-100 text-zinc-600 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                ₦{(stats?.totalRevenue || 1250000).toLocaleString()}
+              </div>
+              <div className="text-xs text-zinc-500 mt-1 font-normal">Total processed transaction volume</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Transaction History & Bank Settlement */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Desktop: Table View */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/30">
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Customer</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Service</th>
-                  <th className="text-right py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
-                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="text-center py-3 px-4 text-xs font-semibold text-gray-600 uppercase tracking-wider">Method</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mockTransactions.map((transaction, index) => {
-                  const badge = getStatusBadge(transaction.status, transaction.paymentStatus);
-                  const serviceName = typeof transaction.service === 'object' ? transaction.service.name : 'N/A';
-                  const amount = transaction.pricing?.totalAmount || 0;
-
-                  return (
-                    <motion.tr
-                      key={transaction._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b border-white/20 hover:bg-white/30 transition-colors"
-                    >
-                      <td className="py-4 px-4">
-                        <p className="text-sm font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                          {transaction.customer.name}
-                        </p>
-                        <p className="text-xs text-gray-500 font-light">
-                          {format(new Date(transaction.date), 'MMM d, yyyy')} | {transaction.timeSlot.startTime}
-                        </p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="text-sm text-gray-700 font-light">{serviceName}</p>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <p className="text-base font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                          ₦{amount.toLocaleString()}
-                        </p>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${badge.color}`}>
-                          {badge.label}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-xs text-gray-600 font-light">
-                          {transaction.paymentGateway ? transaction.paymentGateway.charAt(0).toUpperCase() + transaction.paymentGateway.slice(1) : 'N/A'}
+          {/* Main Table Column */}
+          <div className="lg:col-span-2 bg-white border border-zinc-200/80 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-200/80">
+              <h2 className="text-base font-semibold text-zinc-900 tracking-tight">Transaction Log</h2>
+              <p className="text-xs text-zinc-500 font-normal">Recent customer payments & gateway settlements</p>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-zinc-50/80 border-b border-zinc-200/80 text-zinc-500 font-medium">
+                  <tr>
+                    <th className="px-6 py-3">Transaction ID</th>
+                    <th className="px-6 py-3">Client</th>
+                    <th className="px-6 py-3">Service</th>
+                    <th className="px-6 py-3">Amount</th>
+                    <th className="px-6 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 text-zinc-700">
+                  {mockTransactions.map((tx) => (
+                    <tr key={tx._id} className="hover:bg-zinc-50/50 transition-colors">
+                      <td className="px-6 py-3.5 font-mono text-zinc-900 font-medium">{tx.bookingNumber}</td>
+                      <td className="px-6 py-3.5 font-medium text-zinc-900">{tx.customer.name}</td>
+                      <td className="px-6 py-3.5 text-zinc-600">{tx.service.name}</td>
+                      <td className="px-6 py-3.5 font-semibold text-zinc-900">₦{tx.pricing.totalAmount.toLocaleString()}</td>
+                      <td className="px-6 py-3.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${
+                          tx.paymentStatus === 'paid'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {tx.paymentStatus === 'paid' ? 'Paid' : 'Verification Pending'}
                         </span>
                       </td>
-                    </motion.tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile: Card View */}
-          <div className="md:hidden space-y-3">
-            {mockTransactions.map((transaction, index) => {
-              const badge = getStatusBadge(transaction.status, transaction.paymentStatus);
-              const serviceName = typeof transaction.service === 'object' ? transaction.service.name : 'N/A';
-              const amount = transaction.pricing?.totalAmount || 0;
-
-              return (
-                <motion.div
-                  key={transaction._id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-white/50 rounded-xl p-4 border border-white/40"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <p className="text-sm font-black text-gray-900 tracking-tighter mb-1" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                        {transaction.customer.name}
-                      </p>
-                      <p className="text-xs text-gray-600 font-light">{serviceName}</p>
-                    </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-semibold ${badge.color}`}>
-                      {badge.label}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/30">
-                    <div className="text-xs text-gray-500 font-light">
-                      {format(new Date(transaction.date), 'MMM d')} | {transaction.timeSlot.startTime}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-base font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                        ₦{amount.toLocaleString()}
-                      </p>
-                      <p className="text-xs text-gray-500 font-light">
-                        {transaction.paymentGateway || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-
-        {/* Security Badge & Payment Gateways */}
-        <motion.div variants={fadeInUp} className={`${glassCardClass} p-6`}>
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Shield className="w-5 h-5 text-[#22c55e]" />
-              <span className="text-sm font-semibold text-gray-900" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-                Secure & Encrypted
-              </span>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">P</span>
-                </div>
-                <span className="text-sm font-medium text-gray-700">Paystack</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg border border-purple-200">
-                <div className="w-6 h-6 bg-purple-600 rounded flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">F</span>
-                </div>
-                <span className="text-sm font-medium text-gray-700">Flutterwave</span>
-              </div>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
-        </motion.div>
 
-        {/* Payout Settings Form - Moved to Bottom */}
-        <motion.div
-          variants={fadeInUp}
-          className="bg-white/40 backdrop-blur-2xl border border-white/30 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 relative overflow-hidden"
-        >
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-[#22c55e]/20 to-transparent rounded-full blur-3xl -mr-32 -mt-32"></div>
-          <div className="relative">
-            <div className="flex items-center justify-between mb-6">
+          {/* Bank Account Settings */}
+          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm space-y-4">
+            <div className="border-b border-zinc-200/80 pb-3">
+              <h2 className="text-base font-semibold text-zinc-900 tracking-tight flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-zinc-600" />
+                Settlement Bank Account
+              </h2>
+              <p className="text-xs text-zinc-500 font-normal">Where payouts are deposited</p>
+            </div>
+
+            <div className="space-y-3 text-xs">
               <div>
-                <p className="text-sm font-semibold text-gray-600 mb-1 uppercase tracking-wider" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-                  Payout Settings
-                </p>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                  Connect Bank Account
-                </h2>
-              </div>
-              <Building2 className="w-12 h-12 text-[#22c55e]" strokeWidth={1.5} />
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="bankName" className="text-sm font-semibold text-gray-700 mb-2 block">
-                  Bank Name
-                </Label>
+                <Label className="text-xs font-medium text-zinc-700 mb-1 block">Bank Name</Label>
                 <select
-                  id="bankName"
                   value={bankAccount.bankCode}
                   onChange={(e) => setBankAccount({ ...bankAccount, bankCode: e.target.value })}
-                  className="w-full h-12 rounded-xl border border-gray-300 bg-white/60 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#22c55e]"
+                  className="w-full h-9 rounded-lg border border-zinc-300 bg-white px-3 text-xs text-zinc-900 focus:border-zinc-900 focus:ring-zinc-900"
                 >
                   <option value="">Select Bank</option>
-                  {banks.map((bank) => (
-                    <option key={bank.code} value={bank.code}>
-                      {bank.name}
-                    </option>
+                  {banks.map((b) => (
+                    <option key={b.code} value={b.code}>{b.name}</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <Label htmlFor="accountNumber" className="text-sm font-semibold text-gray-700 mb-2 block">
-                  Account Number
-                </Label>
+                <Label className="text-xs font-medium text-zinc-700 mb-1 block">Account Number</Label>
                 <Input
-                  id="accountNumber"
-                  type="text"
                   value={bankAccount.accountNumber}
                   onChange={(e) => setBankAccount({ ...bankAccount, accountNumber: e.target.value })}
-                  placeholder="Enter account number"
-                  className="h-12 bg-white/60 border-gray-300 focus:ring-2 focus:ring-[#22c55e]"
+                  placeholder="10-digit NUBAN number"
+                  className="h-9 text-xs border-zinc-300"
                 />
               </div>
 
               <div>
-                <Label htmlFor="accountName" className="text-sm font-semibold text-gray-700 mb-2 block">
-                  Account Name
-                </Label>
+                <Label className="text-xs font-medium text-zinc-700 mb-1 block">Account Name</Label>
                 <Input
-                  id="accountName"
-                  type="text"
                   value={bankAccount.accountName}
                   onChange={(e) => setBankAccount({ ...bankAccount, accountName: e.target.value })}
-                  placeholder="Enter account name"
-                  className="h-12 bg-white/60 border-gray-300 focus:ring-2 focus:ring-[#22c55e]"
+                  placeholder="Account holder name"
+                  className="h-9 text-xs border-zinc-300"
                 />
               </div>
 
               <Button
                 onClick={async () => {
                   try {
-                    // Save to user profile via API
                     await authApi.updateProfile({
                       bankAccount: {
                         bankName: bankAccount.bankCode,
@@ -523,115 +296,61 @@ export const Financial: React.FC = () => {
                         accountName: bankAccount.accountName,
                       },
                     } as any);
-                    alert('Payout details saved successfully!');
-                    await loadUser();
-                  } catch (error: any) {
-                    alert('Failed to save payout details: ' + (error.message || 'Unknown error'));
+                    alert('Bank settlement details saved!');
+                  } catch (err: any) {
+                    alert('Failed to save bank details: ' + err.message);
                   }
                 }}
-                disabled={!bankAccount.bankCode || !bankAccount.accountNumber || !bankAccount.accountName}
-                className="w-full h-12 bg-[#22c55e] hover:bg-green-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-9 text-xs font-medium mt-2 shadow-sm"
               >
-                Save Payout Details
+                Save Settlement Details
               </Button>
             </div>
           </div>
-        </motion.div>
 
-        {/* Tech Empire Footer */}
-        <motion.div variants={fadeInUp} className={`${glassCardClass} p-6`}>
-          <div className="text-center">
-            <p className="text-sm font-black text-gray-900 mb-2 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-              Part of the Nile Tech Empire
-            </p>
-            <div className="flex items-center justify-center gap-4 flex-wrap">
-              <a
-                href="https://mylinknest.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-600 hover:text-[#22c55e] transition-colors font-light"
+        </div>
+
+      </div>
+
+      {/* Payout Confirmation Modal */}
+      {showPayoutModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-xl w-full max-w-md space-y-4">
+            <h3 className="text-base font-semibold text-zinc-900 border-b border-zinc-100 pb-3">Confirm Payout Request</h3>
+            
+            <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-4 text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Available Balance</span>
+                <span className="font-semibold text-zinc-900">₦{availableBalance.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-zinc-200/60 font-semibold text-zinc-900">
+                <span>Payout Amount</span>
+                <span className="text-emerald-700 text-sm">₦{availableBalance.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowPayoutModal(false)}
+                className="flex-1 rounded-lg h-9 text-xs font-medium"
               >
-                LinkNest
-              </a>
-              <span className="text-gray-400">|</span>
-              <a
-                href="https://nile.ng/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-600 hover:text-[#22c55e] transition-colors font-light"
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  alert('Payout initiated! Funds will land in 1-2 business days.');
+                  setShowPayoutModal(false);
+                }}
+                className="flex-1 bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-9 text-xs font-medium shadow-sm"
               >
-                Nile
-              </a>
-              <span className="text-gray-400">|</span>
-              <a
-                href="https://nilecollective.co/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-600 hover:text-[#22c55e] transition-colors font-light"
-              >
-                Nile Collective
-              </a>
+                Confirm Payout
+              </Button>
             </div>
           </div>
-        </motion.div>
+        </div>
+      )}
 
-        {/* Payout Confirmation Modal */}
-        <AnimatePresence>
-          {showPayoutModal && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowPayoutModal(false)}
-                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50"
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 ${glassCardClass} p-8 w-full max-w-md`}
-              >
-                <h3 className="text-2xl font-black text-gray-900 mb-6 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                  Confirm Payout
-                </h3>
-                <div className="space-y-4 mb-6">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 font-light">Available Balance</span>
-                    <span className="text-xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      ₦{(availableBalance / 1000).toFixed(0)}K
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pt-4 border-t border-white/30">
-                    <span className="text-sm font-semibold text-gray-900">Payout Amount</span>
-                    <span className="text-2xl font-black text-[#22c55e] tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      ₦{(availableBalance / 1000).toFixed(0)}K
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={() => setShowPayoutModal(false)}
-                    variant="outline"
-                    className="flex-1 rounded-full border-gray-300 hover:bg-white/60"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      alert('Payout initiated! Funds will arrive in 1-2 business days.');
-                      setShowPayoutModal(false);
-                    }}
-                    className="flex-1 rounded-full bg-[#22c55e] text-white hover:bg-green-600 font-semibold"
-                  >
-                    Confirm Payout
-                  </Button>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-      </motion.div>
     </div>
   );
 };

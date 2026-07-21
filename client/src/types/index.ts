@@ -7,10 +7,21 @@ export interface User {
   slug?: string;
   businessName?: string;
   phone?: string;
+  bio?: string;
+  location?: string;
+  logo?: string;
+  profileImage?: string;
+  headerImage?: string;
   socialHandles?: {
     instagram?: string;
+    whatsapp?: string;
     twitter?: string;
     facebook?: string;
+  };
+  policies?: {
+    terms?: string;
+    returnPolicy?: string;
+    privacyPolicy?: string;
   };
 }
 
@@ -30,26 +41,20 @@ export interface Service {
   provider: string;
   name: string;
   description: string;
-  category: 'cruise' | 'hotel' | 'tour' | 'restaurant' | 'transportation' | 'other';
+  category: string;
   price: number;
   duration: number;
-  capacity: number;
-  images: Array<{ url: string; alt?: string }>;
-  location?: {
-    name?: string;
-    coordinates?: {
-      lat: number;
-      lng: number;
-    };
-  };
-  features: string[];
-  isActive: boolean;
-  rating: {
+  capacity?: number;
+  images?: Array<{ url: string; alt?: string }>;
+  location?: any;
+  features?: string[];
+  isActive?: boolean;
+  rating?: {
     average: number;
     count: number;
   };
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Schedule Types
@@ -98,7 +103,9 @@ export interface Provider {
   phone?: string;
   bio?: string;
   location?: string;
+  logo?: string;
   profileImage?: string;
+  headerImage?: string;
   address?: {
     street?: string;
     city?: string;
@@ -107,8 +114,14 @@ export interface Provider {
   };
   socialHandles?: {
     instagram?: string;
+    whatsapp?: string;
     twitter?: string;
     facebook?: string;
+  };
+  policies?: {
+    terms?: string;
+    returnPolicy?: string;
+    privacyPolicy?: string;
   };
   gallery?: Array<{
     url: string;
@@ -145,34 +158,18 @@ export interface Booking {
   };
   status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled';
   paymentStatus: 'pending' | 'pending_verification' | 'partial' | 'paid' | 'refunded';
-  paymentType: 'full' | 'deposit' | 'pay_later' | 'bank_transfer';
+  paymentType: 'bank_transfer' | 'full' | 'deposit';
   pricing: {
     servicePrice: number;
     depositAmount: number;
     totalAmount: number;
     currency: string;
   };
-  paymentGateway?: 'paystack' | 'flutterwave' | null;
-  paymentReference?: string;
   notes?: string;
   whatsappLink?: string;
   receiptImageUrl?: string;
   createdAt: string;
   updatedAt: string;
-}
-
-// Transaction Types
-export interface Transaction {
-  _id: string;
-  booking: string;
-  provider: string;
-  type: 'payment' | 'deposit' | 'refund' | 'payout';
-  amount: number;
-  currency: string;
-  paymentGateway: 'paystack' | 'flutterwave';
-  gatewayReference: string;
-  status: 'pending' | 'success' | 'failed' | 'refunded';
-  createdAt: string;
 }
 
 // Booking Stats Types

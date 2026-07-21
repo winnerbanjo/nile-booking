@@ -1,750 +1,635 @@
-import React, { useState, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { NileLogo } from '@/components/ui/NileLogo';
-import { MessageCircle, Shield, Sparkles, BarChart, Scissors, Globe, Sparkles as SpaIcon, Star, Clock, MapPin } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { formatCurrency, getCurrentCurrency, Currency } from '../../components/CurrencySwitcher';
+import { Footer } from '@/components/marketing/Footer';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ChevronRight,
+  CheckCircle2,
+  Calendar,
+  CreditCard,
+  Globe,
+  Clock,
+  MessageSquare,
+  Zap,
+  ChevronDown,
+  ArrowRight,
+  Check,
+  Sparkles,
+} from 'lucide-react';
 
-const containerVariants = {
+const HERO_IMAGES = [
+  {
+    url: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1200&fit=crop',
+    title: 'Barber & Grooming Studio',
+    subtitle: 'Bookings & Upfront Deposits',
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1200&fit=crop',
+    title: 'Hair & Beauty Salon',
+    subtitle: 'Multi-Staff Scheduling',
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&fit=crop',
+    title: 'Strategy & Coaching',
+    subtitle: 'Worldwide Client Booking',
+  },
+  {
+    url: 'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=1200&fit=crop',
+    title: 'Creative Studio',
+    subtitle: 'Direct Portfolio Checkout',
+  },
+];
+
+const fadeInUp = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+};
+
+const staggerContainer = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
     transition: {
       staggerChildren: 0.08,
-      delayChildren: 0.2,
+      delayChildren: 0.05,
     },
   },
 };
 
-const fadeInUp = {
-  hidden: { opacity: 0, y: 40 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.7, ease: [0.6, -0.05, 0.01, 0.99] },
-  },
-};
-
-const floatAnimation = {
-  y: [-4, 4],
-  transition: {
-    duration: 3,
-    repeat: Infinity,
-    repeatType: 'reverse' as const,
-    ease: 'easeInOut',
-  },
-};
-
-// Global Glass Card Class
-const glassCardClass = "bg-white/40 backdrop-blur-xl border border-white/40 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)]";
-const glassCardStyle = { willChange: 'transform' };
-
-// Emergency Fallback Hero Component
-const EmergencyHero = () => (
-  <div className="min-h-screen bg-[#f9fafb] flex items-center justify-center px-4">
-    <div className="text-center max-w-2xl">
-      <h1 className="text-4xl md:text-6xl font-black text-gray-900 mb-6 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-        Expertise, organized.
-      </h1>
-      <p className="text-xl md:text-2xl text-gray-600 mb-8 font-light">
-        Your professional website, booking engine, and payments | Launched in 10 seconds.
-      </p>
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Button
-          size="lg"
-          className="rounded-full px-8 py-6 text-base font-semibold bg-gray-900 text-white hover:bg-gray-800"
-          asChild
-        >
-          <Link to="/register">Launch Your Website</Link>
-        </Button>
-        <Button
-          size="lg"
-          variant="outline"
-          className="rounded-full px-8 py-6 text-base font-semibold border border-gray-300"
-          asChild
-        >
-          <a href="#use-cases">Use Cases</a>
-        </Button>
-      </div>
-    </div>
-  </div>
-);
-
-// Error Boundary Component for Landing
-class LandingErrorBoundary extends Component<
-  { children: ReactNode },
-  { hasError: boolean }
-> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(_: Error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Landing component error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <EmergencyHero />;
-    }
-    return this.props.children;
-  }
-}
-
 export const Landing: React.FC = () => {
-  const [currency] = useState<Currency>(getCurrentCurrency());
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [currentImageIdx, setCurrentImageIdx] = useState(0);
 
-  // Wrap entire component in try-catch and error boundary
-  try {
-    return (
-      <LandingErrorBoundary>
-        <LandingContent currency={currency} />
-      </LandingErrorBoundary>
-    );
-  } catch (error) {
-    console.error('Landing render error:', error);
-    return <EmergencyHero />;
-  }
-};
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentImageIdx((prev) => (prev + 1) % HERO_IMAGES.length);
+    }, 3500);
+    return () => clearInterval(timer);
+  }, []);
 
-// Main Landing Content Component (extracted for error boundary)
-const LandingContent: React.FC<{ currency: Currency }> = ({ currency }) => {
+  const toggleFaq = (index: number) => {
+    setActiveFaq(activeFaq === index ? null : index);
+  };
 
-  try {
-    return (
-      <div className="min-h-screen bg-[#f9fafb] bg-fixed relative">
-      {/* Background Texture - Grid Pattern - Optimized for mobile scroll performance */}
-      <div 
-        className="fixed inset-0 z-0 opacity-10 pointer-events-none"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px)
-          `,
-          backgroundSize: '40px 40px',
-          maskImage: 'radial-gradient(ellipse 80% 50% at 50% 0%, black 40%, transparent 100%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 80% 50% at 50% 0%, black 40%, transparent 100%)',
-          willChange: 'auto',
-          transform: 'translateZ(0)',
-        }}
-      />
+  const featureGridItems = [
+    { title: 'Professional website', desc: 'Fast, mobile-optimized storefront for your business' },
+    { title: 'Online booking', desc: 'Instant 24/7 appointment self-scheduling' },
+    { title: 'Deposit collection', desc: 'Protect your calendar with automatic upfront deposits' },
+    { title: 'Online payments', desc: 'Accept direct bank transfer & payment receipts' },
+    { title: 'Availability management', desc: 'Custom working hours, breaks & blocked days' },
+    { title: 'Appointment reminders', desc: 'Instant WhatsApp & client booking notifications' },
+    { title: 'Client history', desc: 'Track customer booking frequency & lifetime spend' },
+    { title: 'Service catalogue', desc: 'Organize prices, durations & service categories' },
+    { title: 'Custom branding', desc: 'Upload your own business logo, colors & hero banner' },
+    { title: 'Custom domain', desc: 'Connect your own domain name (e.g. yourname.com)' },
+    { title: 'Mobile dashboard', desc: 'Manage bookings, clients & schedule from any device' },
+    { title: 'Analytics', desc: 'Real-time booking revenue & client performance data' },
+    { title: 'Invoices', desc: 'Generate & send printable digital client invoices' },
+    { title: 'Multi-staff scheduling', desc: 'Assign barbers, stylists & staff to specific services' },
+    { title: 'Time zone support', desc: 'Automatic local timezone conversions for remote clients' },
+    { title: 'SEO-ready pages', desc: 'Optimized search engine metadata for google discovery' },
+  ];
+
+  const faqs = [
+    {
+      q: 'Do I need technical skills?',
+      a: 'No. Everything is designed to be simple. You can set up your website and start receiving bookings in just a few minutes without writing a single line of code.',
+    },
+    {
+      q: 'Can clients pay online?',
+      a: 'Yes. Accept deposits or full payments directly online through direct bank transfers and receipt uploads.',
+    },
+    {
+      q: 'Can I use my own domain?',
+      a: 'Yes. Growth and Premium plans include custom domain connection support (e.g., yourname.com).',
+    },
+    {
+      q: 'Can I manage my business on mobile?',
+      a: 'Yes. Your Nile Booking dashboard works seamlessly across mobile, tablet, and desktop devices.',
+    },
+    {
+      q: 'Can I change plans later?',
+      a: 'Absolutely. You can upgrade or modify your plan at any time as your business grows.',
+    },
+    {
+      q: 'How long does setup take?',
+      a: 'Just a few minutes. Enter your business name, add your services, and share your unique booking link.',
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50/50 text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white overflow-hidden">
       
-      {/* Hero Section */}
-      <section id="hero" className="relative pt-12 pb-6 px-4 sm:px-6 overflow-hidden">
-        {/* Glow Blobs - Nile Green */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-[#22c55e] rounded-full blur-[120px] opacity-[0.05] -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-[#22c55e] rounded-full blur-[120px] opacity-[0.05] translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-[#22c55e] rounded-full blur-[120px] opacity-[0.05] -translate-x-1/2 translate-y-1/2 pointer-events-none" />
-        
-        {/* Hero Background Image */}
-        <div className="absolute inset-0 z-0 pointer-events-none">
-          <img
-            src="/latino-hair-salon-owner-taking-care-client.jpg"
-            alt="Professional barber"
-            className="w-full h-full object-cover opacity-10"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-white via-white/90 to-white" />
+      {/* Navigation Bar */}
+      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-zinc-200/80">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          
+          <Link to="/" className="flex items-center">
+            <NileLogo size="md" />
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-8 text-xs font-medium text-zinc-600">
+            <Link to="/product" className="hover:text-zinc-900 transition-colors">Product</Link>
+            <Link to="/solutions" className="hover:text-zinc-900 transition-colors">Solutions</Link>
+            <Link to="/how-it-works" className="hover:text-zinc-900 transition-colors">How it Works</Link>
+            <Link to="/pricing" className="hover:text-zinc-900 transition-colors">Pricing</Link>
+            <Link to="/faq" className="hover:text-zinc-900 transition-colors">FAQ</Link>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <Link
+              to="/login"
+              className="text-xs font-medium text-zinc-700 hover:text-zinc-900 px-3 py-2 transition-colors"
+            >
+              Sign in
+            </Link>
+            <Button
+              asChild
+              className="bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg h-9 px-4 text-xs font-medium transition-all shadow-sm hover:shadow"
+            >
+              <Link to="/register">Launch your website</Link>
+            </Button>
+          </div>
+
         </div>
-        <div className="max-w-4xl mx-auto relative z-10">
+      </header>
+
+      {/* Side-by-Side Split Hero Section */}
+      <section className="pt-12 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          
+          {/* Left Column: Copy & Actions */}
           <motion.div
-            variants={containerVariants}
             initial="hidden"
             animate="visible"
-            className="text-center mb-8"
+            variants={staggerContainer}
+            className="space-y-6"
           >
-            {/* Badge */}
-            <motion.div
-              variants={fadeInUp}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gray-100/80 backdrop-blur-sm border border-gray-200/50 mb-6"
-            >
-              <span className="text-xs font-semibold text-gray-700 tracking-tight" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-                Nile Booking 2026 | The New Standard
-              </span>
+            <motion.div variants={fadeInUp}>
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-zinc-900 leading-[1.08]">
+                Your work speaks for itself.<br />
+                <span className="text-zinc-500 font-semibold">Your business should too.</span>
+              </h1>
             </motion.div>
 
-            <motion.h1
-              variants={fadeInUp}
-              className="text-2xl sm:text-3xl md:text-6xl lg:text-7xl xl:text-8xl font-black text-gray-900 mb-4 md:mb-6 leading-[1.05] tracking-tighter px-4"
-              style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}
-            >
-              Expertise, organized.
-            </motion.h1>
-            <motion.p
-              variants={fadeInUp}
-              className="text-xl sm:text-2xl md:text-3xl lg:text-4xl text-gray-600 max-w-4xl mx-auto leading-relaxed tracking-tight font-light mb-8 md:mb-10 px-4"
-              style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
-            >
-              Your professional website, booking engine, and payments | Launched in 10 seconds.
+            <motion.p variants={fadeInUp} className="text-base sm:text-lg text-zinc-600 font-normal leading-relaxed">
+              Build a professional website to accept bookings, collect deposits, and grow your service business.
             </motion.p>
 
-            <motion.div
-              variants={fadeInUp}
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-            >
-              <motion.div
-                whileHover={{ y: -2, scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                style={{ willChange: 'transform' }}
+            <motion.div variants={fadeInUp} className="flex flex-wrap items-center gap-3 pt-2">
+              <Button
+                asChild
+                className="bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl h-11 px-6 text-xs font-semibold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
               >
-                <Button
-                  size="lg"
-                  className="rounded-full px-6 md:px-8 py-5 md:py-6 text-sm md:text-base font-semibold bg-gray-900 text-white hover:bg-gray-800 h-auto min-h-[48px] tracking-tight"
-                  asChild
-                >
-                  <Link to="/register">Launch Your Website</Link>
-                </Button>
-              </motion.div>
-              <motion.div
-                whileHover={{ y: -2, scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-                style={{ willChange: 'transform' }}
+                <Link to="/register" className="inline-flex items-center gap-2 whitespace-nowrap">
+                  <span>Launch your website</span>
+                  <ArrowRight className="w-4 h-4 shrink-0" />
+                </Link>
+              </Button>
+
+              <Button
+                asChild
+                variant="outline"
+                className="bg-white border-zinc-300 text-zinc-900 hover:bg-zinc-100 rounded-xl h-11 px-6 text-xs font-semibold transition-all shadow-xs"
               >
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full px-6 md:px-8 py-5 md:py-6 text-sm md:text-base font-semibold border border-gray-300 hover:border-gray-400 h-auto min-h-[48px] tracking-tight bg-transparent backdrop-blur-sm"
-                  asChild
-                >
-                  <a href="#use-cases">Use Cases</a>
-                </Button>
-              </motion.div>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
+                <Link to="/login">Sign In</Link>
+              </Button>
 
-      {/* Bento Grid Features - Product Snapshots with Floating Animation */}
-      <section id="how-it-works" className="py-16 px-4 sm:px-6 relative z-10">
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
-            {/* The WhatsApp Bridge - Floating UI */}
-            <motion.div
-              variants={fadeInUp}
-              animate={floatAnimation}
-              className={`${glassCardClass} p-4 md:p-8 hover:bg-white/50 transition-all duration-300`}
-              style={glassCardStyle}
-            >
-              <div className="mb-6">
-                <div className="bg-gray-900 rounded-2xl p-6 mb-4">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-[#22c55e] flex items-center justify-center">
-                      <MessageCircle className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <div className="text-white text-sm font-semibold">Lagos Barber</div>
-                      <div className="text-gray-400 text-xs">Online</div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-800 rounded-xl p-4 mb-3">
-                    <div className="text-white text-sm mb-2">Check out my website:</div>
-                    <div className="bg-white/10 rounded-lg p-3 border border-white/10">
-                      <div className="text-white text-xs font-medium mb-1">lagosbarber.nilebooking.com</div>
-                      <div className="text-gray-400 text-xs">Book your appointment now</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-4 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                The WhatsApp Bridge
-              </h3>
-              <p className="text-base text-gray-600 leading-relaxed tracking-tight font-light">
-                Your website link generates rich previews. Clients book and pay without ever leaving the chat.
-              </p>
+              <Link
+                to="/how-it-works"
+                className="text-xs font-medium text-zinc-600 hover:text-zinc-900 px-3 py-2.5 inline-flex items-center gap-1 transition-colors group"
+              >
+                See how it works
+                <ChevronRight className="w-3.5 h-3.5 text-zinc-400 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
             </motion.div>
 
-            {/* Escrow Logic - Floating UI */}
-            <motion.div
-              variants={fadeInUp}
-              animate={floatAnimation}
-              transition={{ delay: 0.1 }}
-              className={`${glassCardClass} p-8 hover:bg-white/50 transition-all duration-300`}
-            >
-              <div className="mb-6">
-                <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 border border-gray-200">
-                  <div className="mb-4">
-                    <div className="text-sm text-gray-600 mb-2">Service: Faded Cut</div>
-                    <div className="text-2xl font-black text-gray-900 tracking-tighter">{formatCurrency(15000, currency)}</div>
-                  </div>
-                  <div className="border-t border-gray-200 pt-4 mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-600">Deposit (50%)</span>
-                      <span className="text-lg font-black text-gray-900 tracking-tighter">{formatCurrency(7500, currency)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Balance Due</span>
-                      <span className="text-sm text-gray-500">At appointment</span>
-                    </div>
-                  </div>
-                  <button className="w-full bg-[#22c55e] text-white rounded-xl py-3 font-semibold text-sm hover:bg-[#16a34a] transition-colors">
-                    Pay with Paystack
-                  </button>
-                </div>
-              </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-4 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                Escrow Logic
-              </h3>
-              <p className="text-base text-gray-600 leading-relaxed tracking-tight font-light">
-                Showing a 50% deposit checkout flow via Paystack. Automated deposits ensure your time is valued.
-              </p>
-            </motion.div>
-
-            {/* AI Copywriter */}
-            <motion.div
-              variants={fadeInUp}
-              animate={floatAnimation}
-              transition={{ delay: 0.2 }}
-              className={`${glassCardClass} p-8 hover:bg-white/50 transition-all duration-300`}
-            >
-              <div className="mb-6">
-                <div className="bg-white rounded-2xl p-6 border border-gray-200">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Sparkles className="w-4 h-4 text-[#22c55e]" />
-                    <span className="text-xs font-semibold text-gray-700">AI Writing...</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-2 bg-gray-200 rounded-full w-full animate-pulse"></div>
-                    <div className="h-2 bg-gray-200 rounded-full w-3/4 animate-pulse"></div>
-                    <div className="h-2 bg-gray-200 rounded-full w-5/6 animate-pulse"></div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="text-sm text-gray-600 font-light">
-                      "Experience premium hair styling services tailored to your unique style. Our expert barbers combine traditional techniques with modern trends..."
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-4 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                AI Copywriter
-              </h3>
-              <p className="text-base text-gray-600 leading-relaxed tracking-tight font-light">
-                A text box showing a service description being typed in real-time. Stop struggling with copy.
+            <motion.div variants={fadeInUp} className="pt-4 border-t border-zinc-200/80">
+              <p className="text-xs text-zinc-500 font-normal leading-relaxed">
+                <strong className="text-zinc-900 font-semibold">Trusted by modern service businesses.</strong> Built for barbers, stylists, consultants, coaches, photographers, therapists & agencies.
               </p>
             </motion.div>
           </motion.div>
-        </div>
-      </section>
 
-      {/* Use Cases Section - Native Stories */}
-      <section id="use-cases" className="py-16 px-4 sm:px-6 relative z-10">
-        <div className="max-w-7xl mx-auto">
+          {/* Right Column: Sliding Image Carousel with Framer Motion */}
           <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="space-y-12"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            className="relative w-full h-80 sm:h-96 lg:h-[460px] rounded-2xl overflow-hidden shadow-2xl border border-zinc-200 bg-zinc-900 group"
           >
-            <motion.div variants={fadeInUp} className="text-center mb-12">
-              <h2 className="text-2xl sm:text-3xl md:text-6xl font-black text-gray-900 mb-4 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                Real Stories from Real Businesses
-              </h2>
-              <p className="text-xl text-gray-600 font-light tracking-tight">
-                See how professionals across Africa are using Nile Booking
-              </p>
-            </motion.div>
-
-            {/* 3 Native Use Cases */}
-            <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-              {/* Use Case 1: The Master Barber */}
+            <AnimatePresence mode="wait">
               <motion.div
-                variants={fadeInUp}
-                className={`${glassCardClass} p-8 hover:bg-white/50 transition-all duration-300`}
+                key={currentImageIdx}
+                initial={{ opacity: 0, scale: 1.05 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.8, ease: 'easeInOut' }}
+                className="absolute inset-0"
               >
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-[#22c55e]/10 flex items-center justify-center">
-                    <Scissors className="w-6 h-6 text-[#22c55e]" strokeWidth={2} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      The Master Barber
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <MapPin className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-500 font-light">Ipaja, Lagos</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-base text-gray-600 leading-relaxed tracking-tight font-light mb-4">
-                  Managing walk-ins and transfers at a busy barbershop in Ipaja. Clients book via WhatsApp link, pay deposits, and receive automatic confirmations. No more missed appointments or payment disputes.
-                </p>
-                <div className="space-y-2 pt-4 border-t border-white/30">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 font-light">Daily Walk-ins</span>
-                    <span className="text-gray-900 font-semibold">15+</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 font-light">Transfer Bookings</span>
-                    <span className="text-gray-900 font-semibold">8/day</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 font-light">Revenue Increase</span>
-                    <span className="text-[#22c55e] font-semibold">+35%</span>
-                  </div>
+                <img
+                  src={HERO_IMAGES[currentImageIdx].url}
+                  alt={HERO_IMAGES[currentImageIdx].title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent"></div>
+
+                <div className="absolute bottom-6 left-6 right-6 text-white space-y-1 z-10">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full text-zinc-100 border border-white/20">
+                    {HERO_IMAGES[currentImageIdx].subtitle}
+                  </span>
+                  <h3 className="text-lg font-bold text-white pt-1">{HERO_IMAGES[currentImageIdx].title}</h3>
                 </div>
               </motion.div>
+            </AnimatePresence>
 
-              {/* Use Case 2: The Digital Agency */}
-              <motion.div
-                variants={fadeInUp}
-                transition={{ delay: 0.1 }}
-                className={`${glassCardClass} p-8 hover:bg-white/50 transition-all duration-300`}
-              >
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-[#22c55e]/10 flex items-center justify-center">
-                    <Globe className="w-6 h-6 text-[#22c55e]" strokeWidth={2} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      G.V.E STUDIO
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <MapPin className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-500 font-light">Digital Agency</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-base text-gray-600 leading-relaxed tracking-tight font-light mb-4">
-                  Booking discovery calls for G.V.E STUDIO. Clients schedule strategy sessions directly through their professional website. Automated calendar sync, timezone handling, and payment collection all in one place.
-                </p>
-                <div className="space-y-2 pt-4 border-t border-white/30">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 font-light">Discovery Calls</span>
-                    <span className="text-gray-900 font-semibold">20/week</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 font-light">Conversion Rate</span>
-                    <span className="text-gray-900 font-semibold">45%</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 font-light">Time Saved</span>
-                    <span className="text-[#22c55e] font-semibold">10hrs/week</span>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Use Case 3: The Freelance Stylist */}
-              <motion.div
-                variants={fadeInUp}
-                transition={{ delay: 0.2 }}
-                className={`${glassCardClass} p-8 hover:bg-white/50 transition-all duration-300`}
-              >
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-[#22c55e]/10 flex items-center justify-center">
-                    <Star className="w-6 h-6 text-[#22c55e]" strokeWidth={2} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      The Freelance Stylist
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <MapPin className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-500 font-light">Lagos, Nigeria</span>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-base text-gray-600 leading-relaxed tracking-tight font-light mb-4">
-                  Selling expertise and appointments on a custom subdomain. Clients discover services, book sessions, and pay deposits | all without leaving the stylist's professional website. Professional presence, zero technical skills required.
-                </p>
-                <div className="space-y-2 pt-4 border-t border-white/30">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 font-light">Subdomain</span>
-                    <span className="text-gray-900 font-semibold">stylist.nilebooking.co</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 font-light">Monthly Bookings</span>
-                    <span className="text-gray-900 font-semibold">60+</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600 font-light">Client Satisfaction</span>
-                    <span className="text-[#22c55e] font-semibold">98%</span>
-                  </div>
-                </div>
-              </motion.div>
+            {/* Slider Indicator Dots */}
+            <div className="absolute top-4 right-4 flex gap-1.5 z-20">
+              {HERO_IMAGES.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentImageIdx(idx)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    idx === currentImageIdx ? 'w-6 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'
+                  }`}
+                />
+              ))}
             </div>
           </motion.div>
+
         </div>
       </section>
 
-      {/* Nile in the Real World - Using GlassCard Class */}
-      <section id="solutions" className="py-16 px-4 sm:px-6 relative z-10">
-        <div className="max-w-7xl mx-auto">
+      {/* Core Value Propositions (Pillars) */}
+      <section className="py-20 bg-white border-y border-zinc-200/80 px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-50px' }}
+          variants={staggerContainer}
+          className="max-w-7xl mx-auto space-y-16"
+        >
+          
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <h2 className="text-2xl sm:text-4xl font-semibold tracking-tight text-zinc-900">
+              Built for people whose time is worth paying for
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-500 font-normal">
+              Reinvent your booking experience with tools engineered to turn visitors into paying clients.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {[
+              { icon: Globe, title: 'A home for your business', desc: 'A beautiful website is no longer optional. Every Nile Booking website is fast, mobile-ready and designed to turn visitors into bookings.' },
+              { icon: Calendar, title: 'Bookings without back & forth', desc: "Stop answering 'Are you available?'. Clients choose a service, pick a time and confirm instantly." },
+              { icon: CreditCard, title: 'Payments that respect time', desc: 'Accept deposits or full payment before appointments. Protect your schedule and reduce no-shows.' },
+              { icon: Clock, title: 'Your calendar, organised', desc: 'Working hours, unavailable dates, breaks and appointments all live in one place.' },
+              { icon: MessageSquare, title: 'Built for WhatsApp', desc: 'Share one link. Clients see your business, services and availability without endless chats.' },
+              { icon: Zap, title: 'Everything in one place', desc: 'Website. Bookings. Payments. Calendar. Clients. One dashboard.' },
+            ].map((pillar, idx) => {
+              const Icon = pillar.icon;
+              return (
+                <motion.div
+                  key={idx}
+                  variants={fadeInUp}
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="bg-gray-50/60 border border-zinc-200/80 rounded-xl p-6 space-y-3 shadow-xs hover:shadow-md hover:border-zinc-300 transition-all"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-zinc-900 text-white flex items-center justify-center">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-base font-semibold text-zinc-900 tracking-tight">{pillar.title}</h3>
+                  <p className="text-xs text-zinc-600 font-normal leading-relaxed">{pillar.desc}</p>
+                </motion.div>
+              );
+            })}
+
+          </div>
+
+          {/* Designed for Every Service Business Banner */}
           <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
-            className="space-y-8"
+            variants={fadeInUp}
+            className="bg-zinc-900 text-white rounded-2xl p-8 sm:p-12 text-center space-y-4 shadow-xl border border-zinc-800"
           >
-            <motion.div variants={fadeInUp} className="text-center mb-16">
-              <h2 className="text-2xl sm:text-3xl md:text-6xl font-black text-gray-900 mb-4 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                Nile in the Real World
-              </h2>
-              <p className="text-xl text-gray-600 font-light tracking-tight">
-                See how professionals across Africa are transforming their businesses
+            <h3 className="text-xl sm:text-2xl font-bold tracking-tight">Designed for every service business</h3>
+            <p className="text-xs sm:text-sm text-zinc-300 max-w-3xl mx-auto leading-relaxed font-normal">
+              Barbers, salons, makeup artists, photographers, consultants, tutors, fitness coaches, therapists, dentists, lawyers, agencies and every business that sells expertise.
+            </p>
+          </motion.div>
+
+        </motion.div>
+      </section>
+
+      {/* Feature Directory Grid */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-12">
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
+            Complete Feature Directory
+          </h2>
+          <p className="text-xs sm:text-sm text-zinc-500 font-normal">
+            Everything included to manage, market, and grow your service business
+          </p>
+        </div>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-50px' }}
+          variants={staggerContainer}
+          className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+        >
+          {featureGridItems.map((item, idx) => (
+            <motion.div
+              key={idx}
+              variants={fadeInUp}
+              whileHover={{ scale: 1.02 }}
+              className="bg-white border border-zinc-200/80 rounded-xl p-4 space-y-1 shadow-xs hover:border-zinc-300 transition-all"
+            >
+              <div className="flex items-center gap-2 text-zinc-900 font-semibold text-xs tracking-tight">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>{item.title}</span>
+              </div>
+              <p className="text-[11px] text-zinc-500 font-normal leading-snug pl-5">
+                {item.desc}
               </p>
             </motion.div>
-
-            {/* The Modern Stylist - Lagos */}
-            <motion.div
-              variants={fadeInUp}
-              className={`${glassCardClass} p-6 md:p-8 lg:p-16`}
-            >
-              <div className="grid md:grid-cols-2 gap-6 md:gap-8 items-center">
-                <div>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <Scissors className="w-6 h-6 sm:w-8 sm:h-8 text-[#22c55e]" strokeWidth={1.5} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                        The Modern Stylist
-                      </h3>
-                      <div className="flex items-center gap-2 mt-2">
-                        <MapPin className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-500 font-light">Lagos, Nigeria</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-2xl p-6 border border-gray-200 mb-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        ))}
-                      </div>
-                      <span className="text-sm font-bold text-gray-900">4.9</span>
-                      <span className="text-sm text-gray-500">(127 reviews)</span>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                        <span className="text-sm text-gray-600">Faded Cut</span>
-                        <span className="text-base font-black text-gray-900 tracking-tighter">{formatCurrency(15000, currency)}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                        <span className="text-sm text-gray-600">Beard Trim</span>
-                        <span className="text-base font-black text-gray-900 tracking-tighter">{formatCurrency(5000, currency)}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-600">Full Service</span>
-                        <span className="text-base font-black text-gray-900 tracking-tighter">{formatCurrency(20000, currency)}</span>
-                      </div>
-                    </div>
-                    <button className="w-full mt-4 bg-gray-900 text-white rounded-xl py-3 font-semibold text-sm hover:bg-gray-800 transition-colors">
-                      Book Now
-                    </button>
-                  </div>
-                  <p className="text-base text-gray-600 leading-relaxed tracking-tight font-light">
-                    Eliminated 15 DMs a day. Clients now book, pay deposits, and receive WhatsApp confirmations automatically. Revenue increased 40% in the first month.
-                  </p>
-                </div>
-                <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-8 border border-gray-100">
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 font-light">Daily Bookings</span>
-                      <span className="text-2xl font-black text-gray-900 tracking-tighter">24</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 font-light">No-Show Rate</span>
-                      <span className="text-2xl font-black text-[#22c55e] tracking-tighter">2%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 font-light">Revenue Growth</span>
-                      <span className="text-2xl font-black text-gray-900 tracking-tighter">+40%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* The Strategy Consultant - Nairobi */}
-            <motion.div
-              variants={fadeInUp}
-              className={`${glassCardClass} p-6 md:p-8 lg:p-16`}
-            >
-              <div className="grid md:grid-cols-2 gap-6 md:gap-8 items-center">
-                <div className="order-2 md:order-1">
-                  <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-8 border border-gray-100">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600 font-light">Time Zones</span>
-                        <span className="text-2xl font-black text-gray-900 tracking-tighter">12</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600 font-light">Currency Conversion</span>
-                        <span className="text-2xl font-black text-[#22c55e] tracking-tighter">Auto</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600 font-light">Client Satisfaction</span>
-                        <span className="text-2xl font-black text-gray-900 tracking-tighter">98%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="order-1 md:order-2">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <Globe className="w-6 h-6 sm:w-8 sm:h-8 text-[#22c55e]" strokeWidth={1.5} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                        The Strategy Consultant
-                      </h3>
-                      <div className="flex items-center gap-2 mt-2">
-                        <MapPin className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-500 font-light">Nairobi, Kenya</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-2xl p-6 border border-gray-200 mb-6">
-                    <div className="mb-4">
-                      <h4 className="text-lg font-black text-gray-900 mb-2 tracking-tighter">Book a 1-hour Strategy Session</h4>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Clock className="w-4 h-4" />
-                        <span>60 minutes</span>
-                      </div>
-                    </div>
-                    <div className="border-t border-gray-200 pt-4 mb-4">
-                      <label className="text-sm font-medium text-gray-700 mb-2 block">Select Time Zone</label>
-                      <select className="w-full border border-gray-200 rounded-lg px-4 py-2 text-sm">
-                        <option>GMT+1 (WAT)</option>
-                        <option>GMT+3 (EAT)</option>
-                        <option>EST (GMT-5)</option>
-                        <option>PST (GMT-8)</option>
-                      </select>
-                    </div>
-                    <button className="w-full bg-gray-900 text-white rounded-xl py-3 font-semibold text-sm hover:bg-gray-800 transition-colors">
-                      Book Session
-                    </button>
-                  </div>
-                  <p className="text-base text-gray-600 leading-relaxed tracking-tight font-light">
-                    Accepting bookings across time zones with instant currency conversion and professional invoicing. Clients from London to Lagos book seamlessly.
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* The Wellness Center - Johannesburg */}
-            <motion.div
-              variants={fadeInUp}
-              className={`${glassCardClass} p-6 md:p-8 lg:p-16`}
-            >
-              <div className="grid md:grid-cols-2 gap-6 md:gap-8 items-center">
-                <div>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                      <SpaIcon className="w-6 h-6 sm:w-8 sm:h-8 text-[#22c55e]" strokeWidth={1.5} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                        The Wellness Center
-                      </h3>
-                      <div className="flex items-center gap-2 mt-2">
-                        <MapPin className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-500 font-light">Johannesburg, South Africa</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-2xl p-6 border border-gray-200 mb-6 max-h-96 overflow-y-auto">
-                    <h4 className="text-lg font-black text-gray-900 mb-4 tracking-tighter">Service Menu</h4>
-                    <div className="space-y-4">
-                      {[
-                        { name: 'Deep Tissue Massage', duration: '60 min', price: 'R800' },
-                        { name: 'Swedish Massage', duration: '90 min', price: 'R1,200' },
-                        { name: 'Hot Stone Therapy', duration: '75 min', price: 'R1,000' },
-                        { name: 'Aromatherapy', duration: '60 min', price: 'R850' },
-                        { name: 'Couples Massage', duration: '90 min', price: 'R2,000' },
-                        { name: 'Facial Treatment', duration: '45 min', price: 'R600' },
-                      ].map((service, i) => (
-                        <div key={i} className="bg-white/70 backdrop-blur-sm border border-gray-100 rounded-xl p-4 hover:bg-white/90 transition-colors">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="font-semibold text-gray-900 text-sm mb-1">{service.name}</div>
-                              <div className="text-xs text-gray-500">{service.duration}</div>
-                            </div>
-                            <div className="font-black text-gray-900 tracking-tighter">{service.price}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-base text-gray-600 leading-relaxed tracking-tight font-light">
-                    Managing complex service menus and multi-staff scheduling through a unified digital dashboard. Multiple therapists, varied service durations, and package deals | all managed automatically.
-                  </p>
-                </div>
-                <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-8 border border-gray-100">
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 font-light">Staff Members</span>
-                      <span className="text-2xl font-black text-gray-900 tracking-tighter">8</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 font-light">Services Offered</span>
-                      <span className="text-2xl font-black text-[#22c55e] tracking-tighter">24</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 font-light">Booking Efficiency</span>
-                      <span className="text-2xl font-black text-gray-900 tracking-tighter">100%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        </div>
+          ))}
+        </motion.div>
       </section>
 
-      {/* Final CTA */}
-      <section id="enterprise" className="py-16 px-4 sm:px-6 relative z-10">
-        <div className="max-w-5xl mx-auto text-center">
-          <motion.div
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-          >
-            <motion.h2
-              variants={fadeInUp}
-              className="text-2xl sm:text-3xl md:text-7xl font-black text-gray-900 mb-8 leading-tight tracking-tighter"
-              style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}
-            >
-              Start accepting bookings today
-            </motion.h2>
-            <motion.p
-              variants={fadeInUp}
-              className="text-2xl text-gray-600 mb-16 tracking-tight font-light"
-            >
-              No credit card required
-            </motion.p>
-            <motion.div variants={fadeInUp}>
-              <Button
-                size="lg"
-                className="rounded-full px-8 py-6 text-base font-semibold bg-gray-900 text-white hover:bg-gray-800 h-auto tracking-tight"
-                asChild
+      {/* How it Works (4 Steps) */}
+      <section className="py-20 bg-white border-y border-zinc-200/80 px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-50px' }}
+          variants={staggerContainer}
+          className="max-w-7xl mx-auto space-y-12"
+        >
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
+              How It Works
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-500 font-normal">
+              Launch your online booking storefront in 4 simple steps
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { num: '1', title: 'Create your website', desc: 'Choose your business name and launch your website.' },
+              { num: '2', title: 'Add your services', desc: 'Set pricing, duration and availability.' },
+              { num: '3', title: 'Share your link', desc: 'Send one link across WhatsApp, Instagram, TikTok or anywhere.' },
+              { num: '4', title: 'Get booked', desc: 'Clients book and pay while you focus on your work.' },
+            ].map((step, idx) => (
+              <motion.div
+                key={idx}
+                variants={fadeInUp}
+                whileHover={{ y: -4 }}
+                className="bg-gray-50/60 border border-zinc-200/80 rounded-xl p-6 space-y-3 transition-all"
               >
-                <Link to="/register">Create your free website</Link>
-              </Button>
-            </motion.div>
+                <div className="w-8 h-8 rounded-full bg-zinc-900 text-white font-bold flex items-center justify-center text-xs">
+                  {step.num}
+                </div>
+                <h3 className="text-sm font-semibold text-zinc-900">{step.title}</h3>
+                <p className="text-xs text-zinc-500 font-normal leading-relaxed">
+                  {step.desc}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-12">
+        
+        <div className="text-center max-w-2xl mx-auto space-y-2">
+          <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
+            Simple pricing. No setup fees. No hidden costs.
+          </h2>
+          <p className="text-xs sm:text-sm text-zinc-500 font-normal">
+            All plans are billed every three months. Choose the plan that fits your business today.
+          </p>
+        </div>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-50px' }}
+          variants={staggerContainer}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto"
+        >
+          {/* Starter */}
+          <motion.div variants={fadeInUp} className="bg-white border border-zinc-200/80 rounded-xl p-6 space-y-6 flex flex-col justify-between shadow-xs">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900">Starter</h3>
+                <p className="text-xs text-zinc-500 mt-1">Essential booking for independent practitioners</p>
+              </div>
+              <div>
+                <span className="text-3xl font-bold text-zinc-900">₦10,000</span>
+                <span className="text-xs text-zinc-500 font-normal block mt-0.5">Every 3 months</span>
+              </div>
+              <ul className="space-y-2 text-xs text-zinc-700 font-normal pt-2 border-t border-zinc-100">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Professional website
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Online bookings
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Online payments & bank transfers
+                </li>
+              </ul>
+            </div>
+
+            <Button
+              asChild
+              className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-lg h-9 text-xs font-medium transition-colors"
+            >
+              <Link to="/register">Get Started with Starter</Link>
+            </Button>
           </motion.div>
+
+          {/* Growth */}
+          <motion.div variants={fadeInUp} className="bg-zinc-900 text-white rounded-xl p-6 space-y-6 flex flex-col justify-between shadow-xl relative border border-zinc-800">
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-zinc-950 font-bold text-[10px] uppercase tracking-wider px-3 py-0.5 rounded-full">
+              Most Popular
+            </span>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-white">Growth</h3>
+                <p className="text-xs text-zinc-400 mt-1">For growing shops & busy specialists</p>
+              </div>
+              <div>
+                <span className="text-3xl font-bold text-white">₦15,000</span>
+                <span className="text-xs text-zinc-400 font-normal block mt-0.5">Every 3 months</span>
+              </div>
+              <ul className="space-y-2 text-xs text-zinc-300 font-normal pt-2 border-t border-zinc-800">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Professional website
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Online bookings & payments
+                </li>
+                <li className="flex items-center gap-2 font-medium text-white">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Custom domain included
+                </li>
+                <li className="flex items-center gap-2 font-medium text-white">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Priority support
+                </li>
+              </ul>
+            </div>
+
+            <Button
+              asChild
+              className="w-full bg-white text-zinc-900 hover:bg-zinc-100 rounded-lg h-9 text-xs font-semibold transition-colors"
+            >
+              <Link to="/register">Choose Growth Plan</Link>
+            </Button>
+          </motion.div>
+
+          {/* Premium */}
+          <motion.div variants={fadeInUp} className="bg-white border border-zinc-200/80 rounded-xl p-6 space-y-6 flex flex-col justify-between shadow-xs">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900">Premium</h3>
+                <p className="text-xs text-zinc-500 mt-1">Full brand customization & team features</p>
+              </div>
+              <div>
+                <span className="text-3xl font-bold text-zinc-900">₦25,000</span>
+                <span className="text-xs text-zinc-500 font-normal block mt-0.5">Every 3 months</span>
+              </div>
+              <ul className="space-y-2 text-xs text-zinc-700 font-normal pt-2 border-t border-zinc-100">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  All Growth features
+                </li>
+                <li className="flex items-center gap-2 font-medium text-zinc-900">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Custom domain included
+                </li>
+                <li className="flex items-center gap-2 font-medium text-zinc-900">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Advanced branding & logo studio
+                </li>
+                <li className="flex items-center gap-2 font-medium text-zinc-900">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Priority VIP support
+                </li>
+              </ul>
+            </div>
+
+            <Button
+              asChild
+              className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-lg h-9 text-xs font-medium transition-colors"
+            >
+              <Link to="/register">Choose Premium Plan</Link>
+            </Button>
+          </motion.div>
+        </motion.div>
+
+      </section>
+
+      {/* FAQ Accordion */}
+      <section className="py-20 bg-white border-y border-zinc-200/80 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto space-y-8">
+          
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-900">
+              Frequently Asked Questions
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-500 font-normal">
+              Everything you need to know about getting started with Nile Booking
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {faqs.map((faq, idx) => (
+              <div
+                key={idx}
+                className="bg-gray-50/60 border border-zinc-200/80 rounded-xl overflow-hidden transition-colors"
+              >
+                <button
+                  onClick={() => toggleFaq(idx)}
+                  className="w-full text-left px-5 py-4 flex items-center justify-between text-xs sm:text-sm font-semibold text-zinc-900"
+                >
+                  <span>{faq.q}</span>
+                  <ChevronDown className={`w-4 h-4 text-zinc-500 transition-transform duration-200 ${activeFaq === idx ? 'rotate-180' : ''}`} />
+                </button>
+                {activeFaq === idx && (
+                  <div className="px-5 pb-4 text-xs text-zinc-600 font-normal leading-relaxed border-t border-zinc-200/40 pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
         </div>
       </section>
+
+      {/* Premium Elevated Call to Action Hero Banner */}
+      <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="bg-gradient-to-b from-zinc-900 to-zinc-950 text-white rounded-3xl p-10 sm:p-16 text-center space-y-8 shadow-2xl relative overflow-hidden border border-zinc-800"
+        >
+          {/* Subtle Glow Background Effect */}
+          <div className="absolute -top-24 -left-24 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="space-y-3 max-w-3xl mx-auto relative z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium bg-white/10 text-emerald-400 border border-white/10 backdrop-blur-md">
+              <Sparkles className="w-3.5 h-3.5" />
+              Join Thousands of Modern Service Businesses
+            </div>
+
+            <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white leading-tight">
+              Your next client is already online.<br />
+              <span className="text-zinc-400 font-normal">Give them a place to discover you, trust you and book you.</span>
+            </h2>
+          </div>
+
+          <div className="pt-4 relative z-10 flex flex-col sm:flex-row justify-center items-center gap-3">
+            <Button
+              asChild
+              className="bg-white text-zinc-950 hover:bg-zinc-100 rounded-xl h-12 px-7 text-xs font-semibold shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 group border border-white"
+            >
+              <Link to="/register" className="inline-flex items-center gap-2 whitespace-nowrap">
+                <span>Launch your website today</span>
+                <ArrowRight className="w-4 h-4 shrink-0 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
+
+            <Button
+              asChild
+              variant="outline"
+              className="bg-zinc-900/80 border-zinc-700 text-white hover:bg-zinc-800 rounded-xl h-12 px-7 text-xs font-semibold transition-all backdrop-blur-md"
+            >
+              <Link to="/login">Sign In</Link>
+            </Button>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Footer */}
+      <Footer />
     </div>
-    );
-  } catch (error) {
-    console.error("Landing component error:", error);
-    return <EmergencyHero />;
-  }
+  );
 };

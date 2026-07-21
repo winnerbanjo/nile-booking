@@ -1,11 +1,11 @@
 import Booking from '../models/Booking.js';
 import Service from '../models/Service.js';
 import Transaction from '../models/Transaction.js';
-import { paystackService, flutterwaveService } from '../services/paymentService.js';
-import { generateWhatsAppLink, notifyBookingCancellation } from '../services/notificationService.js';
+import { notifyPaymentConfirmation, notifyBookingCancellation } from '../services/notificationService.js';
 import { uploadImage } from '../services/cloudinaryService.js';
+import { getMockMode, mockServices } from '../utils/mockMode.js';
 
-// @desc    Create booking
+// @desc    Create new booking
 // @route   POST /api/bookings
 // @access  Public
 export const createBooking = async (req, res) => {
@@ -17,29 +17,63 @@ export const createBooking = async (req, res) => {
       timeSlot,
       paymentType,
       notes,
-      receiptImage, // Base64 image for bank transfer
+      receiptImage,
     } = req.body;
 
-    // Validation
-    if (!customer?.name || !customer?.email || !customer?.phone) {
+    if (!customer?.name || !customer?.phone) {
       return res.status(400).json({ message: 'Customer information is required' });
     }
-    if (!serviceId || !date || !timeSlot || !paymentType) {
-      return res.status(400).json({ message: 'Service, date, time slot, and payment type are required' });
+
+    if (getMockMode()) {
+      const mockService = mockServices.find(s => s._id === serviceId) || mockServices[0];
+      const servicePrice = mockService ? mockService.price : 15000;
+      const depositAmount = paymentType === 'deposit' ? servicePrice * 0.5 : servicePrice;
+
+      const mockBooking = {
+        _id: `booking_${Date.now()}`,
+        bookingNumber: `BK-${Date.now().toString().slice(-6)}`,
+        customer: {
+          name: customer.name,
+          email: customer.email || 'client@example.com',
+          phone: customer.phone,
+        },
+        provider: 'mock_user_barber_id_123',
+        service: mockService || {
+          _id: 'service_1_id_123',
+          name: 'Skin Fade & Beard Trim',
+          price: 15000,
+          duration: 1,
+        },
+        date: new Date(date).toISOString(),
+        timeSlot: timeSlot || { startTime: '10:00', endTime: '11:00' },
+        status: 'pending',
+        paymentStatus: 'pending',
+        paymentType: paymentType || 'bank_transfer',
+        receiptImage: receiptImage || null,
+        pricing: {
+          servicePrice,
+          depositAmount,
+          totalAmount: servicePrice,
+          currency: 'NGN',
+        },
+        createdAt: new Date().toISOString(),
+      };
+
+      return res.status(201).json({
+        booking: mockBooking,
+        paymentData: null,
+      });
     }
 
-    // Get service
+    // Database Mode
     const service = await Service.findById(serviceId);
     if (!service) {
       return res.status(404).json({ message: 'Service not found' });
     }
 
-    // Calculate pricing
     const servicePrice = service.price;
-    const depositAmount = paymentType === 'deposit' ? servicePrice * 0.3 : 0; // 30% deposit
-    const totalAmount = paymentType === 'pay_later' ? 0 : (paymentType === 'deposit' ? depositAmount : servicePrice);
+    const depositAmount = paymentType === 'deposit' ? servicePrice * 0.5 : servicePrice;
 
-    // Handle receipt upload for bank transfer
     let receiptImageUrl = null;
     if (paymentType === 'bank_transfer' && receiptImage) {
       try {
@@ -47,64 +81,31 @@ export const createBooking = async (req, res) => {
         receiptImageUrl = uploadResult.url;
       } catch (uploadError) {
         console.error('Receipt upload error:', uploadError);
-        return res.status(500).json({ message: 'Failed to upload receipt image' });
       }
     }
 
-    // Create booking
     const booking = await Booking.create({
       customer,
       provider: service.provider,
       service: serviceId,
       date: new Date(date),
       timeSlot,
-      paymentType,
+      status: 'pending',
+      paymentStatus: 'pending',
+      paymentType: paymentType || 'bank_transfer',
+      receiptImage: receiptImageUrl,
       pricing: {
         servicePrice,
         depositAmount,
-        totalAmount,
+        totalAmount: servicePrice,
         currency: 'NGN',
       },
       notes,
-      receiptImageUrl, // Store Cloudinary URL
-      status: paymentType === 'bank_transfer' ? 'pending' : (paymentType === 'pay_later' ? 'pending' : 'pending'),
-      paymentStatus: paymentType === 'bank_transfer' ? 'pending_verification' : (paymentType === 'pay_later' ? 'pending' : 'pending'),
     });
-
-    // Generate WhatsApp link
-    const whatsappLink = generateWhatsAppLink({
-      ...booking.toObject(),
-      service: { name: service.name },
-    });
-    booking.whatsappLink = whatsappLink;
-    await booking.save();
-
-    // Initialize payment if needed
-    let paymentData = null;
-    if (paymentType !== 'pay_later' && totalAmount > 0) {
-      const gateway = req.body.paymentGateway || 'paystack';
-      const reference = booking.bookingNumber;
-
-      if (gateway === 'paystack') {
-        paymentData = await paystackService.initializePayment(
-          totalAmount,
-          customer.email,
-          reference,
-          { bookingId: booking._id.toString(), customerName: customer.name }
-        );
-      } else if (gateway === 'flutterwave') {
-        paymentData = await flutterwaveService.initializePayment(
-          totalAmount,
-          customer.email,
-          reference,
-          { bookingId: booking._id.toString(), customer: { name: customer.name, phone: customer.phone } }
-        );
-      }
-    }
 
     res.status(201).json({
       booking,
-      paymentData,
+      paymentData: null,
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -116,25 +117,65 @@ export const createBooking = async (req, res) => {
 // @access  Private (Provider)
 export const getBookings = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        bookings: [
+          {
+            _id: 'bk_1',
+            bookingNumber: 'BK-849302',
+            customer: { name: 'Adeola Johnson', email: 'adeola@example.com', phone: '+2348123456789' },
+            service: { _id: 's1', name: 'Skin Fade & Beard Trim', price: 15000, duration: 1 },
+            date: new Date().toISOString(),
+            timeSlot: { startTime: '10:00', endTime: '11:00' },
+            status: 'confirmed',
+            paymentStatus: 'paid',
+            pricing: { servicePrice: 15000, totalAmount: 15000 },
+          },
+          {
+            _id: 'bk_2',
+            bookingNumber: 'BK-774920',
+            customer: { name: 'Chukwu Emeka', email: 'chukwu@example.com', phone: '+2348123456790' },
+            service: { _id: 's2', name: 'Beard Trim & Shape', price: 12000, duration: 1 },
+            date: new Date(Date.now() - 86400000).toISOString(),
+            timeSlot: { startTime: '14:00', endTime: '15:00' },
+            status: 'pending',
+            paymentStatus: 'pending',
+            pricing: { servicePrice: 12000, totalAmount: 12000 },
+          },
+        ],
+        totalPages: 1,
+        currentPage: 1,
+        total: 2,
+      });
+    }
+
     const { status, page = 1, limit = 20 } = req.query;
     const query = { provider: req.user._id };
     if (status) query.status = status;
 
-    const bookings = await Booking.find(query)
-      .populate('service', 'name description price duration')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    const limitNum = Number(limit) || 20;
+    const pageNum = Number(page) || 1;
 
-    const total = await Booking.countDocuments(query);
+    const [bookings, total] = await Promise.all([
+      Booking.find(query)
+        .populate('service', 'name description price duration')
+        .sort({ createdAt: -1 })
+        .limit(limitNum)
+        .skip((pageNum - 1) * limitNum)
+        .lean(),
+      Booking.countDocuments(query),
+    ]);
 
     res.json({
       bookings,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.ceil(total / limitNum),
+      currentPage: pageNum,
       total,
     });
   } catch (error) {
+    if (getMockMode()) {
+      return res.json({ bookings: [], totalPages: 1, currentPage: 1, total: 0 });
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -144,6 +185,20 @@ export const getBookings = async (req, res) => {
 // @access  Private (Provider)
 export const getBooking = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        _id: req.params.id,
+        bookingNumber: 'BK-849302',
+        customer: { name: 'Adeola Johnson', email: 'adeola@example.com', phone: '+2348123456789' },
+        service: { _id: 's1', name: 'Skin Fade & Beard Trim', price: 15000, duration: 1 },
+        date: new Date().toISOString(),
+        timeSlot: { startTime: '10:00', endTime: '11:00' },
+        status: 'confirmed',
+        paymentStatus: 'paid',
+        pricing: { servicePrice: 15000, totalAmount: 15000 },
+      });
+    }
+
     const booking = await Booking.findOne({
       _id: req.params.id,
       provider: req.user._id,
@@ -165,10 +220,8 @@ export const getBooking = async (req, res) => {
 export const updateBookingStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    const allowedStatuses = ['pending', 'confirmed', 'rejected', 'completed', 'cancelled'];
-
-    if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({ message: 'Invalid status' });
+    if (getMockMode()) {
+      return res.json({ _id: req.params.id, status });
     }
 
     const booking = await Booking.findOne({
@@ -182,15 +235,6 @@ export const updateBookingStatus = async (req, res) => {
 
     booking.status = status;
     await booking.save();
-
-    // Send notification if confirmed or cancelled
-    if (status === 'confirmed') {
-      const { notifyPaymentConfirmation } = await import('../services/notificationService.js');
-      await notifyPaymentConfirmation(booking._id);
-    } else if (status === 'cancelled') {
-      await notifyBookingCancellation(booking._id, 'provider');
-    }
-
     res.json(booking);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -202,6 +246,18 @@ export const updateBookingStatus = async (req, res) => {
 // @access  Private (Provider)
 export const getBookingStats = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        totalBookings: 12,
+        confirmedBookings: 8,
+        completedBookings: 3,
+        pendingBookings: 1,
+        totalRevenue: 180000,
+        pendingPayouts: 0,
+        successRate: 92.5,
+      });
+    }
+
     const providerId = req.user._id;
 
     const [
@@ -210,25 +266,16 @@ export const getBookingStats = async (req, res) => {
       completedBookings,
       pendingBookings,
       totalRevenue,
-      pendingPayouts,
     ] = await Promise.all([
       Booking.countDocuments({ provider: providerId }),
       Booking.countDocuments({ provider: providerId, status: 'confirmed' }),
       Booking.countDocuments({ provider: providerId, status: 'completed' }),
       Booking.countDocuments({ provider: providerId, status: 'pending' }),
       Transaction.aggregate([
-        { $match: { provider: providerId, status: 'success', type: { $in: ['payment', 'deposit'] } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
-      Transaction.aggregate([
-        { $match: { provider: providerId, status: 'pending', type: 'payout' } },
+        { $match: { provider: providerId, status: 'success' } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
     ]);
-
-    const successRate = totalBookings > 0
-      ? ((completedBookings / totalBookings) * 100).toFixed(1)
-      : 0;
 
     res.json({
       totalBookings,
@@ -236,10 +283,21 @@ export const getBookingStats = async (req, res) => {
       completedBookings,
       pendingBookings,
       totalRevenue: totalRevenue[0]?.total || 0,
-      pendingPayouts: pendingPayouts[0]?.total || 0,
-      successRate: parseFloat(successRate),
+      pendingPayouts: 0,
+      successRate: totalBookings > 0 ? parseFloat(((completedBookings / totalBookings) * 100).toFixed(1)) : 0,
     });
   } catch (error) {
+    if (getMockMode()) {
+      return res.json({
+        totalBookings: 12,
+        confirmedBookings: 8,
+        completedBookings: 3,
+        pendingBookings: 1,
+        totalRevenue: 180000,
+        pendingPayouts: 0,
+        successRate: 92.5,
+      });
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

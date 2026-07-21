@@ -12,6 +12,7 @@ interface AuthContextType {
     password: string;
     businessName?: string;
     phone?: string;
+    country?: string;
   }) => Promise<void>;
   logout: () => void;
 }
@@ -21,8 +22,23 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Synchronous hydration from localStorage for 0ms initial load
+  const [user, setUser] = useState<User | null>(() => {
+    const cachedUser = localStorage.getItem('nile_user');
+    if (cachedUser) {
+      try {
+        return JSON.parse(cachedUser);
+      } catch (e) {}
+    }
+    return null;
+  });
+
+  const [loading, setLoading] = useState<boolean>(() => {
+    const token = localStorage.getItem('token');
+    const cachedUser = localStorage.getItem('nile_user');
+    // If token and cached user exist, render immediately without spinner!
+    return !!token && !cachedUser;
+  });
 
   useEffect(() => {
     const initAuth = async () => {
@@ -30,10 +46,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (token) {
         try {
           const userData = await authApi.getMe();
-          setUser(userData);
+          if (userData) {
+            setUser(userData);
+            localStorage.setItem('nile_user', JSON.stringify(userData));
+          }
         } catch (error) {
-          localStorage.removeItem('token');
+          console.warn('Auth check fallback:', error);
+          if (!localStorage.getItem('nile_user')) {
+            localStorage.removeItem('token');
+            setUser(null);
+          }
         }
+      } else {
+        setUser(null);
+        localStorage.removeItem('nile_user');
       }
       setLoading(false);
     };
@@ -41,23 +67,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response = await authApi.login({
-        email: email.trim().toLowerCase(),
-        password,
-      });
-      setUser({
-        _id: response._id,
-        name: response.name,
-        email: response.email,
-        role: response.role as 'customer' | 'provider' | 'admin',
-        slug: response.slug,
-        businessName: response.businessName,
-      });
-    } catch (error) {
-      // Re-throw to allow Login component to handle it
-      throw error;
-    }
+    const response = await authApi.login({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    const loggedUser: User = {
+      _id: response._id,
+      name: response.name,
+      email: response.email,
+      role: response.role as 'customer' | 'provider' | 'admin',
+      slug: response.slug,
+      businessName: response.businessName,
+    };
+    setUser(loggedUser);
+    localStorage.setItem('nile_user', JSON.stringify(loggedUser));
+    setLoading(false);
   };
 
   const register = async (data: {
@@ -66,23 +90,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     password: string;
     businessName?: string;
     phone?: string;
+    country?: string;
   }) => {
-    const response = await authApi.register({
+    await authApi.register({
       ...data,
       email: data.email.trim().toLowerCase(),
-    });
-    setUser({
-      _id: response._id,
-      name: response.name,
-      email: response.email,
-      role: response.role as 'customer' | 'provider' | 'admin',
-      slug: response.slug,
-      businessName: response.businessName,
     });
   };
 
   const logout = () => {
-    authApi.logout();
+    localStorage.removeItem('token');
+    localStorage.removeItem('nile_user');
+    localStorage.removeItem('nile_dashboard_bookings');
+    localStorage.removeItem('nile_crm_cache');
     setUser(null);
   };
 
@@ -95,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

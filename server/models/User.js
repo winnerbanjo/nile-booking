@@ -42,6 +42,22 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    country: {
+      type: String,
+      default: 'Nigeria',
+      trim: true,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    otpCode: {
+      type: String,
+      trim: true,
+    },
+    otpExpires: {
+      type: Date,
+    },
     bio: {
       type: String,
       trim: true,
@@ -50,9 +66,31 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    logo: {
+      type: String,
+      trim: true,
+    },
     profileImage: {
       type: String,
       trim: true,
+    },
+    headerImage: {
+      type: String,
+      trim: true,
+    },
+    policies: {
+      terms: {
+        type: String,
+        default: 'All bookings must be confirmed in advance. Cancellations made at least 24 hours prior to appointment time are eligible for reschedule.',
+      },
+      returnPolicy: {
+        type: String,
+        default: 'Services completed are non-refundable. Deposits for cancelled bookings may be transferred to a new slot within 30 days.',
+      },
+      privacyPolicy: {
+        type: String,
+        default: 'We value your privacy and only use your details for scheduling and confirmation updates.',
+      },
     },
     address: {
       street: String,
@@ -106,6 +144,10 @@ const userSchema = new mongoose.Schema(
     },
     socialHandles: {
       instagram: {
+        type: String,
+        trim: true,
+      },
+      whatsapp: {
         type: String,
         trim: true,
       },

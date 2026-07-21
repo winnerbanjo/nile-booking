@@ -1,37 +1,52 @@
-import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Schedule from '../models/Schedule.js';
+import jwt from 'jsonwebtoken';
 import { getMockMode, mockUsers } from '../utils/mockMode.js';
+import { sendMailtrapApiEmail } from '../services/notificationService.js';
 
+// Generate JWT token
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key-change-in-production', {
     expiresIn: '30d',
   });
 };
 
-// Generate slug from name
-const generateSlug = async (name) => {
-  let baseSlug = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-');
+// Auto-seed demo accounts in MongoDB Atlas if missing
+const ensureDemoAccount = async (email, role = 'provider') => {
+  try {
+    let user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      const isBarber = email.includes('barber');
+      user = await User.create({
+        name: isBarber ? 'The Modern Barber' : 'Nile Administrator',
+        email,
+        password: 'password123',
+        role: isBarber ? 'provider' : 'admin',
+        businessName: isBarber ? 'The Modern Barber' : 'Nile Technologies Inc',
+        slug: isBarber ? 'the-modern-barber' : 'nile-admin',
+        phone: '+2348123843076',
+        isVerified: true,
+      });
 
-  let slug = baseSlug;
-  let counter = 1;
-  
-    if (getMockMode()) {
-      // Mock mode: simple slug generation
-      return slug;
+      if (isBarber) {
+        await Schedule.create({
+          provider: user._id,
+          weeklySchedule: [
+            { day: 'monday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+            { day: 'tuesday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+            { day: 'wednesday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+            { day: 'thursday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+            { day: 'friday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+            { day: 'saturday', isOpen: true, slots: [{ startTime: '10:00', endTime: '16:00' }] },
+          ],
+        });
+      }
     }
-  
-  while (await User.findOne({ slug })) {
-    slug = `${baseSlug}-${counter}`;
-    counter++;
+    return user;
+  } catch (e) {
+    console.error('Demo account seed note:', e.message);
+    return null;
   }
-  
-  return slug;
 };
 
 // @desc    Register provider
@@ -39,65 +54,212 @@ const generateSlug = async (name) => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { name, password, businessName, phone } = req.body;
-    const email = req.body.email?.trim().toLowerCase();
+    const { name, email, password, businessName, phone, country } = req.body;
 
-    // Validation
     if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Please provide name, email, and password' });
+      return res.status(400).json({ message: 'Please fill in all required fields' });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+
     if (getMockMode()) {
-      // Mock mode: return error (registration not supported in mock mode)
-      return res.status(503).json({ 
-        message: 'Registration unavailable in mock mode. Please connect to database.' 
+      const slug = (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const mockUser = {
+        _id: `mock_user_${Date.now()}`,
+        name,
+        email: cleanEmail,
+        password,
+        role: 'provider',
+        businessName: businessName || name,
+        slug,
+        phone: phone || '+2348123456789',
+        country: country || 'Nigeria',
+        isVerified: false,
+        otpCode,
+        otpExpires,
+        comparePassword: async (candidatePassword) => candidatePassword === password,
+      };
+      mockUsers.set(cleanEmail, mockUser);
+
+      await sendMailtrapApiEmail({
+        toEmail: cleanEmail,
+        toName: name,
+        subject: `Your Nile Booking Verification Code: ${otpCode}`,
+        htmlContent: `<h2>Verification Code</h2><p>Your 6-digit OTP code to verify your Nile Booking merchant account is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
+        category: 'OTP Verification',
+      });
+
+      return res.status(201).json({
+        message: 'Registration initiated. Please verify your 6-digit OTP code.',
+        email: cleanEmail,
+        requiresOtp: true,
       });
     }
 
-    // Check if user exists
-    const userExists = await User.findOne({ email });
+    const userExists = await User.findOne({ email: cleanEmail });
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Generate slug
-    const slug = await generateSlug(businessName || name);
+    const slug = (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
 
-    // Create user
     const user = await User.create({
       name,
-      email,
+      email: cleanEmail,
       password,
       role: 'provider',
       businessName: businessName || name,
       slug,
       phone,
+      country: country || 'Nigeria',
+      isVerified: false,
+      otpCode,
+      otpExpires,
     });
 
-    // Create default schedule
     await Schedule.create({
       provider: user._id,
-      weeklySchedule: {
-        monday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '17:00' }] },
-        tuesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '17:00' }] },
-        wednesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '17:00' }] },
-        thursday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '17:00' }] },
-        friday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '17:00' }] },
-      },
-      bufferTime: 15,
+      weeklySchedule: [
+        { day: 'monday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+        { day: 'tuesday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+        { day: 'wednesday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+        { day: 'thursday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+        { day: 'friday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
+        { day: 'saturday', isOpen: true, slots: [{ startTime: '10:00', endTime: '16:00' }] },
+      ],
     });
 
-    if (user) {
-      res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        slug: user.slug,
-        businessName: user.businessName,
-        token: generateToken(user._id),
+    await sendMailtrapApiEmail({
+      toEmail: user.email,
+      toName: user.name,
+      subject: `Your Nile Booking Verification Code: ${otpCode}`,
+      htmlContent: `<h2>Verification Code</h2><p>Your 6-digit OTP code to verify your Nile Booking merchant account is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
+      category: 'OTP Verification',
+    });
+
+    res.status(201).json({
+      message: 'Registration initiated. Please verify your 6-digit OTP code.',
+      email: user.email,
+      requiresOtp: true,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Verify OTP
+// @route   POST /api/auth/verify-otp
+// @access  Public
+export const verifyOtp = async (req, res) => {
+  try {
+    const { email, otpCode } = req.body;
+    if (!email || !otpCode) {
+      return res.status(400).json({ message: 'Email and OTP code are required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (getMockMode()) {
+      const mockUser = mockUsers.get(cleanEmail);
+      if (!mockUser || mockUser.otpCode !== otpCode.trim()) {
+        return res.status(400).json({ message: 'Invalid or expired OTP code' });
+      }
+      mockUser.isVerified = true;
+      mockUser.otpCode = null;
+
+      await sendMailtrapApiEmail({
+        toEmail: cleanEmail,
+        toName: mockUser.name,
+        subject: `🎉 Congratulations! Your Nile Website is Live: nilebooking.co/p/${mockUser.slug}`,
+        htmlContent: `<h1>Congratulations ${mockUser.name}!</h1><p>Your signup is complete and your professional website is live at:</p><h3 style="color:#22c55e;"><a href="https://nilebooking.co/p/${mockUser.slug}">https://nilebooking.co/p/${mockUser.slug}</a></h3><p>Log in to your dashboard anytime to manage your bookings and services.</p>`,
+        category: 'Welcome Onboarding',
+      });
+
+      return res.json({
+        _id: mockUser._id,
+        name: mockUser.name,
+        email: mockUser.email,
+        role: mockUser.role,
+        slug: mockUser.slug,
+        businessName: mockUser.businessName,
+        isVerified: true,
+        token: generateToken(mockUser._id),
       });
     }
+
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
+    if (!user || user.otpCode !== otpCode.trim()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP code' });
+    }
+
+    user.isVerified = true;
+    user.otpCode = null;
+    user.otpExpires = null;
+    await user.save();
+
+    await sendMailtrapApiEmail({
+      toEmail: user.email,
+      toName: user.name,
+      subject: `🎉 Congratulations! Your Nile Website is Live: nilebooking.co/p/${user.slug}`,
+      htmlContent: `<h1>Congratulations ${user.name}!</h1><p>Your signup is complete and your professional website is live at:</p><h3 style="color:#22c55e;"><a href="https://nilebooking.co/p/${user.slug}">https://nilebooking.co/p/${user.slug}</a></h3><p>Log in to your dashboard anytime to manage your bookings and services.</p>`,
+      category: 'Welcome Onboarding',
+    });
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      slug: user.slug,
+      businessName: user.businessName,
+      isVerified: true,
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Resend OTP
+// @route   POST /api/auth/resend-otp
+// @access  Public
+export const resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+    const cleanEmail = email.trim().toLowerCase();
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    if (getMockMode()) {
+      const mockUser = mockUsers.get(cleanEmail);
+      if (mockUser) mockUser.otpCode = otpCode;
+      await sendMailtrapApiEmail({
+        toEmail: cleanEmail,
+        toName: mockUser?.name || 'Merchant',
+        subject: `Your New Nile Verification Code: ${otpCode}`,
+        htmlContent: `<h2>New Verification Code</h2><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1>`,
+        category: 'OTP Verification',
+      });
+      return res.json({ message: 'New OTP sent successfully' });
+    }
+
+    const user = await User.findOne({ email: cleanEmail });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.otpCode = otpCode;
+    user.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+    await user.save();
+
+    await sendMailtrapApiEmail({
+      toEmail: user.email,
+      toName: user.name,
+      subject: `Your New Nile Verification Code: ${otpCode}`,
+      htmlContent: `<h2>New Verification Code</h2><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1>`,
+      category: 'OTP Verification',
+    });
+
+    res.json({ message: 'New OTP sent successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -111,59 +273,57 @@ export const login = async (req, res) => {
     const password = req.body.password;
     const email = req.body.email?.trim().toLowerCase();
 
-    // Validation
     if (!email || !password) {
       return res.status(400).json({ message: 'Please provide email and password' });
     }
 
-    // Mock mode: Use mock users
-    if (getMockMode()) {
-      const mockUser = mockUsers.get(email);
-      
-      if (!mockUser) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      // Check if provider
-      if (mockUser.role !== 'provider' && mockUser.role !== 'admin') {
-        return res.status(403).json({ message: 'Access denied. Provider account required.' });
-      }
-
-      // Check password
-      const isMatch = await mockUser.comparePassword(password);
-
-      if (!isMatch) {
-        return res.status(401).json({ message: 'Invalid credentials' });
-      }
-
-      return res.json({
-        _id: mockUser._id,
-        name: mockUser.name,
-        email: mockUser.email,
-        role: mockUser.role,
-        slug: mockUser.slug,
-        businessName: mockUser.businessName,
-        token: generateToken(mockUser._id),
-      });
+    // Auto-seed demo accounts if trying demo emails
+    if (email === 'barber@nile.ng' || email === 'admin@nile.ng') {
+      await ensureDemoAccount(email);
     }
 
-    // Database mode: Use MongoDB
-    const user = await User.findOne({ email }).select('+password');
+    if (getMockMode()) {
+      let mockUser = mockUsers.get(email);
+      if (!mockUser && (email === 'barber@nile.ng' || email === 'admin@nile.ng')) {
+        mockUser = {
+          _id: `mock_${email}`,
+          name: email === 'barber@nile.ng' ? 'The Modern Barber' : 'Nile Administrator',
+          email,
+          password: 'password123',
+          role: email === 'admin@nile.ng' ? 'admin' : 'provider',
+          businessName: 'The Modern Barber',
+          slug: 'the-modern-barber',
+          comparePassword: async (p) => p === 'password123',
+        };
+        mockUsers.set(email, mockUser);
+      }
+
+      if (mockUser && (await mockUser.comparePassword(password))) {
+        return res.json({
+          _id: mockUser._id,
+          name: mockUser.name,
+          email: mockUser.email,
+          role: mockUser.role,
+          slug: mockUser.slug,
+          businessName: mockUser.businessName,
+          token: generateToken(mockUser._id),
+        });
+      }
+      return res.status(401).json({ message: 'Invalid credentials. Please check your email and password.' });
+    }
+
+    let user = await User.findOne({ email }).select('+password');
+    if (!user && (email === 'barber@nile.ng' || email === 'admin@nile.ng')) {
+      user = await ensureDemoAccount(email);
+    }
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid credentials. Please check your email and password.' });
     }
 
-    // Check if provider
-    if (user.role !== 'provider' && user.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied. Provider account required.' });
-    }
-
-    // Check password
     const isMatch = await user.comparePassword(password);
-
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid credentials. Please check your email and password.' });
     }
 
     res.json({
@@ -180,52 +340,96 @@ export const login = async (req, res) => {
   }
 };
 
+// @desc    Forgot Password Request
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email address is required' });
+
+    const cleanEmail = email.trim().toLowerCase();
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    if (!getMockMode()) {
+      const user = await User.findOne({ email: cleanEmail });
+      if (user) {
+        user.otpCode = otpCode;
+        user.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+        await user.save();
+      }
+    }
+
+    // Dispatch reset email via Mailtrap API
+    await sendMailtrapApiEmail({
+      toEmail: cleanEmail,
+      toName: cleanEmail,
+      subject: `Reset Your Nile Password: ${otpCode}`,
+      htmlContent: `<h2>Password Reset Requested</h2><p>Your 6-digit OTP code to reset your Nile Booking account password is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
+      category: 'Password Reset',
+    });
+
+    res.json({ message: 'Password reset OTP code sent to your email.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Reset Password Execution
+// @route   POST /api/auth/reset-password
+// @access  Public
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, otpCode, newPassword } = req.body;
+    if (!email || !otpCode || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP code, and new password are required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (getMockMode()) {
+      const mockUser = mockUsers.get(cleanEmail);
+      if (mockUser) {
+        mockUser.password = newPassword;
+        mockUser.comparePassword = async (p) => p === newPassword;
+      }
+      return res.json({ message: 'Password reset successful. You can now log in.' });
+    }
+
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
+    if (!user || user.otpCode !== otpCode.trim()) {
+      return res.status(400).json({ message: 'Invalid or expired OTP code' });
+    }
+
+    user.password = newPassword;
+    user.otpCode = null;
+    user.otpExpires = null;
+    await user.save();
+
+    await sendMailtrapApiEmail({
+      toEmail: user.email,
+      toName: user.name,
+      subject: `Security Alert: Your Nile Password Has Been Reset`,
+      htmlContent: `<h2>Password Reset Successful</h2><p>Hello ${user.name}, your Nile Booking password was updated successfully.</p>`,
+      category: 'Security Alert',
+    });
+
+    res.json({ message: 'Password reset successful. You can now log in with your new password.' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 // @desc    Get current user
 // @route   GET /api/auth/me
 // @access  Private
 export const getMe = async (req, res) => {
   try {
     if (getMockMode()) {
-      // In mock mode, decode token to get user ID
-      const token = req.headers.authorization?.replace('Bearer ', '');
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
-          const mockUser = Array.from(mockUsers.values()).find(u => u._id === decoded.id);
-          if (mockUser) {
-            return res.json({
-              _id: mockUser._id,
-              name: mockUser.name,
-              email: mockUser.email,
-              role: mockUser.role,
-              slug: mockUser.slug,
-              businessName: mockUser.businessName,
-              phone: mockUser.phone,
-              bio: mockUser.bio,
-              location: mockUser.location,
-              profileImage: mockUser.profileImage,
-            });
-          }
-        } catch (err) {
-          // Token invalid
-        }
-      }
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.json(req.user);
     }
-
     const user = await User.findById(req.user._id);
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      slug: user.slug,
-      businessName: user.businessName,
-      phone: user.phone,
-      bio: user.bio,
-      location: user.location,
-      profileImage: user.profileImage,
-    });
+    res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -236,37 +440,13 @@ export const getMe = async (req, res) => {
 // @access  Private
 export const updateProfile = async (req, res) => {
   try {
-    const { businessName, bio, location, profileImage } = req.body;
-
     if (getMockMode()) {
-      const token = req.headers.authorization?.replace('Bearer ', '');
-      if (token) {
-        try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
-          const mockUser = Array.from(mockUsers.values()).find(u => u._id === decoded.id);
-          if (mockUser) {
-            if (businessName !== undefined) mockUser.businessName = businessName;
-            if (bio !== undefined) mockUser.bio = bio;
-            if (location !== undefined) mockUser.location = location;
-            if (profileImage !== undefined) mockUser.profileImage = profileImage;
-            return res.json({
-              _id: mockUser._id,
-              name: mockUser.name,
-              email: mockUser.email,
-              role: mockUser.role,
-              slug: mockUser.slug,
-              businessName: mockUser.businessName,
-              phone: mockUser.phone,
-              bio: mockUser.bio,
-              location: mockUser.location,
-              profileImage: mockUser.profileImage,
-            });
-          }
-        } catch (err) {
-          // Token invalid
-        }
+      const mockUser = mockUsers.get(req.user.email);
+      if (mockUser) {
+        Object.assign(mockUser, req.body);
+        return res.json(mockUser);
       }
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.json({ ...req.user, ...req.body });
     }
 
     const user = await User.findById(req.user._id);
@@ -274,25 +454,39 @@ export const updateProfile = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (businessName !== undefined) user.businessName = businessName;
-    if (bio !== undefined) user.bio = bio;
-    if (location !== undefined) user.location = location;
-    if (profileImage !== undefined) user.profileImage = profileImage;
+    const {
+      name,
+      businessName,
+      phone,
+      bio,
+      location,
+      logo,
+      profileImage,
+      headerImage,
+      policies,
+      address,
+      bankAccount,
+      socialHandles,
+    } = req.body;
+
+    if (name) user.name = name;
+    if (businessName) {
+      user.businessName = businessName;
+      user.slug = businessName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    }
+    if (phone) user.phone = phone;
+    if (bio) user.bio = bio;
+    if (location) user.location = location;
+    if (logo) user.logo = logo;
+    if (profileImage) user.profileImage = profileImage;
+    if (headerImage) user.headerImage = headerImage;
+    if (policies) user.policies = { ...user.policies, ...policies };
+    if (address) user.address = { ...user.address, ...address };
+    if (bankAccount) user.bankAccount = { ...user.bankAccount, ...bankAccount };
+    if (socialHandles) user.socialHandles = { ...user.socialHandles, ...socialHandles };
 
     await user.save();
-
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      slug: user.slug,
-      businessName: user.businessName,
-      phone: user.phone,
-      bio: user.bio,
-      location: user.location,
-      profileImage: user.profileImage,
-    });
+    res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

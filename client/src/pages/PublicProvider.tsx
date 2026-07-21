@@ -3,50 +3,15 @@ import { useParams } from 'react-router-dom';
 import { serviceApi, scheduleApi, bookingApi } from '../lib/api';
 import { getTenantConfig } from '../lib/subdomain';
 import { Calendar } from '../components/ui/calendar';
-import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { NileLogo } from '../components/ui/NileLogo';
 import type { ProviderWithServices, Schedule, Service } from '../types';
 import { addDays, startOfDay, getDay, format } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Star, Clock, MapPin, CheckCircle, X, CreditCard, Shield, ChevronUp } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Star, Clock, MapPin, CheckCircle2, X, Calendar as CalendarIcon, ChevronRight, Upload, Building2, Instagram, Phone, Twitter, Facebook, Shield, FileText, RotateCcw } from 'lucide-react';
 
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.06,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const fadeInUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: [0.6, -0.05, 0.01, 0.99] },
-  },
-};
-
-const floatAnimation = {
-  y: [-2, 2],
-  transition: {
-    duration: 3,
-    repeat: Infinity,
-    repeatType: 'reverse' as const,
-    ease: 'easeInOut',
-  },
-};
-
-const glassCardClass = "bg-white/40 backdrop-blur-3xl border border-white/30 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)]";
+const DEFAULT_HEADER_BANNER = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&h=600&fit=crop';
 
 interface PublicProviderProps {
   slug?: string | null;
@@ -55,9 +20,8 @@ interface PublicProviderProps {
 export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }) => {
   const { slug: urlSlug } = useParams<{ slug: string }>();
   const tenantConfig = getTenantConfig();
-  // Use prop slug (from subdomain) if provided, otherwise use tenant config slug, otherwise use URL slug
   const slug = propSlug || tenantConfig.slug || urlSlug;
-  
+
   const [data, setData] = useState<ProviderWithServices | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -66,13 +30,14 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [activePolicyModal, setActivePolicyModal] = useState<'terms' | 'return' | 'privacy' | null>(null);
+
   const [checkoutData, setCheckoutData] = useState({
     customer: { name: '', email: '', phone: '' },
-    paymentType: 'deposit' as 'full' | 'deposit' | 'pay_later',
-    paymentGateway: 'paystack' as 'paystack' | 'flutterwave',
+    notes: '',
   });
   const [loading, setLoading] = useState(true);
-  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     if (slug) {
@@ -82,17 +47,8 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   }, [slug]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
     if (data) {
-      // Set page title: "Merchant Name | Nile Booking"
-      document.title = `${data.provider.businessName} | Nile Booking`;
+      document.title = `${data.provider.businessName} | Official Booking Site`;
     }
   }, [data]);
 
@@ -127,7 +83,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     const dayOfWeek = DAY_NAMES[getDay(selectedDate)];
     const daySchedule = schedule.weeklySchedule[dayOfWeek as keyof typeof schedule.weeklySchedule];
 
-    if (!daySchedule.enabled || daySchedule.timeSlots.length === 0) {
+    if (!daySchedule || !daySchedule.enabled || daySchedule.timeSlots.length === 0) {
       setAvailableTimeSlots([]);
       return;
     }
@@ -139,17 +95,16 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     daySchedule.timeSlots.forEach((slot) => {
       const [startHour, startMin] = slot.startTime.split(':').map(Number);
       const [endHour, endMin] = slot.endTime.split(':').map(Number);
-      
+
       const startTime = new Date(selectedDate);
       startTime.setHours(startHour, startMin, 0, 0);
-      
+
       const endTime = new Date(selectedDate);
       endTime.setHours(endHour, endMin, 0, 0);
 
       let currentTime = new Date(startTime);
       while (currentTime.getTime() + serviceDurationMinutes * 60000 <= endTime.getTime()) {
-        const slotTime = format(currentTime, 'HH:mm');
-        slots.push(slotTime);
+        slots.push(format(currentTime, 'HH:mm'));
         currentTime = new Date(currentTime.getTime() + (serviceDurationMinutes + bufferMinutes) * 60000);
       }
     });
@@ -161,18 +116,29 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     if (!schedule) return [];
     const dates: Date[] = [];
     const today = startOfDay(new Date());
-    
+
     for (let i = 0; i < 60; i++) {
       const date = addDays(today, i);
       const dayOfWeek = DAY_NAMES[getDay(date)];
       const daySchedule = schedule.weeklySchedule[dayOfWeek as keyof typeof schedule.weeklySchedule];
-      
-      if (daySchedule.enabled && daySchedule.timeSlots.length > 0) {
+
+      if (daySchedule && daySchedule.enabled && daySchedule.timeSlots.length > 0) {
         dates.push(date);
       }
     }
-    
+
     return dates;
+  };
+
+  const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setReceiptImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleServiceSelect = (service: Service) => {
@@ -191,7 +157,12 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
 
   const handleCheckoutSubmit = async () => {
     if (!selectedService || !selectedDate || !selectedTime) return;
-    
+
+    if (!checkoutData.customer.name || !checkoutData.customer.phone) {
+      alert('Please enter your name and WhatsApp phone number');
+      return;
+    }
+
     try {
       const [startHour, startMin] = selectedTime.split(':').map(Number);
       const startDate = new Date(selectedDate);
@@ -207,18 +178,18 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
           startTime: selectedTime,
           endTime: endTime,
         },
-        paymentType: checkoutData.paymentType,
-        paymentGateway: checkoutData.paymentGateway,
+        paymentType: 'bank_transfer',
+        receiptImage: receiptImage || undefined,
+        notes: checkoutData.notes,
       });
 
-      // Generate WhatsApp link
       const whatsappMessage = encodeURIComponent(
-        `Hi! I've booked ${selectedService.name} on ${format(selectedDate, 'MMMM d, yyyy')} at ${selectedTime}. Booking #${response.booking.bookingNumber}`
+        `Hello ${data?.provider.businessName}! I've submitted a booking for ${selectedService.name} on ${format(selectedDate, 'MMMM d, yyyy')} at ${selectedTime}. Booking #${response.booking.bookingNumber}`
       );
       const whatsappLink = `https://wa.me/${data?.provider.phone?.replace(/\D/g, '')}?text=${whatsappMessage}`;
-      
+
       window.open(whatsappLink, '_blank');
-      alert('Booking confirmed! Opening WhatsApp...');
+      alert('Booking & Transfer Receipt Submitted! Opening WhatsApp to send receipt confirmation to merchant...');
       setShowCheckout(false);
     } catch (error: any) {
       alert('Failed to create booking: ' + (error.message || 'Unknown error'));
@@ -227,10 +198,10 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-[#F5F5F7] bg-fixed">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#22c55e] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-light">Loading provider...</p>
+          <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-xs text-zinc-500 font-normal">Loading Merchant Storefront...</p>
         </div>
       </div>
     );
@@ -238,470 +209,479 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
 
   if (!data || !schedule) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-[#F5F5F7] bg-fixed">
-        <div className="text-center">
-          <h1 className="text-2xl font-black text-gray-900 mb-2 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-            Provider not found
-          </h1>
-          <p className="text-gray-600 font-light">The provider you're looking for doesn't exist.</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center p-6 bg-white border border-zinc-200 rounded-xl max-w-sm">
+          <h1 className="text-base font-semibold text-zinc-900 mb-1">Storefront Not Found</h1>
+          <p className="text-xs text-zinc-500">The merchant storefront you are looking for is currently unavailable.</p>
         </div>
       </div>
     );
   }
 
-  const depositAmount = selectedService ? Math.floor(selectedService.price * 0.5) : 0;
-  const balanceAmount = selectedService ? selectedService.price - depositAmount : 0;
+  const headerBannerUrl = data.provider.headerImage || DEFAULT_HEADER_BANNER;
+  const merchantLogoUrl = data.provider.logo || data.provider.profileImage;
+  const socialHandles = data.provider.socialHandles || {};
+  const policies = data.provider.policies || {};
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-[#F5F5F7] bg-fixed">
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {/* Floating Glass Navigation */}
-        <motion.nav
-          initial={{ y: -100 }}
-          animate={{ y: 0 }}
-          className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 backdrop-blur-3xl border-b ${
-            scrolled ? 'bg-white/60 border-white/40' : 'bg-white/40 border-white/30'
-          }`}
-        >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                {/* Nile Booking Logo */}
-                <Link to="/" className="flex items-center">
-                  <NileLogo size="sm" />
-                </Link>
-                <div className="h-6 w-px bg-gray-300"></div>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#22c55e] flex items-center justify-center">
-                    <span className="text-white font-black text-lg" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      {data.provider.businessName.charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      {data.provider.businessName}
-                    </p>
-                    <div className="flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3 text-[#22c55e]" />
-                      <span className="text-xs text-gray-600 font-light">Verified by Nile</span>
-                    </div>
-                  </div>
-                </div>
+    <div className="min-h-screen bg-gray-50/60 flex flex-col justify-between">
+      
+      <div>
+        {/* Top Clean Merchant Header Bar (Merchant Custom Logo, No Screaming Nile) */}
+        <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-zinc-200/80">
+          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-900 text-white flex items-center justify-center font-bold text-xs">
+                {merchantLogoUrl ? (
+                  <img src={merchantLogoUrl} alt={data.provider.businessName} className="w-full h-full object-cover" />
+                ) : (
+                  <span>{data.provider.businessName.charAt(0)}</span>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                ))}
-                <span className="text-sm font-semibold text-gray-700">4.9</span>
+              <span className="text-sm font-semibold text-zinc-900 tracking-tight">{data.provider.businessName}</span>
+            </div>
+
+            <a
+              href={`https://wa.me/${data.provider.phone?.replace(/\D/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+            >
+              <Phone className="w-3.5 h-3.5" />
+              Contact Merchant
+            </a>
+          </div>
+        </header>
+
+        {/* Header Image Banner Hero */}
+        <div className="relative w-full h-48 sm:h-64 md:h-72 bg-zinc-900 overflow-hidden">
+          <img
+            src={headerBannerUrl}
+            alt={data.provider.businessName}
+            className="w-full h-full object-cover opacity-90"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+
+          {/* Merchant Overlay on Banner */}
+          <div className="absolute bottom-4 left-4 right-4 max-w-4xl mx-auto flex items-end justify-between gap-4">
+            <div className="flex items-end gap-3.5 sm:gap-4">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 border-white bg-white overflow-hidden shadow-lg flex-shrink-0">
+                {merchantLogoUrl ? (
+                  <img src={merchantLogoUrl} alt={data.provider.businessName} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-zinc-900 text-white flex items-center justify-center font-bold text-xl">
+                    {data.provider.businessName.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <div className="text-white pb-1">
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{data.provider.businessName}</h1>
+                <div className="flex items-center gap-2 text-xs text-zinc-200 mt-1">
+                  {data.provider.location && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5" />
+                      {data.provider.location}
+                    </span>
+                  )}
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-amber-300 font-medium">
+                    <Star className="w-3.5 h-3.5 fill-amber-300" />
+                    4.9 (120+ verified bookings)
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </motion.nav>
+        </div>
 
-        {/* Hero Section */}
-        <motion.section
-          variants={fadeInUp}
-          className="relative pt-24 md:pt-32 pb-12 md:pb-16 px-4"
-        >
-          <div className="max-w-6xl mx-auto text-center">
-            <motion.h1
-              variants={fadeInUp}
-              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-gray-900 mb-4 leading-[1.05] tracking-tighter"
-              style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}
-            >
-              {data.provider.businessName}
-            </motion.h1>
-            {data.provider.phone && (
-              <motion.div
-                variants={fadeInUp}
-                className="flex items-center justify-center gap-2 text-base text-gray-600 font-light mb-4"
-              >
-                <MapPin className="w-4 h-4" />
-                <span>{data.provider.phone}</span>
-              </motion.div>
-            )}
-            <motion.div
-              variants={fadeInUp}
-              className="flex items-center justify-center gap-2 mb-6"
-            >
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-              ))}
-              <span className="text-sm font-semibold text-gray-700 ml-2">4.9 (127 reviews)</span>
-            </motion.div>
+        {/* Main Services Container */}
+        <main className="max-w-4xl mx-auto px-4 mt-6 space-y-6">
+          
+          {/* Merchant Bio Description */}
+          {data.provider.bio && (
+            <div className="bg-white border border-zinc-200/80 rounded-xl p-4 sm:p-5 shadow-sm">
+              <p className="text-xs sm:text-sm text-zinc-600 font-normal leading-relaxed">
+                {data.provider.bio}
+              </p>
+            </div>
+          )}
+
+          {/* Services Header */}
+          <div className="flex items-center justify-between border-b border-zinc-200/80 pb-3">
+            <h2 className="text-base font-semibold text-zinc-900 tracking-tight">Services & Pricing</h2>
+            <span className="text-xs text-zinc-500 font-medium">{data.services.length} Offerings Available</span>
           </div>
-        </motion.section>
 
-        {/* Service Selection Deck */}
-        <section className="max-w-4xl mx-auto px-4 pb-32 md:pb-24">
-          <motion.div variants={fadeInUp} className="mb-6 md:mb-8">
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-gray-900 mb-2 tracking-tighter text-center" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-              Select a Service
-            </h2>
-            <p className="text-center text-gray-600 font-light text-sm md:text-base">Tap to select and book</p>
-          </motion.div>
-
-          <div className="space-y-4 mb-12">
-            {data.services.map((service, index) => (
-              <motion.div
-                key={service._id}
-                variants={fadeInUp}
-                custom={index}
-                animate={floatAnimation}
-                transition={{ delay: index * 0.1 }}
-                whileTap={{ scale: 0.98 }}
-                style={{ willChange: 'transform' }}
-              >
-                <Card
-                  className={`${glassCardClass} p-4 md:p-6 cursor-pointer transition-all hover:bg-white/50 min-h-[120px] flex items-center ${
-                    selectedService?._id === service._id
-                      ? 'ring-2 ring-[#22c55e] shadow-[0_0_20px_rgba(34,197,94,0.2)]'
-                      : ''
-                  }`}
+          {/* Services Selection Grid */}
+          <div className="space-y-3">
+            {data.services.map((service) => {
+              const isSelected = selectedService?._id === service._id;
+              return (
+                <div
+                  key={service._id}
                   onClick={() => handleServiceSelect(service)}
+                  className={`bg-white border rounded-xl p-4 sm:p-5 cursor-pointer transition-all hover:border-zinc-300 shadow-sm flex items-center justify-between gap-4 ${
+                    isSelected ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200/80'
+                  }`}
                 >
-                  <div className="flex items-start justify-between w-full">
-                    <div className="flex-1">
-                      <h3 className="text-xl sm:text-2xl font-black text-gray-900 mb-2 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-base font-semibold text-zinc-900 tracking-tight truncate">
                         {service.name}
                       </h3>
-                      <p className="text-sm md:text-base text-gray-600 leading-relaxed font-light mb-3 line-clamp-2">
-                        {service.description}
-                      </p>
-                      <div className="flex items-center gap-4">
-                        <span className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                          ₦{service.price.toLocaleString()}
-                        </span>
-                        <span className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {service.duration} {service.duration === 1 ? 'hr' : 'hrs'}
-                        </span>
-                      </div>
                     </div>
-                    {selectedService?._id === service._id && (
-                      <CheckCircle className="w-6 h-6 text-[#22c55e] flex-shrink-0 ml-4" />
-                    )}
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* Date & Time Selection Bottom Sheet */}
-        <AnimatePresence>
-          {showDatePicker && selectedService && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowDatePicker(false)}
-                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
-              />
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                className={`fixed bottom-0 left-0 right-0 z-50 ${glassCardClass} rounded-t-[32px] p-6 max-h-[85vh] overflow-y-auto`}
-                style={{ willChange: 'transform' }}
-              >
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
-                </div>
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                    Select Date & Time
-                  </h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowDatePicker(false)}
-                    className="rounded-full min-h-[48px] min-w-[48px]"
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <X className="w-5 h-5" />
-                  </Button>
-                </div>
-
-                <div className="mb-6">
-                  <Calendar
-                    selected={selectedDate}
-                    onSelect={(date) => {
-                      setSelectedDate(date);
-                      if (date) {
-                        setSelectedTime(null);
-                      }
-                    }}
-                    availableDates={getAvailableDates()}
-                  />
-                </div>
-
-                {selectedDate && availableTimeSlots.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-6"
-                  >
-                    <Label className="text-sm font-semibold text-gray-700 mb-3 block">
-                      Available Times
-                    </Label>
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                      {availableTimeSlots.map((time) => (
-                        <motion.div
-                          key={time}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          <Button
-                            variant={selectedTime === time ? "default" : "outline"}
-                            className={`h-12 min-h-[48px] font-semibold border-2 rounded-xl transition-all ${
-                              selectedTime === time
-                                ? 'bg-gray-900 text-white border-gray-900'
-                                : 'bg-white/40 backdrop-blur-sm border-white/30 hover:bg-white/60'
-                            }`}
-                            onClick={() => setSelectedTime(time)}
-                          >
-                            {time}
-                          </Button>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                {selectedDate && availableTimeSlots.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center font-light py-4">
-                    No available time slots for this date
-                  </p>
-                )}
-
-                {selectedTime && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <Button
-                      onClick={handleProceedToCheckout}
-                      className="w-full h-14 min-h-[48px] text-base md:text-lg font-black bg-[#22c55e] text-white hover:bg-green-600 rounded-full shadow-[0_0_30px_rgba(34,197,94,0.4)]"
-                      style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      Continue to Checkout
-                    </Button>
-                  </motion.div>
-                )}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-
-        {/* Checkout Bottom Sheet */}
-        <AnimatePresence>
-          {showCheckout && selectedService && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowCheckout(false)}
-                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
-              />
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                className={`fixed bottom-0 left-0 right-0 z-50 ${glassCardClass} rounded-t-[32px] p-4 md:p-6 max-h-[90vh] overflow-y-auto`}
-                style={{ willChange: 'transform' }}
-              >
-                <div className="flex items-center justify-center mb-4">
-                  <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
-                </div>
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                    Complete Booking
-                  </h2>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowCheckout(false)}
-                    className="rounded-full min-h-[48px] min-w-[48px]"
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    <X className="w-5 h-5" />
-                  </Button>
-                </div>
-
-                {/* Booking Summary */}
-                <div className={`${glassCardClass} p-4 md:p-6 mb-6 bg-white/30`}>
-                  <h3 className="text-lg font-black text-gray-900 mb-4 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                    Booking Summary
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 font-light">Service</span>
-                      <span className="text-sm font-semibold text-gray-900">{selectedService.name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 font-light">Date & Time</span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {selectedDate && format(selectedDate, 'MMM d, yyyy')} | {selectedTime}
-                      </span>
-                    </div>
-                    <div className="flex justify-between pt-3 border-t border-white/30">
-                      <span className="text-sm font-semibold text-gray-900">Total</span>
-                      <span className="text-xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                        ₦{selectedService.price.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Escrow Logic */}
-                <div className={`${glassCardClass} p-4 md:p-6 mb-6 bg-gradient-to-r from-[#22c55e]/10 to-transparent border-[#22c55e]/20`}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Shield className="w-5 h-5 text-[#22c55e]" />
-                    <h3 className="text-sm font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      Secure Deposit
-                    </h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 font-light">50% Deposit Required</span>
-                      <span className="text-lg font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                        ₦{depositAmount.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 font-light">Balance Due</span>
-                      <span className="text-sm font-semibold text-gray-700">At appointment</span>
-                    </div>
-                    <p className="text-xs text-gray-500 font-light mt-2">
-                      Pay ₦{depositAmount.toLocaleString()} now to secure your spot | Balance due at appointment
+                    <p className="text-xs text-zinc-500 line-clamp-2 mb-3 font-normal">
+                      {service.description}
                     </p>
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="font-bold text-zinc-900 text-sm">
+                        ₦{service.price.toLocaleString()}
+                      </span>
+                      <span className="text-zinc-500 flex items-center gap-1 font-normal">
+                        <Clock className="w-3.5 h-3.5" />
+                        {service.duration} {service.duration === 1 ? 'hr' : 'hrs'}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {/* Customer Details Form */}
-                <div className="space-y-4 mb-6">
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">Full Name</Label>
-                    <Input
-                      value={checkoutData.customer.name}
-                      onChange={(e) => setCheckoutData({
-                        ...checkoutData,
-                        customer: { ...checkoutData.customer, name: e.target.value }
-                      })}
-                      className="bg-white/60 border-gray-300 h-12 min-h-[48px]"
-                      placeholder="Enter your name"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">Email</Label>
-                    <Input
-                      type="email"
-                      value={checkoutData.customer.email}
-                      onChange={(e) => setCheckoutData({
-                        ...checkoutData,
-                        customer: { ...checkoutData.customer, email: e.target.value }
-                      })}
-                      className="bg-white/60 border-gray-300 h-12 min-h-[48px]"
-                      placeholder="your@email.com"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">Phone</Label>
-                    <Input
-                      value={checkoutData.customer.phone}
-                      onChange={(e) => setCheckoutData({
-                        ...checkoutData,
-                        customer: { ...checkoutData.customer, phone: e.target.value }
-                      })}
-                      className="bg-white/60 border-gray-300 h-12 min-h-[48px]"
-                      placeholder="+234 812 345 6789"
-                    />
-                  </div>
-                </div>
-
-                {/* Payment Gateway Selection */}
-                <div className="mb-6">
-                  <Label className="text-sm font-semibold text-gray-700 mb-3 block">Payment Method</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setCheckoutData({ ...checkoutData, paymentGateway: 'paystack' })}
-                      className={`p-4 rounded-xl border-2 transition-all min-h-[80px] flex flex-col items-center justify-center ${
-                        checkoutData.paymentGateway === 'paystack'
-                          ? 'bg-[#22c55e] border-[#22c55e] text-white'
-                          : 'bg-white/40 border-gray-300'
+                  <div className="flex-shrink-0 flex items-center">
+                    <Button
+                      size="sm"
+                      className={`rounded-lg h-9 px-4 text-xs font-medium transition-colors ${
+                        isSelected
+                          ? 'bg-zinc-900 text-white'
+                          : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200'
                       }`}
                     >
-                      <CreditCard className="w-5 h-5 mb-2" />
-                      <span className="text-sm font-semibold">Paystack</span>
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setCheckoutData({ ...checkoutData, paymentGateway: 'flutterwave' })}
-                      className={`p-4 rounded-xl border-2 transition-all min-h-[80px] flex flex-col items-center justify-center ${
-                        checkoutData.paymentGateway === 'flutterwave'
-                          ? 'bg-[#22c55e] border-[#22c55e] text-white'
-                          : 'bg-white/40 border-gray-300'
-                      }`}
-                    >
-                      <CreditCard className="w-5 h-5 mb-2" />
-                      <span className="text-sm font-semibold">Flutterwave</span>
-                    </motion.button>
+                      Select & Book
+                    </Button>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Submit Button */}
-                <motion.div whileTap={{ scale: 0.98 }}>
-                  <Button
-                    onClick={handleCheckoutSubmit}
-                    className="w-full h-14 min-h-[48px] text-base md:text-lg font-black bg-gray-900 text-white hover:bg-gray-800 rounded-full"
-                    style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}
-                  >
-                    Pay ₦{depositAmount.toLocaleString()} Now
-                  </Button>
-                </motion.div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+        </main>
+      </div>
 
-        {/* Sticky CTA Button */}
-        {selectedService && selectedDate && selectedTime && !showCheckout && (
-          <motion.div
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            className="fixed bottom-0 left-0 right-0 z-30 p-4 bg-gradient-to-t from-white/90 to-transparent backdrop-blur-xl border-t border-white/30"
-            style={{ willChange: 'transform' }}
-          >
-            <motion.div whileTap={{ scale: 0.98 }}>
+      {/* Merchant Public Footer */}
+      <footer className="mt-12 bg-white border-t border-zinc-200/80 py-8 px-4 text-zinc-600">
+        <div className="max-w-4xl mx-auto space-y-6">
+          
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-zinc-100 pb-6">
+            <div className="flex items-center gap-3 text-center sm:text-left">
+              <div className="w-10 h-10 rounded-xl overflow-hidden border border-zinc-200 bg-zinc-900 text-white flex items-center justify-center font-bold text-sm">
+                {merchantLogoUrl ? (
+                  <img src={merchantLogoUrl} alt={data.provider.businessName} className="w-full h-full object-cover" />
+                ) : (
+                  <span>{data.provider.businessName.charAt(0)}</span>
+                )}
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-zinc-900">{data.provider.businessName}</h4>
+                <p className="text-xs text-zinc-400 font-normal">Official Online Booking Portal</p>
+              </div>
+            </div>
+
+            {/* Social Handles */}
+            <div className="flex items-center gap-3">
+              {socialHandles.instagram && (
+                <a
+                  href={`https://instagram.com/${socialHandles.instagram.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 transition-colors"
+                  title="Instagram"
+                >
+                  <Instagram className="w-4 h-4" />
+                </a>
+              )}
+              {socialHandles.whatsapp && (
+                <a
+                  href={`https://wa.me/${socialHandles.whatsapp.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-zinc-100 text-zinc-600 hover:text-emerald-600 hover:bg-zinc-200 transition-colors"
+                  title="WhatsApp"
+                >
+                  <Phone className="w-4 h-4" />
+                </a>
+              )}
+              {socialHandles.twitter && (
+                <a
+                  href={`https://twitter.com/${socialHandles.twitter.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-zinc-100 text-zinc-600 hover:text-blue-500 hover:bg-zinc-200 transition-colors"
+                  title="Twitter"
+                >
+                  <Twitter className="w-4 h-4" />
+                </a>
+              )}
+              {socialHandles.facebook && (
+                <a
+                  href={`https://facebook.com/${socialHandles.facebook}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 rounded-lg bg-zinc-100 text-zinc-600 hover:text-blue-700 hover:bg-zinc-200 transition-colors"
+                  title="Facebook"
+                >
+                  <Facebook className="w-4 h-4" />
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* Footer Policy Links */}
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-zinc-500 font-normal">
+            <button
+              onClick={() => setActivePolicyModal('terms')}
+              className="hover:text-zinc-900 transition-colors"
+            >
+              Terms & Conditions
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => setActivePolicyModal('return')}
+              className="hover:text-zinc-900 transition-colors"
+            >
+              Return & Refund Policy
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => setActivePolicyModal('privacy')}
+              className="hover:text-zinc-900 transition-colors"
+            >
+              Privacy Policy
+            </button>
+          </div>
+
+          {/* Subtle Faint Credit */}
+          <div className="text-center pt-4 border-t border-zinc-100">
+            <p className="text-[11px] text-zinc-400 font-normal tracking-wide">
+              Powered by Nile Technologies
+            </p>
+          </div>
+
+        </div>
+      </footer>
+
+      {/* Date & Time Selection Sheet */}
+      {showDatePicker && selectedService && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-zinc-200 p-6 shadow-xl max-h-[90vh] overflow-y-auto space-y-6">
+            
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900">Select Date & Time</h3>
+                <p className="text-xs text-zinc-500">{selectedService.name} • ₦{selectedService.price.toLocaleString()}</p>
+              </div>
+              <button
+                onClick={() => setShowDatePicker(false)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Calendar */}
+            <div className="border border-zinc-200/80 rounded-xl p-3 bg-zinc-50/40">
+              <Calendar
+                selected={selectedDate}
+                onSelect={(date) => {
+                  setSelectedDate(date);
+                  if (date) setSelectedTime(null);
+                }}
+                availableDates={getAvailableDates()}
+              />
+            </div>
+
+            {/* Time Slots */}
+            {selectedDate && availableTimeSlots.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-zinc-700 block">Available Time Slots</label>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {availableTimeSlots.map((time) => (
+                    <button
+                      key={time}
+                      type="button"
+                      onClick={() => setSelectedTime(time)}
+                      className={`h-9 text-xs font-medium rounded-lg border transition-all ${
+                        selectedTime === time
+                          ? 'bg-zinc-900 text-white border-zinc-900'
+                          : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
+                      }`}
+                    >
+                      {time}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedDate && availableTimeSlots.length === 0 && (
+              <p className="text-xs text-zinc-500 text-center py-3">No available slots on this date.</p>
+            )}
+
+            {selectedTime && (
               <Button
                 onClick={handleProceedToCheckout}
-                className="w-full h-14 min-h-[48px] text-base md:text-lg font-black bg-[#22c55e] text-white hover:bg-green-600 rounded-full shadow-[0_0_30px_rgba(34,197,94,0.4)]"
-                style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}
+                className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-11 text-xs font-medium shadow-sm"
               >
-                Book Now
+                Proceed to Checkout
+                <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
-            </motion.div>
-          </motion.div>
-        )}
+            )}
 
-        {/* Powered by Footer */}
-        <footer className="py-12 px-4 text-center border-t border-white/30 mt-24 pb-24 md:pb-12">
-          <Link to="/" className="text-sm text-gray-600 hover:text-gray-900 font-light transition-colors">
-            Powered by Nile Booking
-          </Link>
-        </footer>
-      </motion.div>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Transfer Checkout Modal (Strictly Bank Transfer Only) */}
+      {showCheckout && selectedService && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-zinc-200 p-6 shadow-xl max-h-[90vh] overflow-y-auto space-y-5">
+            
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900">Bank Transfer Checkout</h3>
+                <p className="text-xs text-zinc-500">{data.provider.businessName}</p>
+              </div>
+              <button
+                onClick={() => setShowCheckout(false)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Summary Box */}
+            <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-4 text-xs space-y-2">
+              <div className="flex justify-between text-zinc-700">
+                <span className="font-normal">Service</span>
+                <span className="font-semibold text-zinc-900">{selectedService.name}</span>
+              </div>
+              <div className="flex justify-between text-zinc-700">
+                <span className="font-normal">Date & Time</span>
+                <span className="font-semibold text-zinc-900">
+                  {selectedDate && format(selectedDate, 'MMM d, yyyy')} at {selectedTime}
+                </span>
+              </div>
+              <div className="flex justify-between text-zinc-700 pt-2 border-t border-zinc-200/60 font-bold text-zinc-900 text-sm">
+                <span>Total Amount Due</span>
+                <span>₦{selectedService.price.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Bank Settlement Account Box */}
+            <div className="bg-zinc-900 text-white rounded-xl p-4 text-xs space-y-2">
+              <div className="flex items-center justify-between text-zinc-400">
+                <span className="flex items-center gap-1 font-medium">
+                  <Building2 className="w-3.5 h-3.5" />
+                  Merchant Transfer Details
+                </span>
+                <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-emerald-400">Bank Transfer</span>
+              </div>
+              <div className="pt-1">
+                <p className="text-sm font-bold text-white">Access Bank</p>
+                <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">8123843076</p>
+                <p className="text-xs text-zinc-300">{data.provider.businessName}</p>
+              </div>
+            </div>
+
+            {/* Client Info Inputs */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs font-medium text-zinc-700 mb-1 block">Full Name *</Label>
+                <Input
+                  value={checkoutData.customer.name}
+                  onChange={(e) => setCheckoutData({
+                    ...checkoutData,
+                    customer: { ...checkoutData.customer, name: e.target.value }
+                  })}
+                  placeholder="e.g., Adeola Johnson"
+                  className="h-9 text-xs border-zinc-300"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-medium text-zinc-700 mb-1 block">WhatsApp Number *</Label>
+                <Input
+                  value={checkoutData.customer.phone}
+                  onChange={(e) => setCheckoutData({
+                    ...checkoutData,
+                    customer: { ...checkoutData.customer, phone: e.target.value }
+                  })}
+                  placeholder="+234 812 345 6789"
+                  className="h-9 text-xs border-zinc-300"
+                />
+              </div>
+
+              {/* Optional Transfer Receipt Image Upload */}
+              <div>
+                <Label className="text-xs font-medium text-zinc-700 mb-1 block">Upload Transfer Receipt Image (Optional)</Label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleReceiptUpload}
+                    className="text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
+                  />
+                </div>
+                {receiptImage && (
+                  <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1 font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Receipt screenshot attached!
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Submit Action */}
+            <Button
+              onClick={handleCheckoutSubmit}
+              className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-10 text-xs font-medium shadow-sm"
+            >
+              Submit Transfer Booking
+            </Button>
+
+          </div>
+        </div>
+      )}
+
+      {/* Storefront Policy Modals */}
+      {activePolicyModal && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-xl w-full max-w-md space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <h3 className="text-base font-semibold text-zinc-900 capitalize">
+                {activePolicyModal === 'terms' ? 'Terms & Conditions' : activePolicyModal === 'return' ? 'Return & Refund Policy' : 'Privacy Policy'}
+              </h3>
+              <button
+                onClick={() => setActivePolicyModal(null)}
+                className="p-1 text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-600 leading-relaxed font-normal bg-zinc-50 border border-zinc-200/80 p-4 rounded-lg">
+              {activePolicyModal === 'terms'
+                ? (policies.terms || 'All bookings must be confirmed in advance. Cancellations made at least 24 hours prior to appointment time are eligible for reschedule.')
+                : activePolicyModal === 'return'
+                ? (policies.returnPolicy || 'Services completed are non-refundable. Deposits for cancelled bookings may be transferred to a new slot within 30 days.')
+                : (policies.privacyPolicy || 'We value client privacy and only process personal details for booking confirmations.')}
+            </p>
+
+            <Button
+              onClick={() => setActivePolicyModal(null)}
+              className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-9 text-xs font-medium"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

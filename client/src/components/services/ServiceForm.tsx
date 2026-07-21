@@ -7,8 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Select } from '../ui/select';
-import { AIOptimizer } from './AIOptimizer';
 import type { Service } from '../../types';
 
 const serviceSchema = z.object({
@@ -94,12 +92,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onClose }) =>
             {errors.description && (
               <p className="text-sm text-red-600">{errors.description.message}</p>
             )}
-            <AIOptimizer
-              currentDescription={watch('description') || ''}
-              serviceName={watch('name') || ''}
-              category={watch('category') || 'other'}
-              onOptimized={(optimized) => setValue('description', optimized)}
-            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

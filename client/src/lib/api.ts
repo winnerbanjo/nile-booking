@@ -94,7 +94,20 @@ export const authApi = {
     password: string;
     businessName?: string;
     phone?: string;
+    country?: string;
   }) => {
+    const response = await request<{
+      message: string;
+      email: string;
+      requiresOtp: boolean;
+    }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return response;
+  },
+
+  verifyOtp: async (email: string, otpCode: string) => {
     const response = await request<{
       _id: string;
       name: string;
@@ -103,14 +116,35 @@ export const authApi = {
       slug: string;
       businessName: string;
       token: string;
-    }>('/auth/register', {
+    }>('/auth/verify-otp', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify({ email, otpCode }),
     });
     if (response.token) {
       localStorage.setItem('token', response.token);
     }
-    return response;
+    return { data: response };
+  },
+
+  resendOtp: async (email: string) => {
+    return await request<{ message: string }>('/auth/resend-otp', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  forgotPassword: async (email: string) => {
+    return await request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  resetPassword: async (data: { email: string; otpCode: string; newPassword: string }) => {
+    return await request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   login: async (data: { email: string; password: string }) => {
@@ -326,6 +360,30 @@ export const adminApi = {
   },
   getProviders,
   updateProviderStatus,
+};
+
+export const staffApi = {
+  getStaff: async () => {
+    return request<any[]>('/staff');
+  },
+  createStaff: async (data: {
+    name: string;
+    email: string;
+    password: string;
+    roleTitle?: string;
+    phone?: string;
+    assignedServices?: string[];
+  }) => {
+    return request<any>('/staff', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  deleteStaff: async (id: string) => {
+    return request<{ message: string }>(`/staff/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 export { ApiError };

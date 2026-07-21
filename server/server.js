@@ -64,6 +64,7 @@ import serviceRoutes from './routes/serviceRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import staffRoutes from './routes/staffRoutes.js';
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -72,6 +73,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/staff', staffRoutes);
 
 const purgeDemoData = async () => {
   const demoEmails = ['barber@nile.ng', 'admin@nile.ng'];
@@ -105,8 +107,8 @@ const initializeDatabase = async () => {
   const localUri = 'mongodb://127.0.0.1:27017/nile_booking_dev';
   const atlasUri = process.env.MONGODB_URI;
   const connectOptions = {
-    serverSelectionTimeoutMS: 10000,
-    connectTimeoutMS: 10000,
+    serverSelectionTimeoutMS: 2000,
+    connectTimeoutMS: 2000,
   };
 
   if (!atlasUri && IS_PRODUCTION) {
@@ -123,28 +125,15 @@ const initializeDatabase = async () => {
 
     if (ENABLE_DEMO_SEEDING) {
       console.log('⚠️ Demo seeding is enabled by environment configuration');
-    }
-  } catch (error) {
-    if (!IS_PRODUCTION && atlasUri) {
-      console.error('❌ Atlas DB failed. Falling back to local MongoDB...');
       try {
-        const localConn = await mongoose.connect(localUri, connectOptions);
-        console.log(`🏠 LOCAL DB CONNECTED: ${localConn.connection.host}`);
-        if (PURGE_DEMO_DATA) {
-          await purgeDemoData();
-        }
-        return;
-      } catch (localError) {
-        if (ALLOW_MOCK_MODE) {
-          console.error('❌ All DB connections failed. Enabling MOCK MODE.');
-          setMockMode(true);
-          return;
-        }
-        throw localError;
+        const { seedModernBarber } = await import('./scripts/seedModernBarber.js');
+        await seedModernBarber();
+      } catch (seedErr) {
+        console.error('⚠️ Seeding error:', seedErr.message);
       }
     }
-
-    if (!IS_PRODUCTION && ALLOW_MOCK_MODE) {
+  } catch (error) {
+    if (ALLOW_MOCK_MODE || !IS_PRODUCTION) {
       console.error('❌ DB connection failed. Enabling MOCK MODE.');
       setMockMode(true);
       return;

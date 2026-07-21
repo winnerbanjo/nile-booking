@@ -9,6 +9,7 @@ import { SubdomainRouter } from './components/SubdomainRouter';
 import { getTenantConfig, getSubdomain } from './lib/subdomain';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { VerifyOtp } from './pages/VerifyOtp';
 import { Dashboard } from './pages/Dashboard';
 import { Services } from './pages/Services';
 import { Settings } from './pages/Settings';
@@ -20,6 +21,14 @@ import { Payments } from './pages/dashboard/Payments';
 import { CustomDomains } from './pages/CustomDomains';
 import { Profile } from './pages/Profile';
 import { Marketing } from './pages/Marketing';
+import { Pages } from './pages/Pages';
+import { Customers } from './pages/Customers';
+import { Staff } from './pages/Staff';
+import { Invoices } from './pages/Invoices';
+import { Calendar } from './pages/Calendar';
+import { Sales } from './pages/Sales';
+import { Reviews } from './pages/Reviews';
+import { Discounts } from './pages/Discounts';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminLogin } from './pages/admin/AdminLogin';
 import { ReceiptVerification } from './pages/admin/ReceiptVerification';
@@ -29,15 +38,13 @@ import { Footer } from './components/marketing/Footer';
 import { Landing } from './pages/marketing/Landing';
 import { Product } from './pages/marketing/Product';
 import { Solutions } from './pages/marketing/Solutions';
+import { HowItWorks } from './pages/marketing/HowItWorks';
 import { Pricing } from './pages/marketing/Pricing';
-import { About } from './pages/marketing/About';
-import { Careers } from './pages/marketing/Careers';
-import { Contact } from './pages/marketing/Contact';
-import { Blog } from './pages/marketing/Blog';
-import { Documentation } from './pages/marketing/Documentation';
-import { HelpCenter } from './pages/marketing/HelpCenter';
-import { PrivacyPolicy } from './pages/marketing/PrivacyPolicy';
-import { TermsOfService } from './pages/marketing/TermsOfService';
+import { FaqPage } from './pages/marketing/FaqPage';
+import { PrivacyPolicy } from './pages/legal/PrivacyPolicy';
+import { TermsOfService } from './pages/legal/TermsOfService';
+import { RefundPolicy } from './pages/legal/RefundPolicy';
+import { CookiePolicy } from './pages/legal/CookiePolicy';
 import { LinkNest } from './pages/ecosystem/LinkNest';
 import { NileCollective } from './pages/ecosystem/NileCollective';
 
@@ -91,13 +98,7 @@ const HomePage = () => {
   
   // CRITICAL: If slug is null or undefined, DEFINITELY render Landing page DIRECTLY
   if (!slug || slug === null || slug === undefined) {
-    return (
-      <>
-        <Navbar />
-        <Landing />
-        <Footer />
-      </>
-    );
+    return <Landing />;
   }
   
   // If subdomain slug exists (e.g., 'the-modern-barber'), render PublicProvider with slug prop
@@ -196,6 +197,7 @@ function App() {
                 {/* App Routes - Top Level */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
+                <Route path="/verify-otp" element={<VerifyOtp />} />
                 
                 {/* Marketing Routes */}
                 <Route
@@ -223,6 +225,16 @@ function App() {
           }
         />
         <Route
+          path="/how-it-works"
+          element={
+            <>
+              <Navbar />
+              <HowItWorks />
+              <Footer />
+            </>
+          }
+        />
+        <Route
           path="/pricing"
           element={
             <>
@@ -233,61 +245,11 @@ function App() {
           }
         />
         <Route
-          path="/about"
+          path="/faq"
           element={
             <>
               <Navbar />
-              <About />
-              <Footer />
-            </>
-          }
-        />
-        <Route
-          path="/careers"
-          element={
-            <>
-              <Navbar />
-              <Careers />
-              <Footer />
-            </>
-          }
-        />
-        <Route
-          path="/contact"
-          element={
-            <>
-              <Navbar />
-              <Contact />
-              <Footer />
-            </>
-          }
-        />
-        <Route
-          path="/resources/blog"
-          element={
-            <>
-              <Navbar />
-              <Blog />
-              <Footer />
-            </>
-          }
-        />
-        <Route
-          path="/resources/docs"
-          element={
-            <>
-              <Navbar />
-              <Documentation />
-              <Footer />
-            </>
-          }
-        />
-        <Route
-          path="/resources/help"
-          element={
-            <>
-              <Navbar />
-              <HelpCenter />
+              <FaqPage />
               <Footer />
             </>
           }
@@ -308,6 +270,26 @@ function App() {
             <>
               <Navbar />
               <TermsOfService />
+              <Footer />
+            </>
+          }
+        />
+        <Route
+          path="/legal/refund"
+          element={
+            <>
+              <Navbar />
+              <RefundPolicy />
+              <Footer />
+            </>
+          }
+        />
+        <Route
+          path="/legal/cookies"
+          element={
+            <>
+              <Navbar />
+              <CookiePolicy />
               <Footer />
             </>
           }
@@ -358,13 +340,21 @@ function App() {
           }
         >
           <Route index element={<Dashboard />} />
+          <Route path="calendar" element={<Calendar />} />
           <Route path="services" element={<Services />} />
           <Route path="bookings" element={<Bookings />} />
+          <Route path="customers" element={<Customers />} />
+          <Route path="staff" element={<Staff />} />
+          <Route path="sales" element={<Sales />} />
+          <Route path="invoices" element={<Invoices />} />
           <Route path="financial" element={<Financial />} />
           <Route path="payments" element={<Payments />} />
           <Route path="marketing" element={<Marketing />} />
+          <Route path="reviews" element={<Reviews />} />
+          <Route path="discounts" element={<Discounts />} />
           <Route path="settings" element={<Settings />} />
           <Route path="domains" element={<CustomDomains />} />
+          <Route path="pages" element={<Pages />} />
           <Route path="profile" element={<Profile />} />
         </Route>
 

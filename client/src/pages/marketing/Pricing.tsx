@@ -1,265 +1,202 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Button } from '../../components/ui/button';
 import { Link } from 'react-router-dom';
-import { Check, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { CurrencySwitcher, formatCurrency, getCurrentCurrency, Currency } from '../../components/CurrencySwitcher';
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.1,
-    },
-  },
-};
+import { Check, ArrowRight, Sparkles } from 'lucide-react';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: [0.6, -0.05, 0.01, 0.99] },
-  },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
 };
 
-const glassCardClass = "bg-white/40 backdrop-blur-xl border border-white/40 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)]";
-
-const PRICING_PLANS = {
-  starter: {
-    name: 'STARTER',
-    priceNGN: 0,
-    fee: '3%',
-    features: [
-      'Unlimited Bookings',
-      'Free Subdomain ([yourname].nilebooking.co)',
-      'Basic Booking Calendar',
-      'Email Notifications',
-      'Mobile-Responsive Page',
-      'Paystack & Flutterwave Integration',
-    ],
-  },
-  growth: {
-    name: 'GROWTH',
-    priceNGN: 10000,
-    fee: '1%',
-    features: [
-      'Everything in Starter',
-      'Custom Subdomain Support',
-      'Flyer Generator',
-      'AI Image Optimizer',
-      'Advanced Analytics',
-      'Priority Email Support',
-    ],
-  },
-  empire: {
-    name: 'EMPIRE',
-    priceNGN: 50000,
-    fee: '0%',
-    features: [
-      'Everything in Growth',
-      'Custom Domain (yourbusiness.com)',
-      '24/7 Priority Support',
-      'White-Label Options',
-      'API Access',
-      'Dedicated Account Manager',
-    ],
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1, delayChildren: 0.05 },
   },
 };
 
 export const Pricing: React.FC = () => {
-  const [currency, setCurrency] = useState<Currency>(getCurrentCurrency());
-
-  const handleCurrencyChange = (newCurrency: Currency) => {
-    setCurrency(newCurrency);
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-[#F5F5F7] pt-16">
+    <div className="min-h-screen bg-gray-50/50 py-20 px-4 sm:px-6 lg:px-8 text-zinc-900 overflow-hidden">
       <motion.div
-        variants={containerVariants}
         initial="hidden"
         animate="visible"
+        variants={staggerContainer}
+        className="max-w-5xl mx-auto space-y-16"
       >
-        {/* Hero */}
-        <section className="py-24 px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <motion.h1
-              variants={fadeInUp}
-              className="text-5xl md:text-6xl font-black text-gray-900 mb-6 tracking-tighter"
-              style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}
-            >
-              Simple pricing that grows with you
-            </motion.h1>
-            <motion.p
-              variants={fadeInUp}
-              className="text-xl text-gray-600 font-light leading-relaxed mb-8"
-              style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
-            >
-              Nile Booking offers transparent pricing designed for service providers at every stage.
-            </motion.p>
-            {/* Currency Switcher */}
-            <motion.div variants={fadeInUp} className="flex justify-center">
-              <CurrencySwitcher onCurrencyChange={handleCurrencyChange} />
-            </motion.div>
+        
+        {/* Header */}
+        <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800 border border-zinc-200">
+            <Sparkles className="w-3.5 h-3.5" />
+            Transparent Quarterly Pricing
           </div>
-        </section>
 
-        {/* Pricing Cards - 3 Tier Grid */}
-        <section className="py-24 px-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* STARTER */}
-              <motion.div
-                variants={fadeInUp}
-                className={`${glassCardClass} p-8 hover:bg-white/50 transition-all duration-300`}
-              >
-                <div className="mb-6">
-                  <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                    STARTER
-                  </h3>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-5xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      {formatCurrency(PRICING_PLANS.starter.priceNGN, currency)}
-                    </span>
-                    <span className="text-gray-600 font-light">/month</span>
-                  </div>
-                  <p className="text-sm text-gray-600 font-light mb-4">
-                    {PRICING_PLANS.starter.fee} transaction fee
-                  </p>
-                </div>
-                <ul className="space-y-4 mb-8">
-                  {PRICING_PLANS.starter.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-[#22c55e] mt-0.5 flex-shrink-0" strokeWidth={2} />
-                      <span className="text-base text-gray-700 font-light">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 h-auto py-6 text-base font-semibold tracking-tight"
-                  size="lg"
-                  asChild
-                >
-                  <Link to="/register">Get Started Free</Link>
-                </Button>
-              </motion.div>
+          <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-zinc-900">
+            Simple pricing. No setup fees. No hidden costs.
+          </h1>
+          <p className="text-sm text-zinc-500 font-normal">
+            All plans are billed every three months. Choose the plan that fits your business today. Upgrade whenever you're ready.
+          </p>
+        </motion.div>
 
-              {/* GROWTH */}
-              <motion.div
-                variants={fadeInUp}
-                className={`${glassCardClass} p-8 hover:bg-white/50 transition-all duration-300 relative ring-2 ring-[#22c55e]/30 border-t-4 border-[#22c55e]`}
-              >
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-[#22c55e] text-white px-4 py-1 rounded-full text-sm font-semibold">
-                    Most Popular
-                  </span>
-                </div>
-                <div className="mb-6">
-                  <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                    GROWTH
-                  </h3>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-5xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      {formatCurrency(PRICING_PLANS.growth.priceNGN, currency)}
-                    </span>
-                    <span className="text-gray-600 font-light">/month</span>
-                  </div>
-                  <p className="text-sm text-gray-600 font-light mb-4">
-                    {PRICING_PLANS.growth.fee} transaction fee + Custom Subdomain
-                  </p>
-                </div>
-                <ul className="space-y-4 mb-8">
-                  {PRICING_PLANS.growth.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-[#22c55e] mt-0.5 flex-shrink-0" strokeWidth={2} />
-                      <span className="text-base text-gray-700 font-light">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full rounded-full bg-[#22c55e] text-white hover:bg-green-600 h-auto py-6 text-base font-semibold tracking-tight"
-                  size="lg"
-                  asChild
-                >
-                  <Link to="/register">Start Growth Trial</Link>
-                </Button>
-              </motion.div>
-
-              {/* EMPIRE */}
-              <motion.div
-                variants={fadeInUp}
-                className={`${glassCardClass} p-8 hover:bg-white/50 transition-all duration-300 border-t-4 border-[#22c55e]/50`}
-              >
-                <div className="mb-6">
-                  <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                    EMPIRE
-                  </h3>
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-5xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                      {formatCurrency(PRICING_PLANS.empire.priceNGN, currency)}
-                    </span>
-                    <span className="text-gray-600 font-light">/month</span>
-                  </div>
-                  <p className="text-sm text-gray-600 font-light mb-4">
-                    {PRICING_PLANS.empire.fee} transaction fee + Custom Domain + 24/7 Support
-                  </p>
-                </div>
-                <ul className="space-y-4 mb-8">
-                  {PRICING_PLANS.empire.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-[#22c55e] mt-0.5 flex-shrink-0" strokeWidth={2} />
-                      <span className="text-base text-gray-700 font-light">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full rounded-full bg-gray-900 text-white hover:bg-gray-800 h-auto py-6 text-base font-semibold tracking-tight"
-                  size="lg"
-                  asChild
-                >
-                  <Link to="/register">Start Empire Trial</Link>
-                </Button>
-              </motion.div>
+        {/* Pricing Cards */}
+        <motion.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* Starter */}
+          <motion.div
+            variants={fadeInUp}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="bg-white border border-zinc-200/80 rounded-xl p-6 space-y-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all"
+          >
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900">Starter</h3>
+                <p className="text-xs text-zinc-500 mt-1">Essential booking for independent practitioners</p>
+              </div>
+              <div>
+                <span className="text-3xl font-bold text-zinc-900">₦10,000</span>
+                <span className="text-xs text-zinc-500 font-normal block mt-0.5">Every 3 months</span>
+              </div>
+              <ul className="space-y-2.5 text-xs text-zinc-700 font-normal pt-2 border-t border-zinc-100">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Professional website
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Online bookings
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Online payments & bank transfers
+                </li>
+              </ul>
             </div>
-            <motion.p
-              variants={fadeInUp}
-              className="text-center mt-8 text-base text-gray-600 font-light"
-            >
-              No hidden fees | No long-term contracts | Upgrade only when your business is ready
-            </motion.p>
-          </div>
-        </section>
 
-        {/* CTA */}
-        <section className="py-24 px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <motion.h2
-              variants={fadeInUp}
-              className="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tighter"
-              style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}
+            <Button
+              asChild
+              className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-lg h-9 text-xs font-medium transition-colors"
             >
-              Start free today
-            </motion.h2>
-            <motion.p
-              variants={fadeInUp}
-              className="text-xl text-gray-600 mb-8 font-light"
+              <Link to="/register">Choose Starter</Link>
+            </Button>
+          </motion.div>
+
+          {/* Growth */}
+          <motion.div
+            variants={fadeInUp}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="bg-zinc-900 text-white rounded-xl p-6 space-y-6 flex flex-col justify-between shadow-xl relative border border-zinc-800"
+          >
+            <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 text-zinc-950 font-bold text-[10px] uppercase tracking-wider px-3 py-0.5 rounded-full">
+              Most Popular
+            </span>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-white">Growth</h3>
+                <p className="text-xs text-zinc-400 mt-1">For growing shops & busy specialists</p>
+              </div>
+              <div>
+                <span className="text-3xl font-bold text-white">₦15,000</span>
+                <span className="text-xs text-zinc-400 font-normal block mt-0.5">Every 3 months</span>
+              </div>
+              <ul className="space-y-2.5 text-xs text-zinc-300 font-normal pt-2 border-t border-zinc-800">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Professional website
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Online bookings & payments
+                </li>
+                <li className="flex items-center gap-2 font-medium text-white">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Custom domain included
+                </li>
+                <li className="flex items-center gap-2 font-medium text-white">
+                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                  Priority support
+                </li>
+              </ul>
+            </div>
+
+            <Button
+              asChild
+              className="w-full bg-white text-zinc-900 hover:bg-zinc-100 rounded-lg h-9 text-xs font-semibold transition-colors"
             >
-              No credit card required
-            </motion.p>
-            <motion.div variants={fadeInUp}>
-              <Button
-                size="lg"
-                className="rounded-full px-8 py-6 text-lg font-semibold bg-gray-900 text-white hover:bg-gray-800 h-auto tracking-tight"
-                asChild
-              >
-                <Link to="/register">Get started</Link>
-              </Button>
-            </motion.div>
+              <Link to="/register">Choose Growth Plan</Link>
+            </Button>
+          </motion.div>
+
+          {/* Premium */}
+          <motion.div
+            variants={fadeInUp}
+            whileHover={{ y: -4, transition: { duration: 0.2 } }}
+            className="bg-white border border-zinc-200/80 rounded-xl p-6 space-y-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all"
+          >
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900">Premium</h3>
+                <p className="text-xs text-zinc-500 mt-1">Full brand customization & team features</p>
+              </div>
+              <div>
+                <span className="text-3xl font-bold text-zinc-900">₦25,000</span>
+                <span className="text-xs text-zinc-500 font-normal block mt-0.5">Every 3 months</span>
+              </div>
+              <ul className="space-y-2.5 text-xs text-zinc-700 font-normal pt-2 border-t border-zinc-100">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  All Growth features
+                </li>
+                <li className="flex items-center gap-2 font-medium text-zinc-900">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Custom domain included
+                </li>
+                <li className="flex items-center gap-2 font-medium text-zinc-900">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Advanced branding & logo studio
+                </li>
+                <li className="flex items-center gap-2 font-medium text-zinc-900">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Priority VIP support
+                </li>
+              </ul>
+            </div>
+
+            <Button
+              asChild
+              className="w-full bg-zinc-100 hover:bg-zinc-200 text-zinc-900 rounded-lg h-9 text-xs font-medium transition-colors"
+            >
+              <Link to="/register">Choose Premium Plan</Link>
+            </Button>
+          </motion.div>
+
+        </motion.div>
+
+        {/* CTA Hero */}
+        <motion.div
+          variants={fadeInUp}
+          className="bg-white border border-zinc-200/80 rounded-2xl p-8 text-center space-y-4 shadow-sm"
+        >
+          <h2 className="text-2xl font-bold text-zinc-900 tracking-tight">
+            Your next client is already online.
+          </h2>
+          <p className="text-xs text-zinc-500">Give them a place to discover you, trust you and book you.</p>
+          <div>
+            <Button
+              asChild
+              className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-10 px-6 text-xs font-medium shadow-md transition-all transform hover:-translate-y-0.5"
+            >
+              <Link to="/register" className="inline-flex items-center gap-2 whitespace-nowrap">
+                <span>Launch your website today</span>
+                <ArrowRight className="w-4 h-4 shrink-0" />
+              </Link>
+            </Button>
           </div>
-        </section>
+        </motion.div>
+
       </motion.div>
     </div>
   );

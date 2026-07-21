@@ -1,69 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { serviceApi } from '../lib/api';
 import { Button } from '../components/ui/button';
-import { Plus, Edit, Trash2, Sparkles, MessageCircle, Clock, DollarSign, Zap } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, DollarSign, Tag } from 'lucide-react';
 import { ServiceForm } from '../components/services/ServiceForm';
-import { optimizeServiceDescription } from '../services/aiService';
 import type { Service } from '../types';
-import { motion } from 'framer-motion';
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.06,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const fadeInUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: [0.6, -0.05, 0.01, 0.99] },
-  },
-};
-
-const floatAnimation = {
-  y: [-2, 2],
-  transition: {
-    duration: 3,
-    repeat: Infinity,
-    repeatType: 'reverse' as const,
-    ease: 'easeInOut',
-  },
-};
-
-const glassCardClass = "bg-white/40 backdrop-blur-xl border border-white/40 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)]";
 
 export const Services: React.FC = () => {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [optimizingId, setOptimizingId] = useState<string | null>(null);
 
-  // Sample services for "The Modern Barber" and "The Strategy Consultant"
   const sampleServices: Service[] = [
     {
       _id: 'sample-1',
-      name: 'Faded Cut',
-      description: 'Professional fade cut with precision styling',
+      name: 'Skin Fade',
+      description: 'Precision skin fade haircut with detailed edging and hot towel finish.',
       price: 15000,
-      duration: 1,
+      duration: 0.75,
       category: 'haircut',
       provider: 'sample-provider',
     },
     {
       _id: 'sample-2',
-      name: '1hr Strategy Session',
-      description: 'One-on-one business strategy consultation',
-      price: 50000,
-      duration: 1,
-      category: 'consultation',
+      name: 'Beard Trim & Shape',
+      description: 'Professional beard trimming, shaping, and nourishing oil treatment.',
+      price: 8000,
+      duration: 0.5,
+      category: 'beard',
+      provider: 'sample-provider',
+    },
+    {
+      _id: 'sample-3',
+      name: 'Full Grooming Package',
+      description: 'Complete haircut, beard grooming, facial massage, and styling.',
+      price: 25000,
+      duration: 1.25,
+      category: 'package',
       provider: 'sample-provider',
     },
   ];
@@ -75,16 +48,10 @@ export const Services: React.FC = () => {
   const loadServices = async () => {
     try {
       const data = await serviceApi.getServices();
-      // Merge with samples if no services exist
-      if (data.length === 0) {
-        setServices(sampleServices);
-      } else {
-        setServices(data);
-      }
+      setServices(data || []);
     } catch (error) {
       console.error('Failed to load services:', error);
-      // Use samples on error
-      setServices(sampleServices);
+      setServices([]);
     } finally {
       setLoading(false);
     }
@@ -116,182 +83,105 @@ export const Services: React.FC = () => {
     loadServices();
   };
 
-  const handleMagicWrite = async (service: Service) => {
-    setOptimizingId(service._id);
-    try {
-      const optimized = await optimizeServiceDescription(
-        service.description || '',
-        service.name,
-        service.category || 'general'
-      );
-      
-      // Update the service with optimized description
-      const updatedService = { ...service, description: optimized };
-      await serviceApi.updateService(service._id, updatedService);
-      loadServices();
-    } catch (error) {
-      console.error('Failed to optimize description:', error);
-      alert('Failed to optimize description. Please try again.');
-    } finally {
-      setOptimizingId(null);
-    }
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-[#F5F5F7]">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-light">Loading services...</p>
+          <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-3 text-xs text-zinc-500 font-normal">Loading services...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-[#F5F5F7] bg-fixed p-4 md:p-8">
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="max-w-7xl mx-auto space-y-8"
-      >
-        {/* Header */}
-        <motion.div variants={fadeInUp} className="flex items-center justify-between">
+    <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Clean Page Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200/80 pb-6">
           <div>
-            <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter mb-2" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-              Services
+            <h1 className="text-2xl md:text-3xl font-semibold text-zinc-900 tracking-tight">
+              Services Catalog
             </h1>
-            <p className="text-base text-gray-600 font-light tracking-tight" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
-              Manage your service offerings | The Modern Barber
+            <p className="text-sm text-zinc-500 mt-1 font-normal">
+              Manage your active service offerings, pricing, and duration
             </p>
           </div>
           <Button
             onClick={handleCreate}
-            className="rounded-full bg-gray-900 text-white hover:bg-gray-800 px-6 py-6 h-auto"
+            className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-9 px-4 text-xs font-medium self-start md:self-auto shadow-sm"
           >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Service
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Add New Service
           </Button>
-        </motion.div>
+        </div>
 
-        {/* Bento Grid of Service Cards */}
+        {/* Services Cards Grid */}
         {services.length === 0 ? (
-          <motion.div variants={fadeInUp} className={`${glassCardClass} p-12 text-center`}>
-            <p className="text-gray-500 mb-4 text-lg font-light">No services yet</p>
-            <Button onClick={handleCreate} className="rounded-full bg-gray-900 text-white hover:bg-gray-800">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Your First Service
+          <div className="bg-white border border-zinc-200/80 rounded-xl p-12 text-center">
+            <p className="text-zinc-500 text-sm mb-4">No active services configured.</p>
+            <Button onClick={handleCreate} className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-medium">
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Create First Service
             </Button>
-          </motion.div>
+          </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {services.map((service, index) => (
-              <motion.div
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {services.map((service) => (
+              <div
                 key={service._id}
-                variants={fadeInUp}
-                animate={floatAnimation}
-                transition={{ delay: index * 0.1 }}
-                className={`${glassCardClass} p-4 md:p-6 hover:bg-white/50 transition-all duration-300 group`}
-                style={{ willChange: 'transform' }}
-                whileTap={{ scale: 0.98 }}
+                className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm hover:border-zinc-300 transition-colors flex flex-col justify-between"
               >
-                {/* Service Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-black text-gray-900 tracking-tighter mb-2" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
+                <div>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="text-base font-semibold text-zinc-900 tracking-tight">
                       {service.name}
                     </h3>
-                    <p className="text-sm text-gray-600 font-light leading-relaxed line-clamp-2">
-                      {service.description}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Service Details */}
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <DollarSign className="w-4 h-4" />
-                      <span className="font-light">Price</span>
-                    </div>
-                    <span className="text-xl font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
+                    <span className="text-sm font-semibold text-zinc-900 bg-zinc-50 px-2.5 py-1 rounded border border-zinc-200">
                       ₦{service.price.toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Clock className="w-4 h-4" />
-                      <span className="font-light">Duration</span>
-                    </div>
-                    <span className="text-sm font-semibold text-gray-700">
-                      {service.duration} {service.duration === 1 ? 'hr' : 'hrs'}
-                    </span>
-                  </div>
-                  {service.category && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500 font-light uppercase">Category</span>
-                      <span className="text-xs font-semibold text-gray-700 capitalize">{service.category}</span>
-                    </div>
-                  )}
+
+                  <p className="text-xs text-zinc-500 font-normal leading-relaxed line-clamp-3 mb-4">
+                    {service.description}
+                  </p>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="space-y-2 pt-4 border-t border-white/30">
-                  <motion.div whileTap={{ scale: 0.95 }}>
+                <div className="space-y-3 pt-3 border-t border-zinc-100">
+                  <div className="flex items-center justify-between text-xs text-zinc-500 font-normal">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-zinc-400" />
+                      Duration: {service.duration} {service.duration === 1 ? 'hr' : 'hrs'}
+                    </span>
+                    {service.category && (
+                      <span className="capitalize font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded text-[11px]">
+                        {service.category}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
                     <Button
-                      onClick={() => handleMagicWrite(service)}
-                      disabled={optimizingId === service._id}
-                      className="w-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 h-12 min-h-[48px] py-2 text-xs font-semibold transition-all"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(service)}
+                      className="flex-1 bg-white border-zinc-300 text-zinc-700 hover:bg-zinc-50 h-8 text-xs font-medium rounded-lg"
                     >
-                    {optimizingId === service._id ? (
-                      <>
-                        <Zap className="w-3 h-3 mr-1 animate-spin" />
-                        Optimizing...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-3 h-3 mr-1" />
-                        Magic Write
-                      </>
-                      )}
+                      <Edit className="w-3 h-3 mr-1" />
+                      Edit Details
                     </Button>
-                  </motion.div>
-                  <div className="flex items-center gap-2">
-                    <motion.div whileTap={{ scale: 0.95 }} className="flex-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full rounded-full border-gray-300 hover:bg-white/60 h-12 min-h-[48px] py-2 text-xs font-semibold"
-                        onClick={() => handleEdit(service)}
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                    </motion.div>
-                    <motion.div whileTap={{ scale: 0.95 }}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full border-gray-300 hover:bg-red-50 hover:border-red-300 h-12 min-h-[48px] w-12 px-3 text-xs"
-                        onClick={() => handleDelete(service._id)}
-                      >
-                        <Trash2 className="w-3 h-3 text-red-500" />
-                      </Button>
-                    </motion.div>
-                    <motion.div whileTap={{ scale: 0.95 }}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-full border-gray-300 hover:bg-white/60 h-12 min-h-[48px] w-12 px-3 text-xs"
-                        title="WhatsApp Preview"
-                      >
-                        <MessageCircle className="w-3 h-3" />
-                      </Button>
-                    </motion.div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(service._id)}
+                      className="bg-white border-zinc-300 text-red-600 hover:bg-red-50 hover:border-red-200 h-8 px-2.5 text-xs font-medium rounded-lg"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}
@@ -302,7 +192,7 @@ export const Services: React.FC = () => {
             onClose={handleFormClose}
           />
         )}
-      </motion.div>
+      </div>
     </div>
   );
 };
