@@ -11,66 +11,60 @@ export interface TenantConfig {
 
 /**
  * Gets the subdomain slug from the current hostname
- * 100% safe routing logic - prevents routing loops
+ * 100% safe routing logic - extracts subdomain cleanly on production Vercel
  * @returns string | null - The subdomain slug or null if main site
  */
 export const getSubdomain = (): string | null => {
   try {
-    // Safety check: return null during build or if window is undefined
     if (typeof window === 'undefined' || !window.location) {
-      console.log("DEBUG: Window undefined, returning null");
       return null;
     }
 
-    const host = window.location.hostname;
+    const host = window.location.hostname.toLowerCase().trim();
     const path = window.location.pathname;
-    
-    // SAFE-MODE LOGGING: Log hostname at the very top
-    console.log("HOSTNAME DETECTED:", host);
-    console.log("PATH DETECTED:", path);
-    
-    // SUBDOMAIN BYPASS: If path is '/register' or '/login', return NULL immediately
-    // This ensures subdomain logic NEVER interferes with sign-up process
-    if (path === '/register' || path === '/login') {
-      console.log("DEBUG: Detected Subdomain: null (register/login path - bypass subdomain)");
-      return null; // Force main site routing for sign-up process
+
+    // Bypass auth, dashboard, and admin paths
+    if (
+      path.startsWith('/login') ||
+      path.startsWith('/register') ||
+      path.startsWith('/verify-otp') ||
+      path.startsWith('/dashboard') ||
+      path.startsWith('/admin')
+    ) {
+      return null;
     }
-    
-    // MARKETING PATHS: Return null for other main marketing paths, even if subdomain is present
-    // This allows /about, /pricing, etc. to work on main domain
-    const marketingPaths = ['/about', '/pricing', '/product', '/solutions', 
-                           '/contact', '/blog', '/careers', '/documentation', '/help', '/privacy', 
-                           '/terms', '/linknest', '/collective'];
-    if (marketingPaths.includes(path)) {
-      console.log("DEBUG: Detected Subdomain: null (marketing path - bypass subdomain)");
-      return null; // Force main site routing for marketing paths
-    }
-    
-    // SUBDOMAIN CATCHER: Extract slug correctly from nilebooking.co
-    // Logic: If host includes 'nilebooking.co' and is NOT 'www.nilebooking.co' or exact 'nilebooking.co', extract slug
-    if (host.includes('nilebooking.co') && host !== 'nilebooking.co' && host !== 'www.nilebooking.co') {
+
+    // Production wildcard subdomains (*.nilebooking.co)
+    if (host.endsWith('nilebooking.co')) {
       const parts = host.split('.');
-      // Ensure it's a subdomain (at least 3 parts: subdomain.nilebooking.co)
-      if (parts.length >= 3 && parts[parts.length - 2] === 'nilebooking' && parts[parts.length - 1] === 'co') {
-        const slug = parts[0];
-        // Safety check: prevent 'www' or empty from being returned
-        if (slug && slug !== 'www' && slug !== '') {
-          console.log("Detected Subdomain:", slug);
-          return slug;
+      // e.g. ['the-modern-barber', 'nilebooking', 'co']
+      if (parts.length > 2) {
+        const sub = parts[0];
+        if (sub && sub !== 'www' && sub !== 'nilebooking') {
+          return sub;
         }
       }
     }
-    
-    // Also return null for vercel.app domains
-    if (host.includes('vercel.app')) {
-      console.log("DEBUG: Detected Subdomain: null (vercel.app - main site)");
-      return null; // Force main site routing
+
+    // Vercel preview domains (*.vercel.app)
+    if (host.endsWith('.vercel.app')) {
+      const sub = host.split('.')[0];
+      if (sub && sub !== 'www' && !sub.startsWith('nile-booking')) {
+        return sub;
+      }
     }
-    
-    console.log("Detected Subdomain: null (no subdomain match)");
+
+    // Local development subdomains (*.localhost)
+    if (host.includes('.') && !host.startsWith('www.')) {
+      const sub = host.split('.')[0];
+      if (sub && sub !== 'localhost' && sub !== '127' && sub !== 'www') {
+        return sub;
+      }
+    }
+
     return null;
   } catch (error) {
-    console.error("Error in getSubdomain:", error);
+    console.error('Error in getSubdomain:', error);
     return null;
   }
 };
@@ -81,20 +75,17 @@ export const getSubdomain = (): string | null => {
  */
 export const getTenantConfig = (): TenantConfig => {
   try {
-    // Safety check: return main site config during build or if window is undefined
     if (typeof window === 'undefined' || !window.location) {
       return { slug: null, isMainSite: true };
     }
 
     const slug = getSubdomain();
-    
     if (slug) {
       return { slug, isMainSite: false };
     }
-  
     return { slug: null, isMainSite: true };
   } catch (error) {
-    console.error("Error in getTenantConfig:", error);
+    console.error('Error in getTenantConfig:', error);
     return { slug: null, isMainSite: true };
   }
 };
