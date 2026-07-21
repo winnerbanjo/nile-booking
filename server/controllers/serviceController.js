@@ -201,7 +201,15 @@ export const deleteService = async (req, res) => {
 // @access  Public
 export const getServicesBySlug = async (req, res) => {
   try {
-    if (getMockMode()) {
+    const demoSlugs = ['the-modern-chef', 'glamour-mua', 'elite-hair-studio', 'zenith-photography'];
+    const isDemo = demoSlugs.includes(req.params.slug);
+
+    if (getMockMode() || isDemo) {
+      if (mockUsers.size === 0) {
+        const { initializeMockData } = await import('../utils/mockMode.js');
+        initializeMockData();
+      }
+
       const mockUser = Array.from(mockUsers.values()).find((u) => u.slug === req.params.slug) || Array.from(mockUsers.values())[0];
       const list = mockServices.filter(s => s.provider === mockUser._id);
 

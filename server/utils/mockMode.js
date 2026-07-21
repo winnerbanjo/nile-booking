@@ -67,7 +67,10 @@ const createMockProvider = (id, email, businessName, slug, bio, profileImage, he
   });
 };
 
-const initializeMockData = () => {
+export const initializeMockData = () => {
+  // Prevent duplicate initialization
+  if (mockUsers.size > 0) return;
+
   // 1. The Modern Chef
   createMockProvider(
     'mock_chef', 'chef@nile.ng', 'The Modern Chef', 'the-modern-chef',
