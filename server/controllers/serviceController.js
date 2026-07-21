@@ -203,7 +203,7 @@ export const getServicesBySlug = async (req, res) => {
   try {
     if (getMockMode()) {
       const mockUser = Array.from(mockUsers.values()).find((u) => u.slug === req.params.slug) || Array.from(mockUsers.values())[0];
-      const list = mockServices.length > 0 ? mockServices : defaultMockServicesList;
+      const list = mockServices.filter(s => s.provider === mockUser._id);
 
       return res.json({
         provider: {
@@ -219,6 +219,7 @@ export const getServicesBySlug = async (req, res) => {
           headerImage: mockUser.headerImage || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&h=600&fit=crop',
           address: mockUser.address,
           socialHandles: mockUser.socialHandles,
+          paymentMethods: mockUser.paymentMethods || { cash: true, transfer: true, card: false },
           policies: mockUser.policies,
           gallery: mockUser.gallery,
           testimonials: mockUser.testimonials,

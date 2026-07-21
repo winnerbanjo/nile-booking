@@ -1,9 +1,11 @@
 import Booking from '../models/Booking.js';
 import Service from '../models/Service.js';
 import Transaction from '../models/Transaction.js';
+import User from '../models/User.js';
 import { notifyPaymentConfirmation, notifyBookingCancellation } from '../services/notificationService.js';
 import { uploadImage } from '../services/cloudinaryService.js';
 import { getMockMode, mockServices } from '../utils/mockMode.js';
+import { sendEmail } from '../utils/email.js';
 
 // @desc    Create new booking
 // @route   POST /api/bookings
@@ -38,7 +40,7 @@ export const createBooking = async (req, res) => {
           email: customer.email || 'client@example.com',
           phone: customer.phone,
         },
-        provider: 'mock_user_barber_id_123',
+        provider: mockService ? mockService.provider : 'mock_user_barber_id_123',
         service: mockService || {
           _id: 'service_1_id_123',
           name: 'Skin Fade & Beard Trim',
@@ -70,7 +72,7 @@ export const createBooking = async (req, res) => {
     let service = null;
 
     // Try to find service by ID first
-    if (serviceId === 'mock_service_1' || serviceId === 'mock_service_2' || serviceId === 's1' || serviceId === 's2') {
+    if (serviceId.includes('mock_service') || serviceId.startsWith('s') || serviceId.startsWith('service_mock')) {
       const mockBooking = {
         _id: `booking_${Date.now()}`,
         bookingNumber: `BK-${Date.now().toString().slice(-6)}`,
@@ -155,6 +157,27 @@ export const createBooking = async (req, res) => {
       },
       notes,
     });
+
+    // Send Emails asynchronously
+    User.findById(service.provider).then((providerUser) => {
+      if (providerUser && customer.email) {
+        // Email to Customer
+        sendEmail({
+          to: customer.email,
+          subject: 'Booking Confirmation - Nile Booking',
+          html: `<p>Hi ${customer.name},</p><p>Your booking for <b>${service.name}</b> on ${new Date(date).toLocaleDateString()} at ${timeSlot.startTime} is confirmed!</p><p>Thank you for using Nile Booking.</p>`,
+        });
+        
+        // Email to Merchant
+        if (providerUser.email) {
+          sendEmail({
+            to: providerUser.email,
+            subject: 'New Booking Alert!',
+            html: `<p>Hi ${providerUser.businessName || providerUser.name},</p><p>You have a new booking from ${customer.name} (${customer.email} / ${customer.phone}) for <b>${service.name}</b> on ${new Date(date).toLocaleDateString()} at ${timeSlot.startTime}.</p>`,
+          });
+        }
+      }
+    }).catch(err => console.error("Error fetching provider for email:", err));
 
     res.status(201).json({
       booking,

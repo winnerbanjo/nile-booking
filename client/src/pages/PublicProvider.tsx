@@ -308,7 +308,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
             >
               <Phone className="w-3.5 h-3.5" />
-              Contact Merchant
+              Contact Us
             </a>
           </div>
         </header>
