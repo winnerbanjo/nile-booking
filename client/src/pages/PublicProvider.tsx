@@ -81,18 +81,23 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
         scheduleApi.getScheduleBySlug(slug).catch(() => null),
       ]);
 
-      const fallbackSchedule = scheduleData || {
+      const defaultWeeklySchedule = {
+        monday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        tuesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        wednesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        thursday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        friday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        saturday: { enabled: true, timeSlots: [{ startTime: '10:00', endTime: '16:00' }] },
+        sunday: { enabled: false, timeSlots: [] },
+      };
+
+      const fallbackSchedule = scheduleData ? {
+        ...scheduleData,
+        weeklySchedule: scheduleData.weeklySchedule || defaultWeeklySchedule
+      } : {
         timezone: 'Africa/Lagos',
         bufferTime: 15,
-        weeklySchedule: {
-          monday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-          tuesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-          wednesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-          thursday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-          friday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-          saturday: { enabled: true, timeSlots: [{ startTime: '10:00', endTime: '16:00' }] },
-          sunday: { enabled: false, timeSlots: [] },
-        },
+        weeklySchedule: defaultWeeklySchedule,
       };
 
       // Only use real data from the API — never fake service IDs
