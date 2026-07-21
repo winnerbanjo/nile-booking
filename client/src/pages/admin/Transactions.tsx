@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Filter, Download, ArrowRightLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Filter, Download, ArrowRightLeft, CheckCircle2, AlertCircle, MoreHorizontal } from 'lucide-react';
+import { ActionModal } from '../../components/admin/ActionModal';
 
 const mockTransactions = [
   {
@@ -61,6 +62,7 @@ const mockTransactions = [
 
 export const Transactions: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTxn, setSelectedTxn] = useState<any>(null);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -148,6 +150,7 @@ export const Transactions: React.FC = () => {
                 <th className="px-6 py-4">Provider</th>
                 <th className="px-6 py-4">Gross Amount</th>
                 <th className="px-6 py-4">Method / Status</th>
+                <th className="px-6 py-4"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -170,6 +173,14 @@ export const Transactions: React.FC = () => {
                     <p className="text-xs text-gray-500 font-medium">{txn.paymentMethod}</p>
                     <div>{getStatusBadge(txn.status)}</div>
                   </td>
+                  <td className="px-6 py-4 text-right">
+                    <button 
+                      onClick={() => setSelectedTxn(txn)} 
+                      className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                    >
+                      <MoreHorizontal className="w-5 h-5" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -183,6 +194,25 @@ export const Transactions: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ActionModal
+        isOpen={!!selectedTxn}
+        onClose={() => setSelectedTxn(null)}
+        title="Transaction Details"
+        data={selectedTxn ? {
+          'Txn ID': selectedTxn.id,
+          'Booking Ref': selectedTxn.bookingId,
+          'Provider': selectedTxn.provider,
+          'Amount': `₦${selectedTxn.amount.toLocaleString()}`,
+          'Method': selectedTxn.paymentMethod,
+          'Date': new Date(selectedTxn.date).toLocaleString(),
+          'Status': selectedTxn.status,
+        } : {}}
+        actions={[
+          { label: 'View Receipt', variant: 'primary', onClick: () => alert('Viewing receipt...') },
+          { label: 'Refund Transaction', variant: 'danger', onClick: () => alert('Transaction refunded.') },
+        ]}
+      />
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Filter, ShieldAlert, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Search, Filter, ShieldAlert, AlertTriangle, MoreHorizontal } from 'lucide-react';
+import { ActionModal } from '../../components/admin/ActionModal';
 
 const mockDisputes = [
   {
@@ -39,6 +40,7 @@ const mockDisputes = [
 
 export const Risk: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRisk, setSelectedRisk] = useState<any>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -117,6 +119,7 @@ export const Risk: React.FC = () => {
               <th className="px-6 py-4">Amount</th>
               <th className="px-6 py-4">Risk Level</th>
               <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -139,11 +142,39 @@ export const Risk: React.FC = () => {
                     {dispute.status}
                   </span>
                 </td>
+                <td className="px-6 py-4 text-right">
+                  <button 
+                    onClick={() => setSelectedRisk(dispute)} 
+                    className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  >
+                    <MoreHorizontal className="w-5 h-5" />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <ActionModal
+        isOpen={!!selectedRisk}
+        onClose={() => setSelectedRisk(null)}
+        title="Dispute / Risk Details"
+        data={selectedRisk ? {
+          'Reference': selectedRisk.id,
+          'Provider': selectedRisk.provider,
+          'Customer': selectedRisk.customer,
+          'Reason': selectedRisk.reason,
+          'Amount': `₦${selectedRisk.amount.toLocaleString()}`,
+          'Risk Level': selectedRisk.riskLevel,
+          'Status': selectedRisk.status,
+        } : {}}
+        actions={[
+          { label: 'Review Case File', variant: 'primary', onClick: () => alert('Viewing case details...') },
+          { label: 'Request More Info', variant: 'secondary', onClick: () => alert('Request sent.') },
+          { label: 'Close Dispute', variant: 'danger', onClick: () => alert('Dispute closed.') },
+        ]}
+      />
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, Download, CalendarDays, MoreHorizontal } from 'lucide-react';
+import { ActionModal } from '../../components/admin/ActionModal';
 
 const mockBookings = [
   {
@@ -61,6 +62,7 @@ const mockBookings = [
 
 export const Bookings: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -164,7 +166,10 @@ export const Bookings: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => alert('Action triggered!')} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                    <button 
+                      onClick={() => setSelectedBooking(booking)} 
+                      className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                    >
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
                   </td>
@@ -181,6 +186,26 @@ export const Bookings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ActionModal
+        isOpen={!!selectedBooking}
+        onClose={() => setSelectedBooking(null)}
+        title="Booking Options"
+        data={selectedBooking ? {
+          'Booking Ref': selectedBooking.id,
+          'Customer': selectedBooking.customer,
+          'Provider': selectedBooking.provider,
+          'Service': selectedBooking.service,
+          'Amount': `₦${selectedBooking.amount.toLocaleString()}`,
+          'Date': new Date(selectedBooking.date).toLocaleString(),
+          'Status': selectedBooking.status,
+        } : {}}
+        actions={[
+          { label: 'View Full Invoice', variant: 'primary', onClick: () => alert('Viewing invoice...') },
+          { label: 'Cancel Booking', variant: 'danger', onClick: () => alert('Booking cancelled.') },
+          { label: 'Close', variant: 'secondary', onClick: () => {} },
+        ]}
+      />
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, Download, Mail, Phone, MoreHorizontal } from 'lucide-react';
+import { ActionModal } from '../../components/admin/ActionModal';
 
 const mockCustomers = [
   {
@@ -61,6 +62,7 @@ const mockCustomers = [
 
 export const Customers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
 
   return (
     <div className="w-full space-y-6">
@@ -153,7 +155,10 @@ export const Customers: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button onClick={() => alert('Action triggered!')} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                    <button 
+                      onClick={() => setSelectedCustomer(customer)} 
+                      className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                    >
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
                   </td>
@@ -170,6 +175,26 @@ export const Customers: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <ActionModal
+        isOpen={!!selectedCustomer}
+        onClose={() => setSelectedCustomer(null)}
+        title="Customer Management"
+        data={selectedCustomer ? {
+          'Name': selectedCustomer.name,
+          'Email': selectedCustomer.email,
+          'Phone': selectedCustomer.phone,
+          'Total Bookings': selectedCustomer.totalBookings,
+          'Lifetime Value': `₦${selectedCustomer.totalSpent.toLocaleString()}`,
+          'Joined': new Date(selectedCustomer.joinDate).toLocaleDateString(),
+          'Status': selectedCustomer.status,
+        } : {}}
+        actions={[
+          { label: 'View Profile', variant: 'primary', onClick: () => alert('Viewing profile...') },
+          { label: 'Send Warning Email', variant: 'secondary', onClick: () => alert('Email sent.') },
+          { label: selectedCustomer?.status === 'Active' ? 'Suspend Account' : 'Activate Account', variant: 'danger', onClick: () => alert('Account status changed.') },
+        ]}
+      />
     </div>
   );
 };

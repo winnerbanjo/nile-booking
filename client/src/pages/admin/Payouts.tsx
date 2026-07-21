@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Filter, CreditCard, CheckCircle2, Clock, XCircle, MoreHorizontal } from 'lucide-react';
+import { Search, Filter, Download, CreditCard, CheckCircle2, AlertCircle, Clock, XCircle, MoreHorizontal } from 'lucide-react';
+import { ActionModal } from '../../components/admin/ActionModal';
 
 const mockPayouts = [
   {
@@ -38,6 +39,7 @@ const mockPayouts = [
 
 export const Payouts: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPayout, setSelectedPayout] = useState<any>(null);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -101,11 +103,17 @@ export const Payouts: React.FC = () => {
                 <td className="px-6 py-4">{getStatusBadge(payout.status)}</td>
                 <td className="px-6 py-4 text-right">
                   {payout.status === 'Pending Approval' ? (
-                    <button onClick={() => alert('Action triggered!')} className="px-3 py-1.5 bg-zinc-950 text-white text-xs font-medium rounded-lg hover:bg-zinc-800 transition-colors">
+                    <button 
+                      onClick={() => setSelectedPayout(payout)} 
+                      className="px-3 py-1.5 bg-zinc-950 text-white text-xs font-medium rounded-lg hover:bg-zinc-800 transition-colors"
+                    >
                       Review
                     </button>
                   ) : (
-                    <button onClick={() => alert('Action triggered!')} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                    <button 
+                      onClick={() => setSelectedPayout(payout)} 
+                      className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                    >
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
                   )}
@@ -115,6 +123,28 @@ export const Payouts: React.FC = () => {
           </tbody>
         </table>
       </div>
+
+      <ActionModal
+        isOpen={!!selectedPayout}
+        onClose={() => setSelectedPayout(null)}
+        title="Payout Details"
+        data={selectedPayout ? {
+          'Payout ID': selectedPayout.id,
+          'Provider': selectedPayout.provider,
+          'Amount': `₦${selectedPayout.amount.toLocaleString()}`,
+          'Destination': selectedPayout.destination,
+          'Date': selectedPayout.date,
+          'Status': selectedPayout.status,
+        } : {}}
+        actions={
+          selectedPayout?.status === 'Pending Approval' ? [
+            { label: 'Approve Payout', variant: 'primary', onClick: () => alert('Payout approved.') },
+            { label: 'Reject Payout', variant: 'danger', onClick: () => alert('Payout rejected.') },
+          ] : [
+            { label: 'View Confirmation', variant: 'primary', onClick: () => alert('Viewing confirmation...') },
+          ]
+        }
+      />
     </div>
   );
 };
