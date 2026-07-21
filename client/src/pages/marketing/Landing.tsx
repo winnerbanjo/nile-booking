@@ -169,13 +169,13 @@ export const Landing: React.FC = () => {
           >
             <motion.div variants={fadeInUp}>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-zinc-900 leading-[1.08]">
-                Your work speaks for itself.<br />
-                <span className="text-zinc-500 font-semibold">Your business should too.</span>
+                Your talent gets them interested.<br />
+                <span className="text-zinc-500 font-semibold">Your website gets you booked.</span>
               </h1>
             </motion.div>
 
             <motion.p variants={fadeInUp} className="text-base sm:text-lg text-zinc-600 font-normal leading-relaxed">
-              Build a professional website to accept bookings, collect deposits, and grow your service business.
+              Showcase your work, accept appointments, and collect deposits from one professional website.
             </motion.p>
 
             <motion.div variants={fadeInUp} className="flex flex-wrap items-center gap-3 pt-2">
