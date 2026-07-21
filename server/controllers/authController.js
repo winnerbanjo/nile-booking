@@ -3,6 +3,7 @@ import Schedule from '../models/Schedule.js';
 import jwt from 'jsonwebtoken';
 import { getMockMode, mockUsers } from '../utils/mockMode.js';
 import { sendMailtrapApiEmail } from '../services/notificationService.js';
+import { uploadImage } from '../services/cloudinaryService.js';
 
 // Generate JWT token
 const generateToken = (id) => {
@@ -477,9 +478,32 @@ export const updateProfile = async (req, res) => {
     if (phone) user.phone = phone;
     if (bio) user.bio = bio;
     if (location) user.location = location;
-    if (logo) user.logo = logo;
-    if (profileImage) user.profileImage = profileImage;
-    if (headerImage) user.headerImage = headerImage;
+
+    if (logo) {
+      if (logo.startsWith('data:image')) {
+        try {
+          const uploaded = await uploadImage(logo, 'nile-booking/logos');
+          user.logo = uploaded.url;
+        } catch (e) {
+          user.logo = logo;
+        }
+      } else {
+        user.logo = logo;
+      }
+    }
+
+    if (headerImage) {
+      if (headerImage.startsWith('data:image')) {
+        try {
+          const uploaded = await uploadImage(headerImage, 'nile-booking/headers');
+          user.headerImage = uploaded.url;
+        } catch (e) {
+          user.headerImage = headerImage;
+        }
+      } else {
+        user.headerImage = headerImage;
+      }
+    }
     if (policies) user.policies = { ...user.policies, ...policies };
     if (address) user.address = { ...user.address, ...address };
     if (bankAccount) user.bankAccount = { ...user.bankAccount, ...bankAccount };

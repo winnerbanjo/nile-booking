@@ -107,3 +107,19 @@ export const isTenantSubdomain = (): boolean => {
   const config = getTenantConfig();
   return !config.isMainSite && config.slug !== null;
 };
+
+/**
+ * Returns full URL to merchant storefront (subdomain on production, path on local/dev)
+ */
+export const getStorefrontUrl = (slug?: string | null): string => {
+  const merchantSlug = slug || 'the-modern-barber';
+  if (typeof window === 'undefined') return `/p/${merchantSlug}`;
+  
+  const host = window.location.hostname;
+  const protocol = window.location.protocol;
+
+  if (host.includes('nilebooking.co')) {
+    return `${protocol}//${merchantSlug}.nilebooking.co`;
+  }
+  return `/p/${merchantSlug}`;
+};

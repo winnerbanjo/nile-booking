@@ -24,6 +24,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
 import { cn } from '../../lib/utils';
 import { NileLogo } from '../ui/NileLogo';
+import { getStorefrontUrl } from '../../lib/subdomain';
 
 import { Star, Tag, ShoppingBag } from 'lucide-react';
 
@@ -178,15 +179,16 @@ export const DashboardLayout: React.FC = () => {
             </button>
             <div className="flex-1" />
             <div className="flex items-center gap-3">
-              <Link
-                to={`/p/${user?.slug || 'the-modern-barber'}`}
+              <a
+                href={getStorefrontUrl(user?.slug)}
                 target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-900 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-all shadow-sm"
               >
                 <Store className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 <span>View Public Storefront</span>
                 <ExternalLink className="w-3 h-3 text-zinc-400 shrink-0" />
-              </Link>
+              </a>
             </div>
           </div>
         </header>
