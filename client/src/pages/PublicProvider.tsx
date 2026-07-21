@@ -32,6 +32,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [activePolicyModal, setActivePolicyModal] = useState<'terms' | 'return' | 'privacy' | null>(null);
+  const [checkoutPaymentType, setCheckoutPaymentType] = useState<'bank_transfer' | 'pay_later'>('bank_transfer');
 
   const [checkoutData, setCheckoutData] = useState({
     customer: { name: '', email: '', phone: '' },
@@ -217,7 +218,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
           startTime: selectedTime,
           endTime: endTime,
         },
-        paymentType: 'bank_transfer',
+        paymentType: checkoutPaymentType,
         receiptImage: receiptImage || undefined,
         notes: checkoutData.notes,
       });
@@ -228,7 +229,9 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
       const whatsappLink = `https://wa.me/${data?.provider.phone?.replace(/\D/g, '')}?text=${whatsappMessage}`;
 
       window.open(whatsappLink, '_blank');
-      alert('Booking & Transfer Receipt Submitted! Opening WhatsApp to send receipt confirmation to merchant...');
+      alert(checkoutPaymentType === 'bank_transfer' 
+        ? 'Booking & Transfer Receipt Submitted! Opening WhatsApp to send receipt confirmation to merchant...' 
+        : 'Booking Submitted! Opening WhatsApp to send confirmation to merchant...');
       setShowCheckout(false);
     } catch (error: any) {
       alert('Failed to create booking: ' + (error.message || 'Unknown error'));
@@ -607,14 +610,14 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
         </div>
       )}
 
-      {/* Bank Transfer Checkout Modal (Strictly Bank Transfer Only) */}
+      {/* Checkout Modal */}
       {showCheckout && selectedService && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-zinc-200 p-6 shadow-xl max-h-[90vh] overflow-y-auto space-y-5">
             
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
-                <h3 className="text-base font-semibold text-zinc-900">Bank Transfer Checkout</h3>
+                <h3 className="text-base font-semibold text-zinc-900">Checkout</h3>
                 <p className="text-xs text-zinc-500">{data.provider.businessName}</p>
               </div>
               <button
@@ -643,21 +646,52 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               </div>
             </div>
 
-            {/* Bank Settlement Account Box */}
-            <div className="bg-zinc-900 text-white rounded-xl p-4 text-xs space-y-2">
-              <div className="flex items-center justify-between text-zinc-400">
-                <span className="flex items-center gap-1 font-medium">
-                  <Building2 className="w-3.5 h-3.5" />
-                  Merchant Transfer Details
-                </span>
-                <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-emerald-400">Bank Transfer</span>
-              </div>
-              <div className="pt-1">
-                <p className="text-sm font-bold text-white">Access Bank</p>
-                <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">8123843076</p>
-                <p className="text-xs text-zinc-300">{data.provider.businessName}</p>
+            {/* Payment Method Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-zinc-700 mb-1 block">Payment Method</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCheckoutPaymentType('bank_transfer')}
+                  className={`h-10 text-xs font-medium rounded-lg border transition-all ${
+                    checkoutPaymentType === 'bank_transfer'
+                      ? 'bg-zinc-900 text-white border-zinc-900'
+                      : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
+                  }`}
+                >
+                  Bank Transfer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCheckoutPaymentType('pay_later')}
+                  className={`h-10 text-xs font-medium rounded-lg border transition-all ${
+                    checkoutPaymentType === 'pay_later'
+                      ? 'bg-zinc-900 text-white border-zinc-900'
+                      : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
+                  }`}
+                >
+                  Pay in Person
+                </button>
               </div>
             </div>
+
+            {/* Bank Settlement Account Box */}
+            {checkoutPaymentType === 'bank_transfer' && (
+              <div className="bg-zinc-900 text-white rounded-xl p-4 text-xs space-y-2">
+                <div className="flex items-center justify-between text-zinc-400">
+                  <span className="flex items-center gap-1 font-medium">
+                    <Building2 className="w-3.5 h-3.5" />
+                    Merchant Transfer Details
+                  </span>
+                  <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-emerald-400">Bank Transfer</span>
+                </div>
+                <div className="pt-1">
+                  <p className="text-sm font-bold text-white">Access Bank</p>
+                  <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">8123843076</p>
+                  <p className="text-xs text-zinc-300">{data.provider.businessName}</p>
+                </div>
+              </div>
+            )}
 
             {/* Client Info Inputs */}
             <div className="space-y-3">
@@ -687,23 +721,25 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               </div>
 
               {/* Optional Transfer Receipt Image Upload */}
-              <div>
-                <Label className="text-xs font-medium text-zinc-700 mb-1 block">Upload Transfer Receipt Image (Optional)</Label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleReceiptUpload}
-                    className="text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
-                  />
-                </div>
-                {receiptImage && (
-                  <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Receipt screenshot attached!
+              {checkoutPaymentType === 'bank_transfer' && (
+                <div>
+                  <Label className="text-xs font-medium text-zinc-700 mb-1 block">Upload Transfer Receipt Image (Optional)</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleReceiptUpload}
+                      className="text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
+                    />
                   </div>
-                )}
-              </div>
+                  {receiptImage && (
+                    <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1 font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Receipt screenshot attached!
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Submit Action */}
@@ -711,7 +747,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               onClick={handleCheckoutSubmit}
               className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-10 text-xs font-medium shadow-sm"
             >
-              Submit Transfer Booking
+              {checkoutPaymentType === 'bank_transfer' ? 'Submit Transfer Booking' : 'Confirm Booking'}
             </Button>
 
           </div>
