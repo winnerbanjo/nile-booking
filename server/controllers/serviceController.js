@@ -225,6 +225,7 @@ export const getServicesBySlug = async (req, res) => {
           logo: mockUser.logo,
           profileImage: mockUser.profileImage,
           headerImage: mockUser.headerImage || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&h=600&fit=crop',
+          headerImages: mockUser.gallery && mockUser.gallery.length > 0 ? mockUser.gallery.map(g => g.url) : [mockUser.headerImage],
           address: mockUser.address,
           socialHandles: mockUser.socialHandles,
           paymentMethods: mockUser.paymentMethods || { cash: true, transfer: true, card: false },
