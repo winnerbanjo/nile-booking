@@ -8,6 +8,7 @@ const mockCustomers = [
     name: 'Sarah Jenkins',
     email: 'sarah.j@example.com',
     phone: '+234 801 234 5678',
+    provider: 'The Modern Barber',
     totalBookings: 12,
     completedBookings: 11,
     totalSpent: 450000,
@@ -19,6 +20,7 @@ const mockCustomers = [
     name: 'David Ojo',
     email: 'david.ojo@example.com',
     phone: '+234 902 345 6789',
+    provider: 'Elite Hair Studio',
     totalBookings: 5,
     completedBookings: 5,
     totalSpent: 125000,
@@ -30,6 +32,7 @@ const mockCustomers = [
     name: 'Amina Bello',
     email: 'amina.b@example.com',
     phone: '+234 703 456 7890',
+    provider: 'The Modern Barber',
     totalBookings: 8,
     completedBookings: 6,
     totalSpent: 280000,
@@ -41,6 +44,7 @@ const mockCustomers = [
     name: 'Chioma Adeyemi',
     email: 'chioma.a@example.com',
     phone: '+234 814 567 8901',
+    provider: 'Glamour MUA',
     totalBookings: 3,
     completedBookings: 2,
     totalSpent: 45000,
@@ -52,6 +56,7 @@ const mockCustomers = [
     name: 'Michael Eze',
     email: 'michael.eze@example.com',
     phone: '+234 915 678 9012',
+    provider: 'Elite Hair Studio',
     totalBookings: 1,
     completedBookings: 1,
     totalSpent: 35000,
@@ -109,6 +114,7 @@ export const Customers: React.FC = () => {
               <tr>
                 <th className="px-6 py-4">Customer</th>
                 <th className="px-6 py-4">Contact</th>
+                <th className="px-6 py-4">Merchant</th>
                 <th className="px-6 py-4">Activity</th>
                 <th className="px-6 py-4">Total Spent</th>
                 <th className="px-6 py-4">Status</th>
@@ -138,6 +144,10 @@ export const Customers: React.FC = () => {
                       <Phone className="w-3.5 h-3.5 text-gray-400" />
                       {customer.phone}
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <p className="font-bold text-gray-900 truncate max-w-[150px]">{customer.provider}</p>
+                    <p className="text-[10px] text-gray-400">Primary Provider</p>
                   </td>
                   <td className="px-6 py-4">
                     <p className="font-bold text-gray-900">{customer.totalBookings} <span className="font-normal text-xs text-gray-500">Total Bookings</span></p>
@@ -184,14 +194,14 @@ export const Customers: React.FC = () => {
           'Name': selectedCustomer.name,
           'Email': selectedCustomer.email,
           'Phone': selectedCustomer.phone,
+          'Merchant': selectedCustomer.provider,
           'Total Bookings': selectedCustomer.totalBookings,
           'Lifetime Value': `₦${selectedCustomer.totalSpent.toLocaleString()}`,
-          'Joined': new Date(selectedCustomer.joinDate).toLocaleDateString(),
+          'Joined': selectedCustomer.lastActive,
           'Status': selectedCustomer.status,
         } : {}}
         actions={[
           { label: 'View Profile', variant: 'primary', onClick: () => alert('Viewing profile...') },
-          { label: 'Send Warning Email', variant: 'secondary', onClick: () => alert('Email sent.') },
           { label: selectedCustomer?.status === 'Active' ? 'Suspend Account' : 'Activate Account', variant: 'danger', onClick: () => alert('Account status changed.') },
         ]}
       />
