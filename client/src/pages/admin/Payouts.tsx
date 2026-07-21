@@ -101,11 +101,11 @@ export const Payouts: React.FC = () => {
                 <td className="px-6 py-4">{getStatusBadge(payout.status)}</td>
                 <td className="px-6 py-4 text-right">
                   {payout.status === 'Pending Approval' ? (
-                    <button className="px-3 py-1.5 bg-zinc-950 text-white text-xs font-medium rounded-lg hover:bg-zinc-800 transition-colors">
+                    <button onClick={() => alert('Action triggered!')} className="px-3 py-1.5 bg-zinc-950 text-white text-xs font-medium rounded-lg hover:bg-zinc-800 transition-colors">
                       Review
                     </button>
                   ) : (
-                    <button className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                    <button onClick={() => alert('Action triggered!')} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
                   )}

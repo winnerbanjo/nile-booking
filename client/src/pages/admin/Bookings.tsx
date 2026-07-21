@@ -90,7 +90,7 @@ export const Bookings: React.FC = () => {
           <p className="text-sm text-gray-500 mt-1">Monitor and manage all appointments across the ecosystem.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg shadow-sm transition-colors">
+          <button onClick={() => alert('Action triggered!')} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg shadow-sm transition-colors">
             <Download className="w-4 h-4" />
             Export
           </button>
@@ -110,7 +110,7 @@ export const Bookings: React.FC = () => {
           />
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100">
+          <button onClick={() => alert('Action triggered!')} className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100">
             <Filter className="w-4 h-4" />
             More Filters
           </button>
@@ -164,7 +164,7 @@ export const Bookings: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+                    <button onClick={() => alert('Action triggered!')} className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
                   </td>
@@ -176,8 +176,8 @@ export const Bookings: React.FC = () => {
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between text-sm text-gray-500">
           <span>Showing 1 to 5 of 840 bookings</span>
           <div className="flex items-center gap-2">
-            <button className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 disabled:opacity-50">Prev</button>
-            <button className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50">Next</button>
+            <button onClick={() => alert('Action triggered!')} className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 disabled:opacity-50">Prev</button>
+            <button onClick={() => alert('Action triggered!')} className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50">Next</button>
           </div>
         </div>
       </div>

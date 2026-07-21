@@ -103,7 +103,7 @@ export const AdminDashboard: React.FC = () => {
             <option>This Month</option>
             <option>This Quarter</option>
           </select>
-          <button className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white text-sm font-medium rounded-lg shadow-sm transition-colors">
+          <button onClick={() => alert('Action triggered!')} className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white text-sm font-medium rounded-lg shadow-sm transition-colors">
             Export Report
           </button>
         </div>
@@ -365,7 +365,7 @@ export const AdminDashboard: React.FC = () => {
                 <span className="text-xs text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded">Degraded</span>
               </div>
             </div>
-            <button className="w-full mt-5 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <button onClick={() => alert('Action triggered!')} className="w-full mt-5 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
               View Status Page
             </button>
           </div>

@@ -87,7 +87,7 @@ export const Transactions: React.FC = () => {
           <p className="text-sm text-gray-500 mt-1">Global transaction records, commission tracking, and settlement status.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg shadow-sm transition-colors">
+          <button onClick={() => alert('Action triggered!')} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg shadow-sm transition-colors">
             <Download className="w-4 h-4" />
             Export CSV
           </button>
@@ -130,7 +130,7 @@ export const Transactions: React.FC = () => {
             <option>Failed</option>
             <option>Refunded</option>
           </select>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100">
+          <button onClick={() => alert('Action triggered!')} className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100">
             <Filter className="w-4 h-4" />
             More Filters
           </button>
@@ -178,8 +178,8 @@ export const Transactions: React.FC = () => {
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between text-sm text-gray-500">
           <span>Showing 1 to 5 of 3,192 transactions</span>
           <div className="flex items-center gap-2">
-            <button className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 disabled:opacity-50">Prev</button>
-            <button className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50">Next</button>
+            <button onClick={() => alert('Action triggered!')} className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 disabled:opacity-50">Prev</button>
+            <button onClick={() => alert('Action triggered!')} className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50">Next</button>
           </div>
         </div>
       </div>
