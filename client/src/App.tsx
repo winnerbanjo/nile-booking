@@ -54,6 +54,8 @@ const detectSubdomain = (): string | null => {
     const host = window.location.hostname.toLowerCase();
     const path = window.location.pathname;
 
+    console.log('[Nile] hostname:', host, '| path:', path);
+
     // Never treat auth/dashboard routes as subdomain
     if (
       path.startsWith('/login') ||
@@ -62,12 +64,14 @@ const detectSubdomain = (): string | null => {
       path.startsWith('/dashboard') ||
       path.startsWith('/admin')
     ) {
+      console.log('[Nile] Auth/dashboard path, returning null');
       return null;
     }
 
     // Production: *.nilebooking.co
     if (host.endsWith('.nilebooking.co')) {
       const sub = host.replace('.nilebooking.co', '');
+      console.log('[Nile] Subdomain detected:', sub);
       if (sub && sub !== 'www' && sub !== 'nilebooking' && sub.length > 0) {
         return sub;
       }
@@ -79,6 +83,7 @@ const detectSubdomain = (): string | null => {
       if (sub && sub !== 'www') return sub;
     }
 
+    console.log('[Nile] No subdomain, main site');
     return null;
   } catch {
     return null;
@@ -171,7 +176,7 @@ function MainApp() {
           <Route path="/verify-otp" element={<VerifyOtp />} />
 
           {/* Marketing */}
-          <Route path="/" element={<><Navbar /><Landing /><Footer /></>} />
+          <Route path="/" element={<Landing />} />
           <Route path="/product" element={<><Navbar /><Product /><Footer /></>} />
           <Route path="/solutions" element={<><Navbar /><Solutions /><Footer /></>} />
           <Route path="/how-it-works" element={<><Navbar /><HowItWorks /><Footer /></>} />
