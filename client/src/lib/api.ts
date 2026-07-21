@@ -260,6 +260,7 @@ export const bookingApi = {
   createBooking: async (data: {
     customer: { name: string; email: string; phone: string };
     serviceId: string;
+    providerSlug?: string;
     date: string;
     timeSlot: { startTime: string; endTime: string };
     paymentType: 'full' | 'deposit' | 'pay_later' | 'bank_transfer';

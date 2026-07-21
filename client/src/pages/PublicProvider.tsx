@@ -80,41 +80,6 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
         scheduleApi.getScheduleBySlug(slug).catch(() => null),
       ]);
 
-      const fallbackData = servicesData || {
-        provider: {
-          _id: 'default_barber_id',
-          name: 'The Modern Barber',
-          businessName: 'The Modern Barber',
-          slug: slug || 'the-modern-barber',
-          phone: '+2348123843076',
-          bio: 'Premier luxury barbershop in Lagos offering skin fades, beard grooming, and hot towel treatments.',
-          location: 'Lekki Phase 1, Lagos',
-          logo: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=200&h=200&fit=crop',
-          headerImage: DEFAULT_HEADER_BANNER,
-          headerImages: [DEFAULT_HEADER_BANNER],
-        },
-        services: [
-          {
-            _id: 's1',
-            name: 'VIP Skin Fade & Beard Trim',
-            description: 'Precision skin fade with hot towel finish and beard oil treatment.',
-            price: 15000,
-            duration: 0.75,
-            category: 'haircut',
-            isActive: true,
-          },
-          {
-            _id: 's2',
-            name: 'Standard Haircut',
-            description: 'Classic barber haircut and neck shave.',
-            price: 10000,
-            duration: 0.5,
-            category: 'haircut',
-            isActive: true,
-          },
-        ],
-      };
-
       const fallbackSchedule = scheduleData || {
         timezone: 'Africa/Lagos',
         bufferTime: 15,
@@ -129,17 +94,26 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
         },
       };
 
-      setData(fallbackData);
-      setSchedule(fallbackSchedule as Schedule);
-      if (fallbackData.services.length > 0) {
-        setSelectedService(fallbackData.services[0]);
+      // Only use real data from the API — never fake service IDs
+      if (servicesData) {
+        setData(servicesData);
+        setSchedule(fallbackSchedule as Schedule);
+        if (servicesData.services.length > 0) {
+          setSelectedService(servicesData.services[0]);
+        }
+      } else {
+        // API failed — still show schedule fallback but mark data as null
+        setData(null);
+        setSchedule(fallbackSchedule as Schedule);
       }
     } catch (error) {
-      console.error('Failed to load data:', error);
+      console.error('Failed to load storefront:', error);
+      setData(null);
     } finally {
       setLoading(false);
     }
   };
+
 
   const calculateAvailableSlots = () => {
     if (!selectedDate || !selectedService || !schedule) return;
@@ -237,6 +211,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
       const response = await bookingApi.createBooking({
         customer: checkoutData.customer,
         serviceId: selectedService._id,
+        providerSlug: slug || undefined,
         date: selectedDate.toISOString(),
         timeSlot: {
           startTime: selectedTime,

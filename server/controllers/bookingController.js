@@ -13,6 +13,7 @@ export const createBooking = async (req, res) => {
     const {
       customer,
       serviceId,
+      providerSlug,
       date,
       timeSlot,
       paymentType,
@@ -66,9 +67,24 @@ export const createBooking = async (req, res) => {
     }
 
     // Database Mode
-    const service = await Service.findById(serviceId);
+    let service = null;
+
+    // Try to find service by ID first
+    if (serviceId && serviceId.match(/^[0-9a-fA-F]{24}$/)) {
+      service = await Service.findById(serviceId);
+    }
+
+    // If service not found by ID, try to find via providerSlug (for public storefront bookings)
+    if (!service && providerSlug) {
+      const User = (await import('../models/User.js')).default;
+      const provider = await User.findOne({ slug: providerSlug }).lean();
+      if (provider) {
+        service = await Service.findOne({ provider: provider._id, isActive: true });
+      }
+    }
+
     if (!service) {
-      return res.status(404).json({ message: 'Service not found' });
+      return res.status(404).json({ message: 'Service not found. Please refresh and try again.' });
     }
 
     const servicePrice = service.price;
