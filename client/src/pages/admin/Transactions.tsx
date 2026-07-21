@@ -101,12 +101,12 @@ export const Transactions: React.FC = () => {
           <p className="text-3xl font-black tracking-tighter">₦4,500,000</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Nile Commission (10%)</p>
-          <p className="text-3xl font-black tracking-tighter text-emerald-600">₦450,000</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Settled Volume</p>
+          <p className="text-3xl font-black tracking-tighter text-emerald-600">₦4,150,000</p>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Provider Payout</p>
-          <p className="text-3xl font-black tracking-tighter text-gray-900">₦4,050,000</p>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Pending Volume</p>
+          <p className="text-3xl font-black tracking-tighter text-amber-600">₦350,000</p>
         </div>
       </div>
 
@@ -147,8 +147,6 @@ export const Transactions: React.FC = () => {
                 <th className="px-6 py-4">Booking Ref</th>
                 <th className="px-6 py-4">Provider</th>
                 <th className="px-6 py-4">Gross Amount</th>
-                <th className="px-6 py-4 bg-emerald-50/50 text-emerald-700">Nile Cut (10%)</th>
-                <th className="px-6 py-4">Net Payout</th>
                 <th className="px-6 py-4">Method / Status</th>
               </tr>
             </thead>
@@ -167,12 +165,6 @@ export const Transactions: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 font-bold text-gray-900">
                     ₦{txn.amount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 font-bold text-emerald-600 bg-emerald-50/30">
-                    ₦{txn.nileCommission.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 font-bold text-gray-900">
-                    ₦{txn.providerPayout.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 space-y-1.5">
                     <p className="text-xs text-gray-500 font-medium">{txn.paymentMethod}</p>

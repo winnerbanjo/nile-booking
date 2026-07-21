@@ -65,6 +65,7 @@ const NAV_GROUPS = [
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hasNotifications, setHasNotifications] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -202,6 +203,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               <input 
                 type="text" 
                 placeholder="Search providers, bookings, transactions..." 
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    alert(`Searching for: ${e.currentTarget.value}`);
+                  }
+                }}
                 className="w-full pl-9 pr-4 py-2 bg-gray-100/50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-gray-400 text-gray-900"
               />
               <div className="absolute right-2 px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[10px] font-medium text-gray-400">
@@ -218,9 +224,17 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             </div>
 
             {/* Notifications */}
-            <button className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
+            <button 
+              onClick={() => {
+                setHasNotifications(false);
+                alert("You have 0 new notifications.");
+              }}
+              className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              {hasNotifications && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+              )}
             </button>
           </div>
         </header>

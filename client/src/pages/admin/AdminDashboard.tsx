@@ -8,7 +8,7 @@ import { adminApi } from '../../lib/api';
 
 const defaultKpiData = {
   ecosystemGMV: 4500000,
-  nileRevenue: 450000,
+  activeSubscriptions: 125,
   completedGMV: 4100000,
   pendingSettlement: 350000,
   trustScore: 4.8,
@@ -67,6 +67,12 @@ const ACTION_ALERTS = [
 export const AdminDashboard: React.FC = () => {
   const [kpiData, setKpiData] = useState<any>(defaultKpiData);
   const [loading, setLoading] = useState(true);
+  const [alerts, setAlerts] = useState(ACTION_ALERTS);
+
+  const handleAction = (id: number) => {
+    alert(`Action completed for alert ID: ${id}`);
+    setAlerts(alerts.filter(a => a.id !== id));
+  };
 
   useEffect(() => {
     // Simulate fetching deep stats
@@ -123,17 +129,17 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Nile Net Revenue</h3>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Active Subscriptions</h3>
             <TrendingUp className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="flex items-baseline gap-2">
             <p className="text-3xl font-black text-emerald-600 tracking-tighter">
-              {loading ? '...' : formatMoney(kpiData.nileRevenue)}
+              {loading ? '...' : kpiData.activeSubscriptions}
             </p>
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
             <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>+15.2% from last period</span>
+            <span>+12 new this month</span>
           </div>
         </div>
 
@@ -221,11 +227,14 @@ export const AdminDashboard: React.FC = () => {
                 <h3 className="text-base font-bold text-gray-900">Action Centre</h3>
               </div>
               <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
-                3 Urgent Actions
+                {alerts.length} Urgent Actions
               </span>
             </div>
             <div className="divide-y divide-gray-100">
-              {ACTION_ALERTS.map((alert) => (
+              {alerts.length === 0 ? (
+                <div className="p-6 text-center text-sm text-gray-500">All caught up! No urgent actions.</div>
+              ) : (
+                alerts.map((alert) => (
                 <div key={alert.id} className="p-4 sm:px-6 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex items-start gap-4">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${alert.bg} ${alert.border} ${alert.color}`}>
@@ -245,14 +254,14 @@ export const AdminDashboard: React.FC = () => {
                       </p>
                     </div>
                   </div>
-                  <Link 
-                    to={alert.link}
+                  <button 
+                    onClick={() => handleAction(alert.id)}
                     className="shrink-0 flex items-center justify-center px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:text-emerald-600 transition-colors"
                   >
                     Take Action
-                  </Link>
+                  </button>
                 </div>
-              ))}
+              )))}
             </div>
           </div>
 
@@ -268,8 +277,7 @@ export const AdminDashboard: React.FC = () => {
                   <tr>
                     <th className="px-6 py-3">Reference</th>
                     <th className="px-6 py-3">Provider</th>
-                    <th className="px-6 py-3">Gross</th>
-                    <th className="px-6 py-3">Commission</th>
+                    <th className="px-6 py-3">Gross Amount</th>
                     <th className="px-6 py-3">Status</th>
                   </tr>
                 </thead>
@@ -278,7 +286,6 @@ export const AdminDashboard: React.FC = () => {
                     <td className="px-6 py-4 font-mono text-xs font-medium text-gray-900">TXN-8923</td>
                     <td className="px-6 py-4 font-medium text-gray-900">The Modern Chef</td>
                     <td className="px-6 py-4">₦15,000</td>
-                    <td className="px-6 py-4 text-emerald-600 font-medium">₦1,500</td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
                         SUCCESS
@@ -289,7 +296,6 @@ export const AdminDashboard: React.FC = () => {
                     <td className="px-6 py-4 font-mono text-xs font-medium text-gray-900">TXN-8922</td>
                     <td className="px-6 py-4 font-medium text-gray-900">Glamour MUA</td>
                     <td className="px-6 py-4">₦22,000</td>
-                    <td className="px-6 py-4 text-emerald-600 font-medium">₦2,200</td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
                         SUCCESS

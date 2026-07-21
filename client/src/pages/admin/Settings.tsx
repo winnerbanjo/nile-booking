@@ -9,7 +9,10 @@ export const Settings: React.FC = () => {
           <h2 className="text-2xl font-black tracking-tight text-gray-900">Platform Settings</h2>
           <p className="text-sm text-gray-500 mt-1">Configure global platform variables and commissions.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors">
+        <button 
+          onClick={() => alert("Settings saved successfully!")}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-colors"
+        >
           <Save className="w-4 h-4" />
           Save Changes
         </button>
@@ -23,8 +26,8 @@ export const Settings: React.FC = () => {
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Standard Commission Rate (%)</label>
-              <input type="number" defaultValue={10} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Monthly Subscription Fee (₦)</label>
+              <input type="number" defaultValue={5000} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Default Payout Delay (Days)</label>
