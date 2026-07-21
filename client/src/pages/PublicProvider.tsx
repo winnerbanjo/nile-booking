@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { serviceApi, scheduleApi, bookingApi } from '../lib/api';
-import { getTenantConfig } from '../lib/subdomain';
 import { Calendar } from '../components/ui/calendar';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -19,8 +18,9 @@ interface PublicProviderProps {
 
 export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }) => {
   const { slug: urlSlug } = useParams<{ slug: string }>();
-  const tenantConfig = getTenantConfig();
-  const slug = propSlug || tenantConfig.slug || urlSlug;
+  // Slug comes from props (subdomain route) or URL params (/p/:slug route)
+  // Do NOT use getTenantConfig() here — it uses old subdomain.ts which has path-bypass bugs
+  const slug = propSlug || urlSlug;
 
   const [data, setData] = useState<ProviderWithServices | null>(null);
   const [schedule, setSchedule] = useState<Schedule | null>(null);

@@ -46,52 +46,39 @@ import { CookiePolicy } from './pages/legal/CookiePolicy';
 import { LinkNest } from './pages/ecosystem/LinkNest';
 import { NileCollective } from './pages/ecosystem/NileCollective';
 
-// ─── Subdomain detection (runs once at module load, always reliable) ──────────
-// Called synchronously here — window is 100% available at module evaluation time
-// in a browser SPA. This is the most reliable approach.
-const detectSubdomain = (): string | null => {
-  try {
-    const host = window.location.hostname.toLowerCase();
-    const path = window.location.pathname;
+// ─── Subdomain detection ──────────────────────────────────────────────────────
+// Reads window.location.hostname directly every time App renders.
+// This is 100% reliable in the browser — window is always defined here.
+function getMerchantSlug(): string | null {
+  const host = window.location.hostname.toLowerCase();
+  const path = window.location.pathname;
 
-    console.log('[Nile] hostname:', host, '| path:', path);
-
-    // Never treat auth/dashboard routes as subdomain
-    if (
-      path.startsWith('/login') ||
-      path.startsWith('/register') ||
-      path.startsWith('/verify-otp') ||
-      path.startsWith('/dashboard') ||
-      path.startsWith('/admin')
-    ) {
-      console.log('[Nile] Auth/dashboard path, returning null');
-      return null;
-    }
-
-    // Production: *.nilebooking.co
-    if (host.endsWith('.nilebooking.co')) {
-      const sub = host.replace('.nilebooking.co', '');
-      console.log('[Nile] Subdomain detected:', sub);
-      if (sub && sub !== 'www' && sub !== 'nilebooking' && sub.length > 0) {
-        return sub;
-      }
-    }
-
-    // Local dev: anything.localhost or *.localhost:3000
-    if (host !== 'localhost' && host !== '127.0.0.1' && host.endsWith('localhost')) {
-      const sub = host.split('.')[0];
-      if (sub && sub !== 'www') return sub;
-    }
-
-    console.log('[Nile] No subdomain, main site');
-    return null;
-  } catch {
+  // Skip subdomain routing for auth/dashboard paths
+  if (
+    path.startsWith('/login') ||
+    path.startsWith('/register') ||
+    path.startsWith('/verify-otp') ||
+    path.startsWith('/dashboard') ||
+    path.startsWith('/admin')
+  ) {
     return null;
   }
-};
 
-// Evaluate ONCE at module load time — completely reliable
-const TENANT_SLUG = detectSubdomain();
+  // e.g. "the-modern-chef.nilebooking.co" → "the-modern-chef"
+  const match = host.match(/^([a-z0-9][a-z0-9-]*)\.nilebooking\.co$/);
+  if (match && match[1] !== 'www') {
+    console.log('[Nile] merchant subdomain:', match[1]);
+    return match[1];
+  }
+
+  // Local dev subdomains (e.g. themodernchef.localhost)
+  if (host !== 'localhost' && !host.includes('.') === false && host.endsWith('.localhost')) {
+    const sub = host.split('.')[0];
+    if (sub && sub !== 'www') return sub;
+  }
+
+  return null;
+}
 
 // ─── Loading Spinner ──────────────────────────────────────────────────────────
 const PageLoader = () => (
@@ -324,10 +311,12 @@ function MainApp() {
 
 // ─── Root App — single branch decision ───────────────────────────────────────
 function App() {
-  // TENANT_SLUG is evaluated once at module load time, before any React render.
-  // window.location.hostname is always correct in the browser.
-  if (TENANT_SLUG) {
-    return <StorefrontApp slug={TENANT_SLUG} />;
+  // getMerchantSlug() is called at render time — always reads the CURRENT
+  // window.location.hostname, which is 100% correct in the browser.
+  const merchantSlug = getMerchantSlug();
+
+  if (merchantSlug) {
+    return <StorefrontApp slug={merchantSlug} />;
   }
   return <MainApp />;
 }
