@@ -78,6 +78,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    headerImages: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     policies: {
       terms: {
         type: String,

@@ -218,7 +218,20 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     );
   }
 
-  const headerBannerUrl = data.provider.headerImage || DEFAULT_HEADER_BANNER;
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+
+  const bannerList = data.provider.headerImages && data.provider.headerImages.length > 0
+    ? data.provider.headerImages
+    : [data.provider.headerImage || DEFAULT_HEADER_BANNER];
+
+  useEffect(() => {
+    if (bannerList.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveBannerIndex((prev) => (prev + 1) % bannerList.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, [bannerList.length]);
+
   const merchantLogoUrl = data.provider.logo || data.provider.profileImage;
   const socialHandles = data.provider.socialHandles || {};
   const policies = data.provider.policies || {};
@@ -253,17 +266,42 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
           </div>
         </header>
 
-        {/* Header Image Banner Hero */}
-        <div className="relative w-full h-48 sm:h-64 md:h-72 bg-zinc-900 overflow-hidden">
-          <img
-            src={headerBannerUrl}
-            alt={data.provider.businessName}
-            className="w-full h-full object-cover opacity-90"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+        {/* Multi-Image Hero Banner Carousel */}
+        <div className="relative w-full h-52 sm:h-64 md:h-76 bg-zinc-900 overflow-hidden group">
+          {bannerList.map((bannerUrl, idx) => (
+            <div
+              key={idx}
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                idx === activeBannerIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              }`}
+            >
+              <img
+                src={bannerUrl}
+                alt={`${data.provider.businessName} Banner ${idx + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent z-20 pointer-events-none"></div>
+
+          {/* Carousel Pagination Dots */}
+          {bannerList.length > 1 && (
+            <div className="absolute top-4 right-4 z-30 flex items-center gap-1.5 bg-black/40 backdrop-blur-xs px-2.5 py-1 rounded-full border border-white/20">
+              {bannerList.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveBannerIndex(i)}
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    i === activeBannerIndex ? 'bg-emerald-400 w-5' : 'bg-white/60 hover:bg-white'
+                  }`}
+                  aria-label={`Slide ${i + 1}`}
+                />
+              ))}
+            </div>
+          )}
 
           {/* Merchant Overlay on Banner */}
-          <div className="absolute bottom-4 left-4 right-4 max-w-4xl mx-auto flex items-end justify-between gap-4">
+          <div className="absolute bottom-4 left-4 right-4 max-w-4xl mx-auto flex items-end justify-between gap-4 z-30">
             <div className="flex items-end gap-3.5 sm:gap-4">
               <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 border-white bg-white overflow-hidden shadow-lg flex-shrink-0">
                 {merchantLogoUrl ? (
