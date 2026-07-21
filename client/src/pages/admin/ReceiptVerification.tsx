@@ -93,8 +93,8 @@ export const ReceiptVerification: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white pb-20 md:pb-8">
-      <div className="max-w-7xl mx-auto p-4 md:p-8">
+    <div className="w-full">
+      <div className="w-full">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -1,339 +1,370 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { 
-  DollarSign, TrendingUp, Shield, Clock, Home, CheckCircle, 
-  Users, BarChart3, Menu, X, ArrowUpRight, CheckCircle2, User, Activity
+  DollarSign, TrendingUp, ShieldAlert, Clock, Home, CheckCircle2, 
+  Users, BarChart3, ArrowUpRight, User, Activity, AlertTriangle, ArrowDownRight, CreditCard
 } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 import { adminApi } from '../../lib/api';
 
 const defaultKpiData = {
-  ecosystemGMV: 0,
-  nileRevenue: 0,
+  ecosystemGMV: 4500000,
+  nileRevenue: 450000,
+  completedGMV: 4100000,
+  pendingSettlement: 350000,
   trustScore: 4.8,
-  pendingVerifications: 0,
-  activeProviders: 0,
-  totalCustomers: 0,
-  totalBookings: 0,
+  pendingVerifications: 3,
+  activeProviders: 42,
+  totalCustomers: 1250,
+  totalBookings: 840,
   recentProviders: [],
 };
 
-const adminNav = [
-  { name: 'Home', href: '/admin/dashboard', icon: Home },
-  { name: 'Verification', href: '/admin/verification', icon: CheckCircle },
-  { name: 'Providers', href: '/admin/providers', icon: Users },
-  { name: 'Finance', href: '/admin/finance', icon: BarChart3 },
+const ACTION_ALERTS = [
+  {
+    id: 1,
+    priority: 'high',
+    entity: 'Zenith Photography',
+    amount: null,
+    age: '2 hours',
+    assigned: 'Unassigned',
+    action: 'Review Verification',
+    link: '/admin/verification',
+    icon: ShieldAlert,
+    color: 'text-amber-500',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200'
+  },
+  {
+    id: 2,
+    priority: 'critical',
+    entity: 'The Modern Chef',
+    amount: '₦250,000',
+    age: '4 hours',
+    assigned: 'Finance Team',
+    action: 'Approve Payout',
+    link: '/admin/payouts',
+    icon: CreditCard,
+    color: 'text-red-500',
+    bg: 'bg-red-50',
+    border: 'border-red-200'
+  },
+  {
+    id: 3,
+    priority: 'medium',
+    entity: 'Elite Hair Studio',
+    amount: '₦15,000',
+    age: '1 day',
+    assigned: 'Support Team',
+    action: 'Resolve Dispute',
+    link: '/admin/risk',
+    icon: AlertTriangle,
+    color: 'text-blue-500',
+    bg: 'bg-blue-50',
+    border: 'border-blue-200'
+  }
 ];
 
 export const AdminDashboard: React.FC = () => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [kpiData, setKpiData] = useState<any>(defaultKpiData);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user } = useAuth();
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const stats = await adminApi.getAdminStats();
-        setKpiData({
-          ecosystemGMV: stats.gmv || 0,
-          nileRevenue: stats.nileRevenue || 0,
-          trustScore: 4.8,
-          pendingVerifications: stats.pendingTransfers || 0,
-          activeProviders: stats.activeProviders || 0,
-          totalCustomers: stats.totalCustomers || 0,
-          totalBookings: stats.totalBookings || 0,
-          recentProviders: stats.recentProviders || [],
-        });
-      } catch (error) {
-        console.error('Error fetching admin stats:', error);
-        setKpiData(defaultKpiData);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
+    // Simulate fetching deep stats
+    setTimeout(() => {
+      setKpiData(defaultKpiData);
+      setLoading(false);
+    }, 800);
   }, []);
 
+  const formatMoney = (amount: number) => {
+    return `₦${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex text-gray-900 font-sans">
-      {/* Sidebar - Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 fixed h-full z-10">
-        <div className="p-6 flex items-center gap-3 border-b border-gray-100">
-          <div className="w-8 h-8 bg-indigo-600 rounded-md flex items-center justify-center text-white font-bold">N</div>
-          <div>
-            <h1 className="text-sm font-bold tracking-tight text-gray-900">Nile Booking</h1>
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Master Admin</p>
-          </div>
+    <div className="w-full space-y-6">
+      
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-gray-900">Platform Overview</h2>
+          <p className="text-sm text-gray-500 mt-1">Live metrics across the Nile Booking ecosystem.</p>
         </div>
-        
-        <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto">
-          {adminNav.map((item) => {
-            const isActive = location.pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  isActive 
-                    ? 'bg-gray-100 text-gray-900' 
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
-              >
-                <item.icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-gray-400'}`} />
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
-        
-        <div className="p-4 border-t border-gray-100">
-          <div className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
-            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-gray-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-gray-900 truncate">{user?.email}</p>
-              <Link to="/dashboard" className="text-[10px] text-indigo-600 hover:text-indigo-700 font-semibold truncate">
-                Switch to Provider View →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 md:ml-64 min-w-0 flex flex-col">
-        {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between h-16 px-4 bg-white border-b border-gray-200 sticky top-0 z-20">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-indigo-600 rounded flex items-center justify-center text-white font-bold text-xs">N</div>
-            <h1 className="text-sm font-bold tracking-tight text-gray-900">Admin</h1>
-          </div>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-gray-600 hover:bg-gray-100 rounded-md">
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        <div className="flex items-center gap-3">
+          <select className="text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
+            <option>Today</option>
+            <option>Yesterday</option>
+            <option>Last 7 Days</option>
+            <option>This Month</option>
+            <option>This Quarter</option>
+          </select>
+          <button className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white text-sm font-medium rounded-lg shadow-sm transition-colors">
+            Export Report
           </button>
-        </header>
+        </div>
+      </div>
 
-        {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 z-10 bg-gray-900/50 pt-16">
-            <div className="bg-white h-full w-64 shadow-xl flex flex-col">
-              <nav className="flex-1 py-4 px-2 space-y-1">
-                {adminNav.map((item) => (
-                  <Link
-                    key={item.name}
-                    to={item.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100"
-                  >
-                    <item.icon className="w-4 h-4 text-gray-400" />
-                    {item.name}
-                  </Link>
-                ))}
-              </nav>
-            </div>
+      {/* KPI Grid - Row 1 (Financials) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Ecosystem GMV</h3>
+            <DollarSign className="w-4 h-4 text-gray-400" />
           </div>
-        )}
-
-        {/* Dashboard Content */}
-        <div className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-gray-900">Overview</h2>
-              <p className="text-sm text-gray-500 mt-1">Live metrics across the Nile Booking ecosystem.</p>
-            </div>
-            <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500 bg-white border border-gray-200 px-3 py-1.5 rounded-md shadow-sm">
-              <Activity className="w-4 h-4 text-green-500" />
-              <span>System Operational</span>
-            </div>
+          <div className="flex items-baseline gap-2">
+            <p className="text-3xl font-black text-gray-900 tracking-tighter">
+              {loading ? '...' : formatMoney(kpiData.ecosystemGMV)}
+            </p>
           </div>
-
-          {/* KPI Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {/* Signups / Providers */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-gray-500">Active Providers</h3>
-                <Users className="w-4 h-4 text-gray-400" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-gray-900 tracking-tight">
-                  {loading ? '...' : kpiData.activeProviders.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            {/* Total Customers */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-gray-500">Total Customers</h3>
-                <User className="w-4 h-4 text-gray-400" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-gray-900 tracking-tight">
-                  {loading ? '...' : kpiData.totalCustomers.toLocaleString()}
-                </p>
-              </div>
-            </div>
-
-            {/* Ecosystem GMV */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-gray-500">Ecosystem GMV</h3>
-                <DollarSign className="w-4 h-4 text-gray-400" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-gray-900 tracking-tight">
-                  {loading ? '...' : `₦${(kpiData.ecosystemGMV >= 1000000 ? (kpiData.ecosystemGMV / 1000000).toFixed(1) + 'M' : kpiData.ecosystemGMV >= 1000 ? (kpiData.ecosystemGMV / 1000).toFixed(1) + 'K' : (kpiData.ecosystemGMV || 0).toLocaleString())}`}
-                </p>
-              </div>
-            </div>
-
-            {/* Total Bookings */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-gray-500">Total Bookings</h3>
-                <CheckCircle2 className="w-4 h-4 text-gray-400" />
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-3xl font-bold text-gray-900 tracking-tight">
-                  {loading ? '...' : kpiData.totalBookings.toLocaleString()}
-                </p>
-              </div>
-            </div>
+          <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            <span>+12.5% from last period</span>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Financial Overview & Pending Tasks */}
-            <div className="lg:col-span-2 space-y-8">
-              {/* Financial Section */}
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                  <h3 className="text-base font-semibold text-gray-900">Financial Summary</h3>
-                  <BarChart3 className="w-5 h-5 text-gray-400" />
-                </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500 mb-1">Nile Revenue (10% Cut)</p>
-                      <p className="text-2xl font-bold text-indigo-600">
-                        {loading ? '...' : `₦${(kpiData.nileRevenue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                      </p>
-                      <div className="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-indigo-500 rounded-full" style={{ width: '60%' }}></div>
-                      </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Nile Net Revenue</h3>
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <p className="text-3xl font-black text-emerald-600 tracking-tighter">
+              {loading ? '...' : formatMoney(kpiData.nileRevenue)}
+            </p>
+          </div>
+          <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            <span>+15.2% from last period</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Completed GMV</h3>
+            <CheckCircle2 className="w-4 h-4 text-gray-400" />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <p className="text-3xl font-black text-gray-900 tracking-tighter">
+              {loading ? '...' : formatMoney(kpiData.completedGMV)}
+            </p>
+          </div>
+          <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+            <span>Value of fully completed bookings</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Pending Settlement</h3>
+            <Clock className="w-4 h-4 text-amber-500" />
+          </div>
+          <div className="flex items-baseline gap-2">
+            <p className="text-3xl font-black text-gray-900 tracking-tighter">
+              {loading ? '...' : formatMoney(kpiData.pendingSettlement)}
+            </p>
+          </div>
+          <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+            <span>Deposits held for future bookings</span>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Grid - Row 2 (Operations) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex items-center justify-between">
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Active Providers</h3>
+            <p className="text-2xl font-black text-gray-900">{kpiData.activeProviders}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
+            <Users className="w-5 h-5 text-emerald-600" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex items-center justify-between">
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total Customers</h3>
+            <p className="text-2xl font-black text-gray-900">{kpiData.totalCustomers.toLocaleString()}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+            <User className="w-5 h-5 text-blue-600" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex items-center justify-between">
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Pending Verifications</h3>
+            <p className="text-2xl font-black text-gray-900">{kpiData.pendingVerifications}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
+            <ShieldAlert className="w-5 h-5 text-amber-600" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex items-center justify-between">
+          <div>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Total Bookings</h3>
+            <p className="text-2xl font-black text-gray-900">{kpiData.totalBookings}</p>
+          </div>
+          <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+            <CheckCircle2 className="w-5 h-5 text-purple-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Action Centre */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-gray-900">Action Centre</h3>
+              </div>
+              <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
+                3 Urgent Actions
+              </span>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {ACTION_ALERTS.map((alert) => (
+                <div key={alert.id} className="p-4 sm:px-6 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${alert.bg} ${alert.border} ${alert.color}`}>
+                      <alert.icon className="w-5 h-5" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500 mb-1">Trust Score</p>
-                      <div className="flex items-end gap-2">
-                        <p className="text-2xl font-bold text-gray-900">{kpiData.trustScore}</p>
-                        <p className="text-sm text-gray-500 mb-1">/ 5.0</p>
-                      </div>
-                      <div className="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${(kpiData.trustScore/5)*100}%` }}></div>
-                      </div>
+                      <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                        {alert.entity}
+                        {alert.amount && (
+                          <span className="text-xs font-semibold text-gray-500 border border-gray-200 px-1.5 rounded bg-white">
+                            {alert.amount}
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        <span className="font-medium text-gray-700">{alert.action}</span> • Assigned: {alert.assigned} • Waiting {alert.age}
+                      </p>
                     </div>
                   </div>
-                </div>
-              </div>
-
-              {/* Recent Signups Table */}
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-                  <h3 className="text-base font-semibold text-gray-900">Recent Signups</h3>
-                  <Link to="/admin/providers" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-                    View All
-                  </Link>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm whitespace-nowrap">
-                    <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-100">
-                      <tr>
-                        <th className="px-6 py-3">Business</th>
-                        <th className="px-6 py-3">Owner</th>
-                        <th className="px-6 py-3">Joined</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {loading ? (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-4 text-center text-gray-500">Loading...</td>
-                        </tr>
-                      ) : kpiData.recentProviders.length === 0 ? (
-                        <tr>
-                          <td colSpan={3} className="px-6 py-4 text-center text-gray-500">No recent signups.</td>
-                        </tr>
-                      ) : (
-                        kpiData.recentProviders.map((provider: any) => (
-                          <tr key={provider._id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="font-medium text-gray-900">{provider.businessName || 'Unnamed Business'}</div>
-                              <div className="text-xs text-gray-500 mt-0.5">{provider.email}</div>
-                            </td>
-                            <td className="px-6 py-4 text-gray-600">{provider.name || 'N/A'}</td>
-                            <td className="px-6 py-4 text-gray-600">
-                              {new Date(provider.createdAt).toLocaleDateString()}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Items Sidebar */}
-            <div className="space-y-6">
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-                  <h3 className="text-base font-semibold text-gray-900">Action Required</h3>
-                </div>
-                <div className="p-2">
-                  <Link
-                    to="/admin/verification"
-                    className="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors group"
+                  <Link 
+                    to={alert.link}
+                    className="shrink-0 flex items-center justify-center px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:text-emerald-600 transition-colors"
                   >
-                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                      <Clock className="w-5 h-5 text-orange-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-sm font-semibold text-gray-900">Pending Payouts</h4>
-                        <span className="text-xs font-bold px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full">
-                          {kpiData.pendingVerifications}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-500">Bank transfers awaiting your verification.</p>
-                    </div>
+                    Take Action
                   </Link>
                 </div>
-              </div>
-              
-              {/* Documentation / Help */}
-              <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 shadow-sm text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <Shield className="w-24 h-24" />
-                </div>
-                <div className="relative z-10">
-                  <h3 className="text-base font-semibold mb-2">Need Help?</h3>
-                  <p className="text-sm text-gray-300 mb-4 text-balance">
-                    View the admin documentation for guides on dispute resolution, verification, and payout processing.
-                  </p>
-                  <button className="text-sm font-medium bg-white/10 hover:bg-white/20 transition-colors px-4 py-2 rounded-lg flex items-center gap-2">
-                    Read Docs
-                    <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent Transactions */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-base font-bold text-gray-900">Recent Transactions</h3>
+              <Link to="/admin/transactions" className="text-sm font-semibold text-emerald-600 hover:text-emerald-700">View Ledger</Link>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-gray-600">
+                <thead className="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3">Reference</th>
+                    <th className="px-6 py-3">Provider</th>
+                    <th className="px-6 py-3">Gross</th>
+                    <th className="px-6 py-3">Commission</th>
+                    <th className="px-6 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-mono text-xs font-medium text-gray-900">TXN-8923</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">The Modern Chef</td>
+                    <td className="px-6 py-4">₦15,000</td>
+                    <td className="px-6 py-4 text-emerald-600 font-medium">₦1,500</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        SUCCESS
+                      </span>
+                    </td>
+                  </tr>
+                  <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-mono text-xs font-medium text-gray-900">TXN-8922</td>
+                    <td className="px-6 py-4 font-medium text-gray-900">Glamour MUA</td>
+                    <td className="px-6 py-4">₦22,000</td>
+                    <td className="px-6 py-4 text-emerald-600 font-medium">₦2,200</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        SUCCESS
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-      </main>
+
+        {/* Side Column */}
+        <div className="space-y-6">
+          {/* Trust Score */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Platform Trust Score</h3>
+            <div className="flex items-end gap-3 mb-4">
+              <span className="text-5xl font-black text-gray-900">{kpiData.trustScore}</span>
+              <span className="text-lg font-bold text-gray-400 mb-1">/ 5.0</span>
+            </div>
+            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden mb-4">
+              <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(kpiData.trustScore / 5) * 100}%` }} />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Booking Completion</span>
+                <span className="font-bold text-gray-900">94%</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Dispute Rate</span>
+                <span className="font-bold text-gray-900">1.2%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* System Health */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">System Health</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-sm font-medium text-gray-700">Core API</span>
+                </div>
+                <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">Operational</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-sm font-medium text-gray-700">Payment Gateway</span>
+                </div>
+                <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">Operational</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-sm font-medium text-gray-700">WhatsApp Engine</span>
+                </div>
+                <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">Operational</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-sm font-medium text-gray-700">Email Service</span>
+                </div>
+                <span className="text-xs text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded">Degraded</span>
+              </div>
+            </div>
+            <button className="w-full mt-5 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              View Status Page
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

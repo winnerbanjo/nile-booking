@@ -31,6 +31,10 @@ import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { AdminLogin } from './pages/admin/AdminLogin';
 import { ReceiptVerification } from './pages/admin/ReceiptVerification';
 import { Providers } from './pages/admin/Providers';
+import { Bookings } from './pages/admin/Bookings';
+import { Customers } from './pages/admin/Customers';
+import { Transactions } from './pages/admin/Transactions';
+import { AdminLayout } from './components/admin/AdminLayout';
 import { Navbar } from './components/marketing/Navbar';
 import { Footer } from './components/marketing/Footer';
 import { Landing } from './pages/marketing/Landing';
@@ -243,7 +247,9 @@ function MainApp() {
             path="/admin/dashboard"
             element={
               <ProtectedAdminRoute>
-                <AdminDashboard />
+                <AdminLayout>
+                  <AdminDashboard />
+                </AdminLayout>
               </ProtectedAdminRoute>
             }
           />
@@ -251,7 +257,9 @@ function MainApp() {
             path="/admin"
             element={
               <ProtectedAdminRoute>
-                <AdminDashboard />
+                <AdminLayout>
+                  <AdminDashboard />
+                </AdminLayout>
               </ProtectedAdminRoute>
             }
           />
@@ -259,7 +267,9 @@ function MainApp() {
             path="/admin/verification"
             element={
               <ProtectedAdminRoute>
-                <ReceiptVerification />
+                <AdminLayout>
+                  <ReceiptVerification />
+                </AdminLayout>
               </ProtectedAdminRoute>
             }
           />
@@ -267,7 +277,39 @@ function MainApp() {
             path="/admin/providers"
             element={
               <ProtectedAdminRoute>
-                <Providers />
+                <AdminLayout>
+                  <Providers />
+                </AdminLayout>
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/bookings"
+            element={
+              <ProtectedAdminRoute>
+                <AdminLayout>
+                  <Bookings />
+                </AdminLayout>
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/customers"
+            element={
+              <ProtectedAdminRoute>
+                <AdminLayout>
+                  <Customers />
+                </AdminLayout>
+              </ProtectedAdminRoute>
+            }
+          />
+          <Route
+            path="/admin/transactions"
+            element={
+              <ProtectedAdminRoute>
+                <AdminLayout>
+                  <Transactions />
+                </AdminLayout>
               </ProtectedAdminRoute>
             }
           />
@@ -275,10 +317,12 @@ function MainApp() {
             path="/admin/finance"
             element={
               <ProtectedAdminRoute>
-                <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 text-white p-8">
-                  <h1 className="text-4xl font-black mb-4">Financial Overview</h1>
-                  <p className="text-gray-400">Coming Soon</p>
-                </div>
+                <AdminLayout>
+                  <div className="bg-white border border-gray-200 rounded-xl p-8">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Financial Overview</h1>
+                    <p className="text-gray-500">Coming Soon</p>
+                  </div>
+                </AdminLayout>
               </ProtectedAdminRoute>
             }
           />
