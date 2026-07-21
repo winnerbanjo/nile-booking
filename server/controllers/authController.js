@@ -468,6 +468,7 @@ export const updateProfile = async (req, res) => {
       address,
       bankAccount,
       socialHandles,
+      paymentMethods,
     } = req.body;
 
     if (name) user.name = name;
@@ -508,6 +509,7 @@ export const updateProfile = async (req, res) => {
     if (address) user.address = { ...user.address, ...address };
     if (bankAccount) user.bankAccount = { ...user.bankAccount, ...bankAccount };
     if (socialHandles) user.socialHandles = { ...user.socialHandles, ...socialHandles };
+    if (paymentMethods) user.paymentMethods = { ...user.paymentMethods, ...paymentMethods };
 
     await user.save();
     res.json(user);

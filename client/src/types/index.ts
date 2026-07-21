@@ -23,6 +23,11 @@ export interface User {
     returnPolicy?: string;
     privacyPolicy?: string;
   };
+  paymentMethods?: {
+    cash: boolean;
+    card: boolean;
+    transfer: boolean;
+  };
 }
 
 export interface AuthResponse {

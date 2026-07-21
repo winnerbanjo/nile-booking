@@ -13,8 +13,13 @@ export const getAdminStats = async (req, res) => {
         gmv: 4850000,
         nileRevenue: 485000,
         pendingTransfers: 3,
-        activeMerchants: 42,
+        activeProviders: 42,
+        totalCustomers: 1250,
         totalBookings: 320,
+        recentProviders: [
+          { _id: 'mock_1', name: 'James Stylist', businessName: 'James Cuts', email: 'james@example.com', createdAt: new Date().toISOString() },
+          { _id: 'mock_2', name: 'Sarah Beauty', businessName: 'Sarah Spa', email: 'sarah@example.com', createdAt: new Date().toISOString() }
+        ]
       });
     }
 
@@ -35,10 +40,24 @@ export const getAdminStats = async (req, res) => {
       receiptImage: { $ne: null },
     });
 
+    const activeProviders = await User.countDocuments({ role: 'provider' });
+    const totalCustomers = await User.countDocuments({ role: 'customer' });
+    const totalBookings = await Booking.countDocuments();
+    
+    const recentProviders = await User.find({ role: 'provider' })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('name businessName email createdAt phone')
+      .lean();
+
     res.json({
       gmv: totalGMV || 0,
       nileRevenue: nileRevenue || 0,
       pendingTransfers: pendingTransfers || 0,
+      activeProviders: activeProviders || 0,
+      totalCustomers: totalCustomers || 0,
+      totalBookings: totalBookings || 0,
+      recentProviders: recentProviders || [],
     });
   } catch (error) {
     if (getMockMode()) {
@@ -46,6 +65,10 @@ export const getAdminStats = async (req, res) => {
         gmv: 4850000,
         nileRevenue: 485000,
         pendingTransfers: 3,
+        activeProviders: 42,
+        totalCustomers: 1250,
+        totalBookings: 320,
+        recentProviders: [],
       });
     }
     res.status(500).json({
@@ -54,6 +77,10 @@ export const getAdminStats = async (req, res) => {
       gmv: 0,
       nileRevenue: 0,
       pendingTransfers: 0,
+      activeProviders: 0,
+      totalCustomers: 0,
+      totalBookings: 0,
+      recentProviders: [],
     });
   }
 };

@@ -19,6 +19,11 @@ export const Financial: React.FC = () => {
     accountNumber: '',
     accountName: '',
   });
+  const [paymentMethods, setPaymentMethods] = useState({
+    cash: true,
+    card: false,
+    transfer: true,
+  });
 
   const mockTransactions = [
     {
@@ -71,6 +76,13 @@ export const Financial: React.FC = () => {
           bankCode: userData.bankAccount.bankName || '',
           accountNumber: userData.bankAccount.accountNumber || '',
           accountName: userData.bankAccount.accountName || '',
+        });
+      }
+      if (userData.paymentMethods) {
+        setPaymentMethods({
+          cash: userData.paymentMethods.cash ?? true,
+          card: userData.paymentMethods.card ?? false,
+          transfer: userData.paymentMethods.transfer ?? true,
         });
       }
     } catch (error) {
@@ -304,6 +316,83 @@ export const Financial: React.FC = () => {
                 className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-9 text-xs font-medium mt-2 shadow-sm"
               >
                 Save Settlement Details
+              </Button>
+            </div>
+          </div>
+
+          {/* Payment Methods Settings */}
+          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm space-y-4 lg:col-span-1 lg:row-start-2 lg:col-start-3">
+            <div className="border-b border-zinc-200/80 pb-3">
+              <h2 className="text-base font-semibold text-zinc-900 tracking-tight flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-zinc-600" />
+                Accepted Payment Methods
+              </h2>
+              <p className="text-xs text-zinc-500 font-normal">Choose how customers can pay on your storefront</p>
+            </div>
+            
+            <div className="space-y-4 pt-1">
+              {/* Cash Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-zinc-900">Pay in Person (Cash)</h4>
+                  <p className="text-xs text-zinc-500">Customers pay when they arrive</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethods(prev => ({ ...prev, cash: !prev.cash }))}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 ${paymentMethods.cash ? 'bg-emerald-500' : 'bg-zinc-200'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${paymentMethods.cash ? 'translate-x-2' : '-translate-x-2'}`} />
+                </button>
+              </div>
+
+              {/* Transfer Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-zinc-900">Bank Transfer</h4>
+                  <p className="text-xs text-zinc-500">Accept transfers to settlement account</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethods(prev => ({ ...prev, transfer: !prev.transfer }))}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 ${paymentMethods.transfer ? 'bg-emerald-500' : 'bg-zinc-200'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${paymentMethods.transfer ? 'translate-x-2' : '-translate-x-2'}`} />
+                </button>
+              </div>
+
+              {/* Card Toggle (Coming Soon) */}
+              <div className="flex items-center justify-between opacity-60">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-medium text-zinc-900">Credit / Debit Card</h4>
+                    <span className="text-[9px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded font-medium">Coming Soon</span>
+                  </div>
+                  <p className="text-xs text-zinc-500">Auto-charge cards online</p>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  className="relative inline-flex h-5 w-9 shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-zinc-200"
+                >
+                  <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out -translate-x-2" />
+                </button>
+              </div>
+
+              <Button
+                onClick={async () => {
+                  try {
+                    await authApi.updateProfile({
+                      paymentMethods,
+                    } as any);
+                    alert('Payment preferences updated successfully!');
+                  } catch (err: any) {
+                    alert('Failed to update payment preferences: ' + err.message);
+                  }
+                }}
+                className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-9 text-xs font-medium mt-2 shadow-sm"
+              >
+                Save Payment Settings
               </Button>
             </div>
           </div>

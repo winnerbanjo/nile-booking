@@ -126,6 +126,20 @@ const userSchema = new mongoose.Schema(
         default: true,
       },
     },
+    paymentMethods: {
+      cash: {
+        type: Boolean,
+        default: true,
+      },
+      card: {
+        type: Boolean,
+        default: false,
+      },
+      transfer: {
+        type: Boolean,
+        default: true,
+      },
+    },
     bankAccount: {
       bankName: {
         type: String,

@@ -196,6 +196,13 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     if (selectedService && selectedDate && selectedTime) {
       setShowCheckout(true);
       setShowDatePicker(false);
+      if (data?.provider?.paymentMethods) {
+        if (data.provider.paymentMethods.transfer === false && data.provider.paymentMethods.cash !== false) {
+          setCheckoutPaymentType('pay_later');
+        } else {
+          setCheckoutPaymentType('bank_transfer');
+        }
+      }
     }
   };
 
@@ -654,29 +661,33 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
             {/* Payment Method Selection */}
             <div className="space-y-2">
               <Label className="text-xs font-medium text-zinc-700 mb-1 block">Payment Method</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCheckoutPaymentType('bank_transfer')}
-                  className={`h-10 text-xs font-medium rounded-lg border transition-all ${
-                    checkoutPaymentType === 'bank_transfer'
-                      ? 'bg-zinc-900 text-white border-zinc-900'
-                      : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
-                  }`}
-                >
-                  Bank Transfer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCheckoutPaymentType('pay_later')}
-                  className={`h-10 text-xs font-medium rounded-lg border transition-all ${
-                    checkoutPaymentType === 'pay_later'
-                      ? 'bg-zinc-900 text-white border-zinc-900'
-                      : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
-                  }`}
-                >
-                  Pay in Person
-                </button>
+              <div className="flex flex-col gap-2 sm:grid sm:grid-cols-2">
+                {(data?.provider?.paymentMethods?.transfer !== false) && (
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutPaymentType('bank_transfer')}
+                    className={`h-10 text-xs font-medium rounded-lg border transition-all ${
+                      checkoutPaymentType === 'bank_transfer'
+                        ? 'bg-zinc-900 text-white border-zinc-900'
+                        : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
+                    }`}
+                  >
+                    Bank Transfer
+                  </button>
+                )}
+                {(data?.provider?.paymentMethods?.cash !== false) && (
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutPaymentType('pay_later')}
+                    className={`h-10 text-xs font-medium rounded-lg border transition-all ${
+                      checkoutPaymentType === 'pay_later'
+                        ? 'bg-zinc-900 text-white border-zinc-900'
+                        : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
+                    }`}
+                  >
+                    Pay in Person
+                  </button>
+                )}
               </div>
             </div>
 
