@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Phone, Building2 } from 'lucide-react';
+import { MapPin, Phone } from 'lucide-react';
 import { NileLogo } from '../ui/NileLogo';
 
 export const Footer: React.FC = () => {
@@ -74,12 +74,6 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/collective" className="hover:text-zinc-900 transition-colors block">
-                  <span>Nile Collective</span>
-                  <span className="text-[10px] text-zinc-400 block font-light">Marketplace</span>
-                </Link>
-              </li>
-              <li>
                 <a href="https://nile.ng/" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 transition-colors block">
                   <span>Nile</span>
                   <span className="text-[10px] text-zinc-400 block font-light">For Retailers</span>
@@ -90,8 +84,8 @@ export const Footer: React.FC = () => {
 
         </div>
 
-        {/* HQ Offices & Banking Info Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-8 border-t border-zinc-200/80 text-xs">
+        {/* HQ Offices Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-zinc-200/80 text-xs">
           
           <div className="space-y-2">
             <h4 className="font-semibold text-zinc-900 tracking-tight">Lagos HQ</h4>
@@ -114,17 +108,7 @@ export const Footer: React.FC = () => {
             <div className="text-zinc-500 space-y-1 font-normal leading-relaxed">
               <div className="flex items-start gap-1.5">
                 <MapPin className="w-3.5 h-3.5 mt-0.5 text-zinc-400 shrink-0" />
-                <span>NILE TECHNOLOGIES INC<br />30 N Gould St Ste R<br />Sheridan, WY 82801, USA</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <h4 className="font-semibold text-zinc-900 tracking-tight">Banking Details</h4>
-            <div className="text-zinc-500 space-y-1 font-normal leading-relaxed">
-              <div className="flex items-start gap-1.5">
-                <Building2 className="w-3.5 h-3.5 mt-0.5 text-zinc-400 shrink-0" />
-                <span>Providus Bank<br />Account: 8123843076<br />NILE TECHNOLOGIES INC</span>
+                <span>Nile Technologies Inc.<br />30 N Gould St Ste R<br />Sheridan, WY 82801, USA</span>
               </div>
             </div>
           </div>
