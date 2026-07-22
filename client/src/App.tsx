@@ -75,7 +75,7 @@ function getMerchantSlug(): string | null {
 
   // e.g. "the-modern-chef.nilebooking.co" → "the-modern-chef"
   const match = host.match(/^([a-z0-9][a-z0-9-]*)\.nilebooking\.co$/);
-  if (match && match[1] !== 'www') {
+  if (match && match[1] !== 'www' && match[1] !== 'app') {
     console.log('[Nile] merchant subdomain:', match[1]);
     return match[1];
   }
@@ -83,7 +83,7 @@ function getMerchantSlug(): string | null {
   // Local dev subdomains (e.g. themodernchef.localhost)
   if (host !== 'localhost' && !host.includes('.') === false && host.endsWith('.localhost')) {
     const sub = host.split('.')[0];
-    if (sub && sub !== 'www') return sub;
+    if (sub && sub !== 'www' && sub !== 'app') return sub;
   }
 
   return null;
