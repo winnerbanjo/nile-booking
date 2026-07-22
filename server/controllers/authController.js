@@ -94,6 +94,8 @@ export const register = async (req, res) => {
         category: 'OTP Verification',
       });
 
+      console.log(`\n\n=== 🔐 [AUTH] OTP GENERATED (MOCK MODE) ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==============================\n\n`);
+
       return res.status(201).json({
         message: 'Registration initiated. Please verify your 6-digit OTP code.',
         email: cleanEmail,
@@ -271,6 +273,9 @@ export const resendOtp = async (req, res) => {
         htmlContent: `<h2>New Verification Code</h2><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1>`,
         category: 'OTP Verification',
       });
+
+      console.log(`\n\n=== 🔐 [AUTH] NEW OTP REQUESTED (MOCK MODE) ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==================================\n\n`);
+
       return res.json({ message: 'New OTP sent successfully' });
     }
 
