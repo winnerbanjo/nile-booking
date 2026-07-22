@@ -55,7 +55,7 @@ const ensureDemoAccount = async (email, role = 'provider') => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { name, email, password, businessName, phone, country, industry, bankName, accountName, accountNumber } = req.body;
+    const { name, email, password, businessName, phone, country, industry, slug, bankName, accountName, accountNumber } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please fill in all required fields' });
@@ -66,7 +66,7 @@ export const register = async (req, res) => {
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
 
     if (getMockMode()) {
-      const slug = (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const finalSlug = slug || (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
       const mockUser = {
         _id: `mock_user_${Date.now()}`,
         name,
@@ -74,7 +74,7 @@ export const register = async (req, res) => {
         password,
         role: 'provider',
         businessName: businessName || name,
-        slug,
+        slug: finalSlug,
         phone: phone || '+2348123456789',
         country: country || 'Nigeria',
         industry: industry || 'other',
@@ -111,10 +111,10 @@ export const register = async (req, res) => {
       }
     }
 
-    let slug = (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const existingSlug = await User.findOne({ slug });
-    if (existingSlug) {
-      slug = `${slug}-${Math.floor(1000 + Math.random() * 9000)}`;
+    let finalSlug = slug || (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const existingSlug = await User.findOne({ slug: finalSlug });
+    if (existingSlug && existingSlug.email !== cleanEmail) {
+      return res.status(400).json({ message: 'That Storefront URL is already taken. Please choose another.' });
     }
 
     const user = await User.create({
@@ -123,7 +123,7 @@ export const register = async (req, res) => {
       password,
       role: 'provider',
       businessName: businessName || name,
-      slug,
+      slug: finalSlug,
       phone,
       country: country || 'Nigeria',
       industry: industry || 'other',
