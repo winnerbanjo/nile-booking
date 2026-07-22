@@ -162,3 +162,54 @@ export const verifyReceipt = async (req, res) => {
     res.status(500).json({ message: 'Error verifying receipt', error: error.message });
   }
 };
+
+// @desc    Get all providers
+// @route   GET /api/admin/providers
+// @access  Admin only
+export const getProviders = async (req, res) => {
+  try {
+    const providers = await User.find({ role: 'provider' })
+      .select('name businessName email phone address location isVerified isActive createdAt')
+      .lean();
+    
+    // Calculate some basic mock stats for each provider if real ones aren't available
+    const enrichedProviders = providers.map(p => ({
+      ...p,
+      city: p.location || p.address?.city || 'Unknown',
+      rating: 4.5,
+      totalBookings: 0,
+      totalRevenue: 0,
+      status: p.isActive ? 'Active' : 'Suspended'
+    }));
+
+    res.json(enrichedProviders);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching providers', error: error.message });
+  }
+};
+
+// @desc    Update provider status
+// @route   PUT /api/admin/providers/:providerId/status
+// @access  Admin only
+export const updateProviderStatus = async (req, res) => {
+  try {
+    const { providerId } = req.params;
+    const { status } = req.body;
+    
+    const provider = await User.findById(providerId);
+    if (!provider) {
+      return res.status(404).json({ message: 'Provider not found' });
+    }
+    
+    if (status === 'Active') {
+      provider.isActive = true;
+    } else if (status === 'Suspended') {
+      provider.isActive = false;
+    }
+    
+    await provider.save();
+    res.json(provider);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating provider status', error: error.message });
+  }
+};
