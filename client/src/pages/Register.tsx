@@ -26,6 +26,9 @@ export const Register: React.FC = () => {
     phone: '',
     country: 'Nigeria',
     industry: '',
+    bankName: '',
+    accountName: '',
+    accountNumber: '',
   });
   
   const [showPassword, setShowPassword] = useState(false);
@@ -63,6 +66,12 @@ export const Register: React.FC = () => {
         return;
       }
       setStep(3);
+    } else if (step === 3) {
+      if (!formData.businessName || !formData.country) {
+        setError('Please fill in required business details.');
+        return;
+      }
+      setStep(4);
     }
   };
 
@@ -70,8 +79,8 @@ export const Register: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (!formData.businessName || !formData.country) {
-      setError('Please fill in required business details.');
+    if (!formData.bankName || !formData.accountName || !formData.accountNumber) {
+      setError('Please fill in your account details to receive payouts.');
       return;
     }
 
@@ -101,21 +110,23 @@ export const Register: React.FC = () => {
             {step === 1 && 'Create Merchant Account'}
             {step === 2 && 'What do you do?'}
             {step === 3 && 'Business Details'}
+            {step === 4 && 'Payout Details'}
           </h1>
           <p className="text-xs text-zinc-500 font-normal">
-            {step === 1 && 'Step 1 of 3: Account Basics'}
-            {step === 2 && 'Step 2 of 3: Select Industry'}
-            {step === 3 && 'Step 3 of 3: Finalize Setup'}
+            {step === 1 && 'Step 1 of 4: Account Basics'}
+            {step === 2 && 'Step 2 of 4: Select Industry'}
+            {step === 3 && 'Step 3 of 4: Storefront Setup'}
+            {step === 4 && 'Step 4 of 4: Get Paid'}
           </p>
         </div>
 
         {/* Register Card */}
         <div className="bg-white border border-zinc-200/80 rounded-xl p-6 sm:p-8 shadow-sm space-y-5">
-          <form onSubmit={step === 3 ? handleSubmit : handleNextStep} className="space-y-4">
+          <form onSubmit={step === 4 ? handleSubmit : handleNextStep} className="space-y-4">
             
             {/* Progress Bar */}
             <div className="flex gap-2 mb-6">
-              {[1, 2, 3].map((i) => (
+              {[1, 2, 3, 4].map((i) => (
                 <div key={i} className={`h-1 flex-1 rounded-full ${step >= i ? 'bg-zinc-900' : 'bg-zinc-100'}`} />
               ))}
             </div>
@@ -289,6 +300,57 @@ export const Register: React.FC = () => {
               </div>
             )}
 
+            {/* STEP 4: Account Details */}
+            {step === 4 && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-lg text-emerald-800 text-xs font-medium mb-4">
+                  We need this to settle your earnings from customer bookings.
+                </div>
+                
+                <div>
+                  <Label htmlFor="bankName" className="text-xs font-medium text-zinc-700 mb-1 block">Bank Name</Label>
+                  <Input
+                    id="bankName"
+                    name="bankName"
+                    type="text"
+                    placeholder="e.g. Guarantee Trust Bank"
+                    value={formData.bankName}
+                    onChange={handleChange}
+                    className="h-9 text-xs border-zinc-300 rounded-lg"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="accountNumber" className="text-xs font-medium text-zinc-700 mb-1 block">Account Number</Label>
+                  <Input
+                    id="accountNumber"
+                    name="accountNumber"
+                    type="text"
+                    placeholder="0123456789"
+                    value={formData.accountNumber}
+                    onChange={handleChange}
+                    className="h-9 text-xs border-zinc-300 rounded-lg"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="accountName" className="text-xs font-medium text-zinc-700 mb-1 block">Account Name</Label>
+                  <Input
+                    id="accountName"
+                    name="accountName"
+                    type="text"
+                    placeholder="Adeola Johnson"
+                    value={formData.accountName}
+                    onChange={handleChange}
+                    className="h-9 text-xs border-zinc-300 rounded-lg"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Navigation Buttons */}
             <div className="pt-4 flex gap-3">
               {step > 1 && (
@@ -307,12 +369,12 @@ export const Register: React.FC = () => {
                 disabled={loading}
                 className="flex-1 bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-10 text-xs font-medium transition-colors shadow-sm"
               >
-                {step < 3 ? (
+                {step < 4 ? (
                   <>Continue <ArrowRight className="w-3.5 h-3.5 ml-1.5" /></>
                 ) : loading ? (
-                  'Generating Storefront...'
+                  'Creating Account...'
                 ) : (
-                  'Launch Live Storefront'
+                  'Complete Registration'
                 )}
               </Button>
             </div>
