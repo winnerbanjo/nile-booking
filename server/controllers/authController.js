@@ -111,7 +111,11 @@ export const register = async (req, res) => {
       }
     }
 
-    const slug = (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+    let slug = (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const existingSlug = await User.findOne({ slug });
+    if (existingSlug) {
+      slug = `${slug}-${Math.floor(1000 + Math.random() * 9000)}`;
+    }
 
     const user = await User.create({
       name,
@@ -166,6 +170,10 @@ export const register = async (req, res) => {
       requiresOtp: true,
     });
   } catch (error) {
+    console.error('Registration error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'A user with this information already exists.' });
+    }
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
