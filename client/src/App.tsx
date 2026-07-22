@@ -1,7 +1,7 @@
 import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { Suspense, Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ProtectedAdminRoute } from './components/ProtectedAdminRoute';
 import { DashboardLayout } from './components/layouts/DashboardLayout';
@@ -173,6 +173,11 @@ function RedirectToApp() {
   return null;
 }
 
+function RootRedirector() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+}
+
 function MainApp() {
   const host = window.location.hostname.toLowerCase();
   const isAppSubdomain = host.startsWith('app.');
@@ -190,7 +195,7 @@ function MainApp() {
           <Route path="/verify-otp" element={isProdMarketing ? <RedirectToApp /> : <VerifyOtp />} />
 
           {/* Marketing */}
-          <Route path="/" element={isAppSubdomain ? <Navigate to="/login" replace /> : <Landing />} />
+          <Route path="/" element={isAppSubdomain ? <RootRedirector /> : <Landing />} />
           <Route path="/product" element={<><Navbar /><Product /><Footer /></>} />
           <Route path="/solutions" element={<><Navbar /><Solutions /><Footer /></>} />
           <Route path="/how-it-works" element={<><Navbar /><HowItWorks /><Footer /></>} />
