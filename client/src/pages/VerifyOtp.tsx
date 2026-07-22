@@ -129,13 +129,21 @@ export const VerifyOtp: React.FC = () => {
 
           <form onSubmit={handleVerify} className="space-y-6">
             <div>
-              <label className="text-xs font-medium text-zinc-700 mb-1 block">Work Email</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-xs font-medium text-zinc-700">Work Email</label>
+                <button 
+                  type="button" 
+                  onClick={() => navigate('/register')}
+                  className="text-[10px] text-zinc-500 hover:text-zinc-900 hover:underline"
+                >
+                  Change email?
+                </button>
+              </div>
               <Input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="barber@nile.ng"
-                className="h-9 text-xs border-zinc-300 rounded-lg"
+                disabled
+                className="h-9 text-xs border-zinc-300 rounded-lg bg-zinc-50 text-zinc-500 cursor-not-allowed"
                 required
               />
             </div>
