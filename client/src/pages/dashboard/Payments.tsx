@@ -116,15 +116,15 @@ export const Payments: React.FC = () => {
       console.error('Failed to load financial data:', error);
       // Use mock data on error
       setStats({
-        totalBookings: 24,
-        confirmedBookings: 20,
-        completedBookings: 18,
-        pendingBookings: 4,
-        totalRevenue: 1250000,
-        pendingPayouts: 450000,
-        successRate: 87,
+        totalBookings: 0,
+        confirmedBookings: 0,
+        completedBookings: 0,
+        pendingBookings: 0,
+        totalRevenue: 0,
+        pendingPayouts: 0,
+        successRate: 0,
       });
-      setBookings(mockTransactions as any);
+      setBookings([]);
     } finally {
       setLoading(false);
     }

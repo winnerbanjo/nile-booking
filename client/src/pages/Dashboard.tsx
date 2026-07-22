@@ -99,12 +99,7 @@ export const Dashboard: React.FC = () => {
       } catch (error) {
         console.error('Failed to fetch bookings:', error);
         // Clean fallback
-        setUpcomingAppointments([
-          { id: '1', client: 'Adeola Johnson', phone: '+2348123456789', service: 'Skin Fade', time: '10:00 AM', status: 'confirmed', price: 15000 },
-          { id: '2', client: 'Chukwu Emeka', phone: '+2348123456790', service: 'Beard Trim', time: '11:30 AM', status: 'confirmed', price: 12000 },
-          { id: '3', client: 'Tunde Adeyemi', phone: '+2348123456791', service: 'Full Service', time: '02:00 PM', status: 'pending', price: 18000 },
-          { id: '4', client: 'Kemi Okafor', phone: '+2348123456792', service: 'Skin Fade', time: '04:00 PM', status: 'confirmed', price: 15000 },
-        ]);
+        setUpcomingAppointments([]);
       } finally {
         setLoadingBookings(false);
       }

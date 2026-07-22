@@ -25,41 +25,7 @@ export const Financial: React.FC = () => {
     transfer: true,
   });
 
-  const mockTransactions = [
-    {
-      _id: '1',
-      bookingNumber: 'NB-001',
-      customer: { name: 'Adeola Johnson', email: 'adeola@example.com' },
-      service: { name: 'Skin Fade' },
-      date: new Date().toISOString(),
-      pricing: { totalAmount: 15000 },
-      status: 'completed',
-      paymentStatus: 'paid',
-      gateway: 'Paystack',
-    },
-    {
-      _id: '2',
-      bookingNumber: 'NB-002',
-      customer: { name: 'Chukwu Emeka', email: 'chukwu@example.com' },
-      service: { name: 'Beard Trim' },
-      date: new Date().toISOString(),
-      pricing: { totalAmount: 12000 },
-      status: 'confirmed',
-      paymentStatus: 'paid',
-      gateway: 'Flutterwave',
-    },
-    {
-      _id: '3',
-      bookingNumber: 'NB-003',
-      customer: { name: 'Tunde Adeyemi', email: 'tunde@example.com' },
-      service: { name: 'Full Service' },
-      date: new Date().toISOString(),
-      pricing: { totalAmount: 18000 },
-      status: 'pending',
-      paymentStatus: 'pending_verification',
-      gateway: 'Bank Transfer',
-    },
-  ];
+
 
   useEffect(() => {
     loadData();
@@ -231,7 +197,13 @@ export const Financial: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                  {mockTransactions.map((tx) => (
+                  {bookings.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-zinc-500 text-xs">
+                        No recent transactions found.
+                      </td>
+                    </tr>
+                  ) : bookings.map((tx: any) => (
                     <tr key={tx._id} className="hover:bg-zinc-50/50 transition-colors">
                       <td className="px-6 py-3.5 font-mono text-zinc-900 font-medium">{tx.bookingNumber}</td>
                       <td className="px-6 py-3.5 font-medium text-zinc-900">{tx.customer.name}</td>
