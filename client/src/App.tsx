@@ -1,4 +1,4 @@
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link, Navigate } from 'react-router-dom';
 import { Suspense, Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { AuthProvider } from './contexts/AuthContext';
@@ -168,18 +168,29 @@ function StorefrontApp({ slug }: { slug: string }) {
 }
 
 // ─── Main App (runs on nilebooking.co main domain) ────────────────────────────
+function RedirectToApp() {
+  window.location.href = `https://app.nilebooking.co${window.location.pathname}${window.location.search}`;
+  return null;
+}
+
 function MainApp() {
+  const host = window.location.hostname.toLowerCase();
+  const isAppSubdomain = host.startsWith('app.');
+  // If we are on the main domain (e.g. nilebooking.co) and they hit an app route, redirect to app.nilebooking.co
+  // Note: Only enforce this in production to avoid breaking localhost dev unless it's app.localhost
+  const isProdMarketing = host === 'nilebooking.co' || host === 'www.nilebooking.co';
+
   return (
     <AuthProvider>
       <AppErrorBoundary>
         <Routes>
           {/* Auth */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/verify-otp" element={<VerifyOtp />} />
+          <Route path="/login" element={isProdMarketing ? <RedirectToApp /> : <Login />} />
+          <Route path="/register" element={isProdMarketing ? <RedirectToApp /> : <Register />} />
+          <Route path="/verify-otp" element={isProdMarketing ? <RedirectToApp /> : <VerifyOtp />} />
 
           {/* Marketing */}
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={isAppSubdomain ? <Navigate to="/login" replace /> : <Landing />} />
           <Route path="/product" element={<><Navbar /><Product /><Footer /></>} />
           <Route path="/solutions" element={<><Navbar /><Solutions /><Footer /></>} />
           <Route path="/how-it-works" element={<><Navbar /><HowItWorks /><Footer /></>} />
@@ -222,9 +233,13 @@ function MainApp() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
-                <DashboardLayout />
-              </ProtectedRoute>
+              isProdMarketing ? (
+                <RedirectToApp />
+              ) : (
+                <ProtectedRoute>
+                  <DashboardLayout />
+                </ProtectedRoute>
+              )
             }
           >
             <Route index element={<Dashboard />} />
@@ -247,7 +262,7 @@ function MainApp() {
           </Route>
 
           {/* Admin */}
-          <Route path="/admin/portal" element={<AdminLogin />} />
+          <Route path="/admin/portal" element={isProdMarketing ? <RedirectToApp /> : <AdminLogin />} />
           <Route
             path="/admin/dashboard"
             element={
@@ -405,7 +420,6 @@ function MainApp() {
   );
 }
 
-// ─── Root App — single branch decision ───────────────────────────────────────
 function App() {
   // getMerchantSlug() is called at render time — always reads the CURRENT
   // window.location.hostname, which is 100% correct in the browser.
