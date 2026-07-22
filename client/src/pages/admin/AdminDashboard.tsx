@@ -7,15 +7,15 @@ import {
 import { adminApi } from '../../lib/api';
 
 const defaultKpiData = {
-  ecosystemGMV: 4500000,
-  activeSubscriptions: 125,
-  completedGMV: 4100000,
-  pendingSettlement: 350000,
-  trustScore: 4.8,
-  pendingVerifications: 3,
-  activeProviders: 42,
-  totalCustomers: 1250,
-  totalBookings: 840,
+  ecosystemGMV: 0,
+  activeSubscriptions: 0,
+  completedGMV: 0,
+  pendingSettlement: 0,
+  trustScore: 0,
+  pendingVerifications: 0,
+  activeProviders: 0,
+  totalCustomers: 0,
+  totalBookings: 0,
   recentProviders: [],
 };
 
@@ -75,11 +75,29 @@ export const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    // Simulate fetching deep stats
-    setTimeout(() => {
-      setKpiData(defaultKpiData);
-      setLoading(false);
-    }, 800);
+    const fetchStats = async () => {
+      try {
+        const data = await adminApi.getAdminStats();
+        setKpiData({
+          ecosystemGMV: data.gmv || 0,
+          activeSubscriptions: data.activeProviders || 0, // Mocking active subs with active providers for now
+          completedGMV: data.gmv || 0,
+          pendingSettlement: 0,
+          trustScore: 5.0,
+          pendingVerifications: data.pendingTransfers || 0,
+          activeProviders: data.activeProviders || 0,
+          totalCustomers: data.totalCustomers || 0,
+          totalBookings: data.totalBookings || 0,
+          recentProviders: data.recentProviders || [],
+        });
+      } catch (err) {
+        console.error('Failed to fetch admin stats', err);
+        setKpiData(defaultKpiData);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
   }, []);
 
   const formatMoney = (amount: number) => {
@@ -139,7 +157,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
             <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>+12 new this month</span>
+            <span>Active merchants</span>
           </div>
         </div>
 
@@ -168,7 +186,7 @@ export const AdminDashboard: React.FC = () => {
               {loading ? '...' : formatMoney(kpiData.pendingSettlement)}
             </p>
           </div>
-          <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+          <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-amber-600">
             <span>Deposits held for future bookings</span>
           </div>
         </div>
