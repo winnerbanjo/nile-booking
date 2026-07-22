@@ -132,7 +132,7 @@ export const register = async (req, res) => {
       ],
     });
 
-    await sendMailtrapApiEmail({
+    const emailResult = await sendMailtrapApiEmail({
       toEmail: user.email,
       toName: user.name,
       subject: `Your Nile Booking Verification Code: ${otpCode}`,
@@ -141,6 +141,11 @@ export const register = async (req, res) => {
     });
 
     console.log(`\n\n=== 🔐 [AUTH] OTP GENERATED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==============================\n\n`);
+
+    if (!emailResult.success) {
+      console.error('Mailtrap rejected the email:', emailResult.error);
+      return res.status(500).json({ message: 'Failed to send OTP email. Mailtrap may have blocked it. Please check terminal logs for the OTP.' });
+    }
 
     res.status(201).json({
       message: 'Registration initiated. Please verify your 6-digit OTP code.',
@@ -254,8 +259,8 @@ export const resendOtp = async (req, res) => {
     user.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
 
-    await sendMailtrapApiEmail({
-      toEmail: user.email,
+    const emailResult = await sendMailtrapApiEmail({
+      toEmail: cleanEmail,
       toName: user.name,
       subject: `Your New Nile Verification Code: ${otpCode}`,
       htmlContent: `<h2>New Verification Code</h2><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1>`,
@@ -263,6 +268,11 @@ export const resendOtp = async (req, res) => {
     });
 
     console.log(`\n\n=== 🔐 [AUTH] NEW OTP REQUESTED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==================================\n\n`);
+
+    if (!emailResult.success) {
+      console.error('Mailtrap rejected the email:', emailResult.error);
+      return res.status(500).json({ message: 'Failed to send OTP email. Mailtrap may have blocked it. Please check terminal logs for the OTP.' });
+    }
 
     res.json({ message: 'New OTP sent successfully' });
   } catch (error) {
@@ -379,7 +389,7 @@ export const forgotPassword = async (req, res) => {
     // but in a real app you might want to silently ignore. Here we just proceed to send it.
 
     // Dispatch reset email via Mailtrap API
-    await sendMailtrapApiEmail({
+    const emailResult = await sendMailtrapApiEmail({
       toEmail: cleanEmail,
       toName: cleanEmail,
       subject: `Reset Your Nile Password: ${otpCode}`,
@@ -388,6 +398,11 @@ export const forgotPassword = async (req, res) => {
     });
 
     console.log(`\n\n=== 🔐 [AUTH] PASSWORD RESET OTP GENERATED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n=============================================\n\n`);
+
+    if (!emailResult.success) {
+      console.error('Mailtrap rejected the email:', emailResult.error);
+      return res.status(500).json({ message: 'Failed to send OTP email. Mailtrap may have blocked it. Please check terminal logs for the OTP.' });
+    }
 
     res.json({ message: 'Password reset OTP code sent to your email.' });
   } catch (error) {
