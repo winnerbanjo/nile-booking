@@ -356,14 +356,27 @@ export const forgotPassword = async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    if (!getMockMode()) {
-      const user = await User.findOne({ email: cleanEmail });
-      if (user) {
-        user.otpCode = otpCode;
-        user.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
-        await user.save();
+    let userFound = false;
+
+    if (getMockMode()) {
+      const mockUser = mockUsers.get(cleanEmail);
+      if (mockUser) {
+        mockUser.otpCode = otpCode;
+        mockUser.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+        userFound = true;
       }
     }
+
+    const user = await User.findOne({ email: cleanEmail });
+    if (user) {
+      user.otpCode = otpCode;
+      user.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
+      await user.save();
+      userFound = true;
+    }
+
+    // Even if user not found, we send the email to prevent email enumeration attacks (security best practice),
+    // but in a real app you might want to silently ignore. Here we just proceed to send it.
 
     // Dispatch reset email via Mailtrap API
     await sendMailtrapApiEmail({
@@ -373,6 +386,8 @@ export const forgotPassword = async (req, res) => {
       htmlContent: `<h2>Password Reset Requested</h2><p>Your 6-digit OTP code to reset your Nile Booking account password is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
       category: 'Password Reset',
     });
+
+    console.log(`\n\n=== 🔐 [AUTH] PASSWORD RESET OTP GENERATED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n=============================================\n\n`);
 
     res.json({ message: 'Password reset OTP code sent to your email.' });
   } catch (error) {
@@ -392,30 +407,45 @@ export const resetPassword = async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
 
+    let resetSuccessful = false;
+    let userName = cleanEmail;
+
     if (getMockMode()) {
       const mockUser = mockUsers.get(cleanEmail);
       if (mockUser) {
+        if (mockUser.otpCode !== otpCode.trim()) {
+          return res.status(400).json({ message: 'Invalid or expired OTP code' });
+        }
         mockUser.password = newPassword;
+        mockUser.otpCode = null;
         mockUser.comparePassword = async (p) => p === newPassword;
+        resetSuccessful = true;
+        userName = mockUser.name;
       }
-      return res.json({ message: 'Password reset successful. You can now log in.' });
     }
 
     const user = await User.findOne({ email: cleanEmail }).select('+password');
-    if (!user || user.otpCode !== otpCode.trim()) {
+    if (user) {
+      if (user.otpCode !== otpCode.trim()) {
+        return res.status(400).json({ message: 'Invalid or expired OTP code' });
+      }
+      user.password = newPassword;
+      user.otpCode = null;
+      user.otpExpires = null;
+      await user.save();
+      resetSuccessful = true;
+      userName = user.name;
+    }
+
+    if (!resetSuccessful) {
       return res.status(400).json({ message: 'Invalid or expired OTP code' });
     }
 
-    user.password = newPassword;
-    user.otpCode = null;
-    user.otpExpires = null;
-    await user.save();
-
     await sendMailtrapApiEmail({
-      toEmail: user.email,
-      toName: user.name,
+      toEmail: cleanEmail,
+      toName: userName,
       subject: `Security Alert: Your Nile Password Has Been Reset`,
-      htmlContent: `<h2>Password Reset Successful</h2><p>Hello ${user.name}, your Nile Booking password was updated successfully.</p>`,
+      htmlContent: `<h2>Password Reset Successful</h2><p>Hello ${userName}, your Nile Booking password was updated successfully.</p>`,
       category: 'Security Alert',
     });
 
