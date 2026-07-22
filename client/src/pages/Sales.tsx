@@ -5,10 +5,7 @@ import { Label } from '../components/ui/label';
 import { ShoppingBag, CreditCard, Banknote, Smartphone, CheckCircle2, Plus, Receipt } from 'lucide-react';
 
 export const Sales: React.FC = () => {
-  const [salesHistory, setSalesHistory] = useState([
-    { id: 'pos_1', client: 'Chukwu Emeka', items: 'Skin Fade + Beard Grooming', total: 15000, method: 'Paystack', date: 'Today, 10:45 AM' },
-    { id: 'pos_2', client: 'Walk-in Client', items: 'Standard Haircut', total: 10000, method: 'Cash', date: 'Today, 11:30 AM' },
-  ]);
+  const [salesHistory, setSalesHistory] = useState<any[]>([]);
 
   const [clientName, setClientName] = useState('');
   const [serviceName, setServiceName] = useState('');
@@ -127,28 +124,41 @@ export const Sales: React.FC = () => {
           </form>
         </div>
 
-        {/* Recent Register Transactions */}
-        <div className="lg:col-span-2 bg-white border border-zinc-200/80 rounded-xl p-6 shadow-sm space-y-4">
-          <h2 className="text-base font-semibold text-zinc-900 tracking-tight">
-            Today's Completed Sales Register
-          </h2>
-
-          <div className="divide-y divide-zinc-100">
-            {salesHistory.map((s) => (
-              <div key={s.id} className="py-3.5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-zinc-900">{s.client}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">{s.items} • <span className="font-medium text-zinc-700">{s.method}</span></p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-zinc-900">₦{s.total.toLocaleString()}</p>
-                  <p className="text-[11px] text-zinc-400">{s.date}</p>
-                </div>
+        {/* Today's Sales Register */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-200/80 pb-3">
+            <h2 className="text-base font-semibold text-zinc-900 tracking-tight">
+              Today's Completed Sales Register
+            </h2>
+          </div>
+          
+          <div className="space-y-3">
+            {salesHistory.length === 0 ? (
+              <div className="bg-white border border-zinc-200/60 border-dashed rounded-xl p-8 text-center flex flex-col items-center justify-center">
+                <Receipt className="w-8 h-8 text-zinc-300 mb-3" />
+                <p className="text-sm font-medium text-zinc-900">No sales recorded yet today</p>
+                <p className="text-xs text-zinc-500 mt-1">Record a sale using the form to see it appear here.</p>
               </div>
-            ))}
+            ) : (
+              salesHistory.map((sale) => (
+                <div key={sale.id} className="bg-white border border-zinc-200/80 rounded-xl p-4 shadow-sm hover:border-zinc-300 transition-colors group cursor-default">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-900">{sale.client}</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">{sale.items} &bull; {sale.method}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-zinc-900">
+                        ₦{sale.total.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">{sale.date}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
-
       </div>
     </div>
   );

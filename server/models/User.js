@@ -47,6 +47,11 @@ const userSchema = new mongoose.Schema(
       default: 'Nigeria',
       trim: true,
     },
+    industry: {
+      type: String,
+      enum: ['barber', 'fitness', 'beauty', 'professional', 'other'],
+      default: 'other',
+    },
     isVerified: {
       type: Boolean,
       default: false,

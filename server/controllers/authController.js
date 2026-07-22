@@ -55,7 +55,7 @@ const ensureDemoAccount = async (email, role = 'provider') => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { name, email, password, businessName, phone, country } = req.body;
+    const { name, email, password, businessName, phone, country, industry } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please fill in all required fields' });
@@ -77,6 +77,7 @@ export const register = async (req, res) => {
         slug,
         phone: phone || '+2348123456789',
         country: country || 'Nigeria',
+        industry: industry || 'other',
         isVerified: false,
         otpCode,
         otpExpires,
@@ -115,6 +116,7 @@ export const register = async (req, res) => {
       slug,
       phone,
       country: country || 'Nigeria',
+      industry: industry || 'other',
       isVerified: false,
       otpCode,
       otpExpires,

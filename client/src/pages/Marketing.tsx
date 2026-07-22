@@ -1,9 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShareCard } from '../components/dashboard/ShareCard';
 import { Share2, TrendingUp, Sparkles, Target } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Marketing: React.FC = () => {
-  const [selectedIndustry, setSelectedIndustry] = useState<'barber' | 'fitness' | 'beauty'>('barber');
+  const { user } = useAuth();
+  const defaultIndustry = ['barber', 'fitness', 'beauty'].includes(user?.industry || '') 
+    ? (user?.industry as 'barber' | 'fitness' | 'beauty') 
+    : 'barber';
+    
+  const [selectedIndustry, setSelectedIndustry] = useState<'barber' | 'fitness' | 'beauty'>(defaultIndustry);
+
+  useEffect(() => {
+    if (user?.industry && ['barber', 'fitness', 'beauty'].includes(user.industry)) {
+      setSelectedIndustry(user.industry as 'barber' | 'fitness' | 'beauty');
+    }
+  }, [user?.industry]);
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
