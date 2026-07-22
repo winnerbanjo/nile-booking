@@ -55,7 +55,7 @@ const ensureDemoAccount = async (email, role = 'provider') => {
 // @access  Public
 export const register = async (req, res) => {
   try {
-    const { name, email, password, businessName, phone, country, industry } = req.body;
+    const { name, email, password, businessName, phone, country, industry, bankName, accountName, accountNumber } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please fill in all required fields' });
@@ -78,6 +78,7 @@ export const register = async (req, res) => {
         phone: phone || '+2348123456789',
         country: country || 'Nigeria',
         industry: industry || 'other',
+        bankAccount: { bankName, accountName, accountNumber },
         isVerified: false,
         otpCode,
         otpExpires,
@@ -102,7 +103,12 @@ export const register = async (req, res) => {
 
     const userExists = await User.findOne({ email: cleanEmail });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+      if (userExists.isVerified) {
+        return res.status(400).json({ message: 'User already exists' });
+      } else {
+        await Schedule.deleteOne({ provider: userExists._id });
+        await User.deleteOne({ _id: userExists._id });
+      }
     }
 
     const slug = (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
@@ -117,6 +123,11 @@ export const register = async (req, res) => {
       phone,
       country: country || 'Nigeria',
       industry: industry || 'other',
+      bankAccount: {
+        bankName,
+        accountName,
+        accountNumber
+      },
       isVerified: false,
       otpCode,
       otpExpires,

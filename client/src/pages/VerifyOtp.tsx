@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { NileLogo } from '../components/ui/NileLogo';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { ArrowRight, RefreshCw, CheckCircle2, Mail } from 'lucide-react';
+import { ArrowRight, RefreshCw, CheckCircle2, Mail, PartyPopper, ExternalLink } from 'lucide-react';
 
 export const VerifyOtp: React.FC = () => {
   const location = useLocation();
@@ -19,6 +19,8 @@ export const VerifyOtp: React.FC = () => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [resending, setResending] = useState(false);
+  const [isVerifiedSuccess, setIsVerifiedSuccess] = useState(false);
+  const [verifiedUser, setVerifiedUser] = useState<any>(null);
 
   useEffect(() => {
     if (initialEmail) {
@@ -65,12 +67,10 @@ export const VerifyOtp: React.FC = () => {
     try {
       const res = await authApi.verifyOtp(email, otpCode);
       if (res.data && res.data.token) {
-        setSuccessMsg('🎉 Signup verified! Redirecting to your merchant dashboard...');
         setAuthUser(res.data);
         sessionStorage.removeItem('nile_pending_email');
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 1000);
+        setVerifiedUser(res.data);
+        setIsVerifiedSuccess(true);
       }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Invalid verification code. Please check your Mailtrap inbox.');
@@ -96,6 +96,50 @@ export const VerifyOtp: React.FC = () => {
       setResending(false);
     }
   };
+
+  if (isVerifiedSuccess && verifiedUser) {
+    const slug = verifiedUser.slug || 'your-business';
+    const storefrontUrl = `${slug}.nilebooking.co`;
+
+    return (
+      <div className="min-h-screen bg-gray-50/50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-zinc-900">
+        <div className="sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="bg-white py-10 px-8 shadow-2xl border border-emerald-100 rounded-3xl space-y-6 text-center">
+            
+            <div className="mx-auto w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+              <PartyPopper className="w-8 h-8 text-emerald-600" />
+            </div>
+            
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight text-zinc-900 mb-2">
+                Your Website is Live! 🚀
+              </h2>
+              <p className="text-sm text-zinc-500 leading-relaxed">
+                Congratulations! Your custom booking storefront has been successfully generated and is now online.
+              </p>
+            </div>
+
+            <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 my-6">
+              <p className="text-[10px] uppercase font-bold tracking-widest text-zinc-400 mb-2">Your Live URL</p>
+              <div className="flex items-center justify-center gap-2 text-emerald-600 font-medium">
+                <span>{storefrontUrl}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4">
+              <Button
+                onClick={() => navigate('/dashboard')}
+                className="w-full bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl h-11 text-xs font-semibold shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                Go to Dashboard
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50/50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 text-zinc-900">
