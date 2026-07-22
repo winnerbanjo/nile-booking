@@ -26,6 +26,7 @@ export const Register: React.FC = () => {
     phone: '',
     country: 'Nigeria',
     industry: '',
+    slug: '',
     bankName: '',
     accountName: '',
     accountNumber: '',
@@ -39,6 +40,14 @@ export const Register: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError('');
+  };
+
+  const handleBusinessNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    // Auto-generate slug
+    const autoSlug = val.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    setFormData({ ...formData, businessName: val, slug: autoSlug });
     setError('');
   };
 
@@ -67,8 +76,8 @@ export const Register: React.FC = () => {
       }
       setStep(3);
     } else if (step === 3) {
-      if (!formData.businessName || !formData.country) {
-        setError('Please fill in required business details.');
+      if (!formData.businessName || !formData.country || !formData.slug) {
+        setError('Please fill in required business details, including your Storefront URL.');
         return;
       }
       setStep(4);
@@ -257,11 +266,30 @@ export const Register: React.FC = () => {
                     type="text"
                     placeholder="The Modern Barber"
                     value={formData.businessName}
-                    onChange={handleChange}
+                    onChange={handleBusinessNameChange}
                     className="h-9 text-xs border-zinc-300 rounded-lg"
                     required
                   />
-                  <p className="text-[10px] text-zinc-500 mt-1">This will be your live storefront name (e.g. nilebooking.co/p/your-business)</p>
+                </div>
+
+                <div>
+                  <Label htmlFor="slug" className="text-xs font-medium text-zinc-700 mb-1 block">Storefront URL</Label>
+                  <div className="flex rounded-lg shadow-sm">
+                    <Input
+                      id="slug"
+                      name="slug"
+                      type="text"
+                      placeholder="the-modern-barber"
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                      className="h-9 text-xs border-zinc-300 rounded-r-none rounded-l-lg flex-1 focus:z-10"
+                      required
+                    />
+                    <span className="inline-flex items-center px-3 rounded-r-lg border border-l-0 border-zinc-300 bg-zinc-50 text-zinc-500 sm:text-xs">
+                      .nilebooking.co
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 mt-1">This is where clients will go to book you.</p>
                 </div>
 
                 <div>
