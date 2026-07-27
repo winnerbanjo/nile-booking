@@ -45,61 +45,6 @@ export const Payments: React.FC = () => {
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Mock transaction data with Lagos Barber and Strategy Consultant samples
-  const mockTransactions: (Booking & { transactionType?: string })[] = [
-    {
-      _id: '1',
-      bookingNumber: 'NB-001',
-      customer: { name: 'Adeola Johnson', email: 'adeola@example.com', phone: '+2348123456789' },
-      provider: 'provider-1',
-      service: { _id: 's1', name: 'Faded Cut', price: 15000 } as any,
-      date: new Date().toISOString(),
-      timeSlot: { startTime: '10:00', endTime: '11:00' },
-      status: 'completed',
-      paymentStatus: 'paid',
-      paymentType: 'full',
-      pricing: { servicePrice: 15000, depositAmount: 0, totalAmount: 15000, currency: 'NGN' },
-      paymentGateway: 'paystack',
-      updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      transactionType: 'Deposit Paid',
-    },
-    {
-      _id: '2',
-      bookingNumber: 'NB-002',
-      customer: { name: 'Chukwu Emeka', email: 'chukwu@example.com', phone: '+2348123456790' },
-      provider: 'provider-1',
-      service: { _id: 's2', name: 'Line Up', price: 12000 } as any,
-      date: new Date().toISOString(),
-      timeSlot: { startTime: '11:30', endTime: '12:00' },
-      status: 'confirmed',
-      paymentStatus: 'partial',
-      paymentType: 'deposit',
-      pricing: { servicePrice: 12000, depositAmount: 6000, totalAmount: 12000, currency: 'NGN' },
-      paymentGateway: 'flutterwave',
-      updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      transactionType: 'Fully Paid',
-    },
-    {
-      _id: '3',
-      bookingNumber: 'NB-003',
-      customer: { name: 'Tunde Adeyemi', email: 'tunde@example.com', phone: '+2348123456791' },
-      provider: 'provider-1',
-      service: { _id: 's3', name: '1hr Strategy Session', price: 50000 } as any,
-      date: new Date().toISOString(),
-      timeSlot: { startTime: '14:00', endTime: '15:00' },
-      status: 'completed',
-      paymentStatus: 'paid',
-      paymentType: 'full',
-      pricing: { servicePrice: 50000, depositAmount: 0, totalAmount: 50000, currency: 'NGN' },
-      paymentGateway: 'paystack',
-      updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      transactionType: 'Payout Successful',
-    },
-  ];
-
   useEffect(() => {
     loadData();
   }, []);
@@ -371,94 +316,108 @@ export const Payments: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {mockTransactions.map((transaction, index) => {
-                  const badge = getStatusBadge(transaction.status, transaction.paymentStatus);
-                  const serviceName = typeof transaction.service === 'object' ? transaction.service.name : 'N/A';
-                  const amount = transaction.pricing?.totalAmount || 0;
+                {bookings.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-gray-500 font-light">
+                      No transactions found.
+                    </td>
+                  </tr>
+                ) : (
+                  bookings.map((transaction, index) => {
+                    const badge = getStatusBadge(transaction.status, transaction.paymentStatus);
+                    const serviceName = typeof transaction.service === 'object' ? transaction.service.name : 'N/A';
+                    const amount = transaction.pricing?.totalAmount || 0;
 
-                  return (
-                    <motion.tr
-                      key={transaction._id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b border-white/20 hover:bg-white/30 transition-colors"
-                    >
-                      <td className="py-4 px-4">
-                        <p className="text-sm font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                          {transaction.customer.name}
-                        </p>
-                        <p className="text-xs text-gray-500 font-light">
-                          {format(new Date(transaction.date), 'MMM d, yyyy')} | {transaction.timeSlot.startTime}
-                        </p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <p className="text-sm text-gray-700 font-light">{serviceName}</p>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <p className="text-base font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                          ₦{amount.toLocaleString()}
-                        </p>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${badge.color}`}>
-                          {badge.label}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span className="text-xs text-gray-600 font-light">
-                          {transaction.paymentGateway ? transaction.paymentGateway.charAt(0).toUpperCase() + transaction.paymentGateway.slice(1) : 'N/A'}
-                        </span>
-                      </td>
-                    </motion.tr>
-                  );
-                })}
+                    return (
+                      <motion.tr
+                        key={transaction._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="border-b border-white/20 hover:bg-white/30 transition-colors"
+                      >
+                        <td className="py-4 px-4">
+                          <p className="text-sm font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
+                            {transaction.customer.name}
+                          </p>
+                          <p className="text-xs text-gray-500 font-light">
+                            {format(new Date(transaction.date), 'MMM d, yyyy')} | {transaction.timeSlot.startTime}
+                          </p>
+                        </td>
+                        <td className="py-4 px-4">
+                          <p className="text-sm text-gray-700 font-light">{serviceName}</p>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <p className="text-base font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
+                            ₦{amount.toLocaleString()}
+                          </p>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <div className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${badge.color}`}>
+                            {badge.label}
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-center">
+                          <span className="text-xs text-gray-600 font-light">
+                            {transaction.paymentGateway ? transaction.paymentGateway.charAt(0).toUpperCase() + transaction.paymentGateway.slice(1) : 'N/A'}
+                          </span>
+                        </td>
+                      </motion.tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
 
           {/* Mobile: Card View */}
           <div className="md:hidden space-y-3">
-            {mockTransactions.map((transaction, index) => {
-              const badge = getStatusBadge(transaction.status, transaction.paymentStatus);
-              const serviceName = typeof transaction.service === 'object' ? transaction.service.name : 'N/A';
-              const amount = transaction.pricing?.totalAmount || 0;
+            {bookings.length === 0 ? (
+              <div className="py-8 text-center text-gray-500 font-light">
+                No transactions found.
+              </div>
+            ) : (
+              bookings.map((transaction, index) => {
+                const badge = getStatusBadge(transaction.status, transaction.paymentStatus);
+                const serviceName = typeof transaction.service === 'object' ? transaction.service.name : 'N/A';
+                const amount = transaction.pricing?.totalAmount || 0;
 
-              return (
-                <motion.div
-                  key={transaction._id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="bg-white/50 rounded-xl p-4 border border-white/40"
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <p className="text-sm font-black text-gray-900 tracking-tighter mb-1" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                        {transaction.customer.name}
-                      </p>
-                      <p className="text-xs text-gray-600 font-light">{serviceName}</p>
+                return (
+                  <motion.div
+                    key={transaction._id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="bg-white/50 rounded-xl p-4 border border-white/40"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <p className="text-sm font-black text-gray-900 tracking-tighter mb-1" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
+                          {transaction.customer.name}
+                        </p>
+                        <p className="text-xs text-gray-600 font-light">{serviceName}</p>
+                      </div>
+                      <div className={`px-2 py-1 rounded-full text-xs font-semibold ${badge.color}`}>
+                        {badge.label}
+                      </div>
                     </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-semibold ${badge.color}`}>
-                      {badge.label}
+                    <div className="flex items-center justify-between pt-2 border-t border-white/30">
+                      <div className="text-xs text-gray-500 font-light">
+                        {format(new Date(transaction.date), 'MMM d')} | {transaction.timeSlot.startTime}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
+                          ₦{amount.toLocaleString()}
+                        </p>
+                        <p className="text-[10px] text-gray-500 font-light">
+                          {transaction.paymentGateway ? transaction.paymentGateway.charAt(0).toUpperCase() + transaction.paymentGateway.slice(1) : 'N/A'}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-white/30">
-                    <div className="text-xs text-gray-500 font-light">
-                      {format(new Date(transaction.date), 'MMM d')} | {transaction.timeSlot.startTime}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-base font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                        ₦{amount.toLocaleString()}
-                      </p>
-                      <p className="text-xs text-gray-500 font-light">
-                        {transaction.paymentGateway || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
+                  </motion.div>
+                );
+              })
+            )}
           </div>
         </motion.div>
 
