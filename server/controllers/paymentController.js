@@ -381,3 +381,46 @@ export const verifyManualPayment = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// @desc    Process refund manually
+// @route   POST /api/payments/transactions/:id/refund
+// @access  Private (Provider)
+export const processRefund = async (req, res) => {
+  try {
+    const transactionId = req.params.id;
+    const { amount, reason } = req.body;
+    
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Valid refund amount is required' });
+    }
+
+    const transaction = await Transaction.findOne({ _id: transactionId, provider: req.user._id });
+
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    if (transaction.status !== 'successful') {
+      return res.status(400).json({ message: 'Only successful transactions can be refunded' });
+    }
+
+    const currentRefundAmount = transaction.refundAmount || 0;
+    const newRefundAmount = currentRefundAmount + Number(amount);
+
+    if (newRefundAmount > transaction.amount) {
+      return res.status(400).json({ message: 'Refund amount cannot exceed the original successful payment amount' });
+    }
+
+    transaction.refundAmount = newRefundAmount;
+    transaction.refundReason = reason || 'Manual refund';
+    transaction.refundedBy = req.user._id;
+    transaction.refundedAt = new Date();
+    
+    transaction.refundStatus = 'refunded';
+    await transaction.save();
+
+    res.json({ message: 'Refund recorded successfully', transaction });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};

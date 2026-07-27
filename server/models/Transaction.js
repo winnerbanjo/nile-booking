@@ -39,11 +39,6 @@ const transactionSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    reference: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
     customerEmail: {
       type: String,
       required: true,
@@ -77,6 +72,22 @@ const transactionSchema = new mongoose.Schema(
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
+    },
+    refundStatus: {
+      type: String,
+      enum: ['not_refunded', 'refund_pending', 'refunded'],
+      default: 'not_refunded',
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
+    },
+    refundReason: {
+      type: String,
+    },
+    refundedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {

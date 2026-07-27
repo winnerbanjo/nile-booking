@@ -342,6 +342,13 @@ export const paymentApi = {
       method: 'PUT',
     });
   },
+
+  processRefund: async (transactionId: string, data: { amount: number; reason?: string }) => {
+    return request<{ message: string; transaction: any }>(`/payments/transactions/${transactionId}/refund`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Admin API

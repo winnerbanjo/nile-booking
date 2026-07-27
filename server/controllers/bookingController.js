@@ -172,7 +172,6 @@ export const createBooking = async (req, res) => {
       paymentGateway: 'bank_transfer',
       gatewayReference: transactionReference,
       transactionReference,
-      reference: transactionReference, // to satisfy old DB index
       customerEmail: customer.email,
       status: 'pending', // pending manual verification
     });
@@ -330,16 +329,8 @@ export const updateBookingStatus = async (req, res) => {
     booking.status = status;
     if (status === 'cancelled') {
       booking.paymentStatus = 'cancelled';
-      
-      const transaction = await Transaction.findOne({ booking: booking._id });
-      if (transaction) {
-        if (transaction.status === 'successful') {
-          transaction.status = 'refunded';
-        } else if (transaction.status === 'pending' || transaction.status === 'processing') {
-          transaction.status = 'cancelled';
-        }
-        await transaction.save();
-      }
+      // We no longer automatically change transaction status to refunded.
+      // Revenue is only deducted if an actual manual refund is processed via the refund endpoint.
     }
 
     await booking.save();
@@ -381,7 +372,12 @@ export const getBookingStats = async (req, res) => {
       Booking.countDocuments({ provider: providerId, status: 'pending' }),
       Transaction.aggregate([
         { $match: { provider: providerId, status: 'successful' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
+        { 
+          $group: { 
+            _id: null, 
+            total: { $sum: { $subtract: ['$amount', { $ifNull: ['$refundAmount', 0] }] } } 
+          } 
+        },
       ]),
     ]);
 

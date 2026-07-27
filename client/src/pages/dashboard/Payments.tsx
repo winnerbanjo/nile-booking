@@ -43,6 +43,10 @@ export const Payments: React.FC = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [selectedTransactionForRefund, setSelectedTransactionForRefund] = useState<any>(null);
+  const [refundAmount, setRefundAmount] = useState<number>(0);
+  const [refundReason, setRefundReason] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -84,7 +88,6 @@ export const Payments: React.FC = () => {
   const handleVerifyReceipt = async (transactionId: string) => {
     try {
       await paymentApi.verifyManualTransaction(transactionId);
-      // Reload data
       loadData();
     } catch (error) {
       console.error('Failed to verify receipt', error);
@@ -92,8 +95,37 @@ export const Payments: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (transactionStatus: string, bookingPaymentStatus: string) => {
-    if (bookingPaymentStatus === 'confirmed' || transactionStatus === 'successful') {
+  const openRefundModal = (transaction: any) => {
+    setSelectedTransactionForRefund(transaction);
+    setRefundAmount(transaction.amount - (transaction.refundAmount || 0));
+    setRefundReason('');
+    setShowRefundModal(true);
+  };
+
+  const handleProcessRefund = async () => {
+    if (!selectedTransactionForRefund) return;
+    try {
+      await paymentApi.processRefund(selectedTransactionForRefund._id, {
+        amount: refundAmount,
+        reason: refundReason,
+      });
+      setShowRefundModal(false);
+      setSelectedTransactionForRefund(null);
+      loadData();
+    } catch (error) {
+      console.error('Failed to process refund', error);
+      alert('Failed to process refund');
+    }
+  };
+
+  const getStatusBadge = (transaction: any, bookingPaymentStatus: string) => {
+    if (transaction.refundStatus === 'refunded') {
+      return { label: 'Refunded', color: 'bg-red-600 text-white' };
+    }
+    if (transaction.refundStatus === 'refund_pending') {
+      return { label: 'Partial Refund', color: 'bg-orange-600 text-white' };
+    }
+    if (bookingPaymentStatus === 'confirmed' || transaction.status === 'successful') {
       return { label: 'Confirmed', color: 'bg-[#22c55e] text-white' };
     }
     if (bookingPaymentStatus === 'awaiting_verification') {
@@ -102,8 +134,8 @@ export const Payments: React.FC = () => {
     if (bookingPaymentStatus === 'awaiting_payment') {
       return { label: 'Awaiting Payment', color: 'bg-orange-500 text-white' };
     }
-    if (transactionStatus === 'failed' || bookingPaymentStatus === 'cancelled') {
-      return { label: 'Cancelled', color: 'bg-red-500 text-white' };
+    if (transaction.status === 'failed' || bookingPaymentStatus === 'cancelled') {
+      return { label: 'Cancelled', color: 'bg-gray-500 text-white' };
     }
     return { label: 'Pending', color: 'bg-gray-500 text-white' };
   };
@@ -339,10 +371,14 @@ export const Payments: React.FC = () => {
                 ) : (
                   transactions.map((transaction, index) => {
                     const booking = transaction.booking || {};
-                    const badge = getStatusBadge(transaction.status, booking.paymentStatus || 'pending');
+                    const badge = getStatusBadge(transaction, booking.paymentStatus || 'pending');
                     const customerName = transaction.customerEmail || 'N/A'; // Better: populated customer.name if it was a User ref, but here customer email is stored
                     const serviceName = booking.service?.name || 'N/A';
                     const amount = transaction.amount || 0;
+                    
+                    const isSuccessful = transaction.status === 'successful';
+                    const isCancelled = booking.status === 'cancelled';
+                    const canRefund = isSuccessful && transaction.refundStatus !== 'refunded';
 
                     return (
                       <motion.tr
@@ -374,20 +410,33 @@ export const Payments: React.FC = () => {
                           </div>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          {booking.paymentStatus === 'awaiting_verification' ? (
-                            <Button
-                              onClick={() => handleVerifyReceipt(transaction._id)}
-                              size="sm"
-                              className="bg-[#22c55e] hover:bg-green-600 text-white text-xs px-3 py-1 h-auto"
-                            >
-                              <Shield className="h-3 w-3 mr-1" />
-                              Verify
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-gray-600 font-light">
-                              {transaction.paymentGateway ? transaction.paymentGateway.charAt(0).toUpperCase() + transaction.paymentGateway.slice(1) : 'N/A'}
-                            </span>
-                          )}
+                          <div className="flex flex-col items-center gap-2">
+                            {booking.paymentStatus === 'awaiting_verification' ? (
+                              <Button
+                                onClick={() => handleVerifyReceipt(transaction._id)}
+                                size="sm"
+                                className="bg-[#22c55e] hover:bg-green-600 text-white text-xs px-3 py-1 h-auto"
+                              >
+                                <Shield className="h-3 w-3 mr-1" />
+                                Verify
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-gray-600 font-light">
+                                {transaction.paymentGateway ? transaction.paymentGateway.charAt(0).toUpperCase() + transaction.paymentGateway.slice(1) : 'N/A'}
+                              </span>
+                            )}
+                            
+                            {canRefund && (
+                              <Button
+                                onClick={() => openRefundModal(transaction)}
+                                size="sm"
+                                variant="outline"
+                                className="text-red-500 border-red-200 hover:bg-red-50 text-xs px-3 py-1 h-auto w-full max-w-[120px]"
+                              >
+                                Mark Refunded
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </motion.tr>
                     );
@@ -406,10 +455,13 @@ export const Payments: React.FC = () => {
             ) : (
               transactions.map((transaction, index) => {
                 const booking = transaction.booking || {};
-                const badge = getStatusBadge(transaction.status, booking.paymentStatus || 'pending');
+                const badge = getStatusBadge(transaction, booking.paymentStatus || 'pending');
                 const customerName = transaction.customerEmail || 'N/A';
                 const serviceName = booking.service?.name || 'N/A';
                 const amount = transaction.amount || 0;
+                
+                const isSuccessful = transaction.status === 'successful';
+                const canRefund = isSuccessful && transaction.refundStatus !== 'refunded';
 
                 return (
                   <motion.div
@@ -431,7 +483,7 @@ export const Payments: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-white/30">
-                      <div className="text-xs text-gray-500 font-light">
+                      <div className="text-xs text-gray-500 font-light flex flex-col gap-2">
                         {format(new Date(transaction.createdAt), 'MMM d')}
                         {booking.paymentStatus === 'awaiting_verification' && (
                           <Button
@@ -441,6 +493,16 @@ export const Payments: React.FC = () => {
                           >
                             <Shield className="h-4 w-4 mr-2" />
                             Verify Payment Receipt
+                          </Button>
+                        )}
+                        {canRefund && (
+                          <Button
+                            onClick={() => openRefundModal(transaction)}
+                            size="sm"
+                            variant="outline"
+                            className="w-full mt-1 text-red-500 border-red-200 hover:bg-red-50 text-xs h-auto py-2"
+                          >
+                            Mark as Refunded
                           </Button>
                         )}
                       </div>
@@ -580,6 +642,74 @@ export const Payments: React.FC = () => {
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Refund Modal */}
+      <AnimatePresence>
+        {showRefundModal && selectedTransactionForRefund && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Mark as Refunded</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Record a manual refund for {selectedTransactionForRefund.customerEmail || 'Customer'}'s transaction of ₦{selectedTransactionForRefund.amount?.toLocaleString()}.
+                </p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Refund Amount (₦)
+                    </label>
+                    <input
+                      type="number"
+                      max={selectedTransactionForRefund.amount}
+                      value={refundAmount}
+                      onChange={(e) => setRefundAmount(Number(e.target.value))}
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#22c55e]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reason (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={refundReason}
+                      onChange={(e) => setRefundReason(e.target.value)}
+                      placeholder="e.g. Booking cancelled by customer"
+                      className="w-full border border-gray-300 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-[#22c55e]"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-8 flex justify-end gap-3">
+                  <Button
+                    onClick={() => {
+                      setShowRefundModal(false);
+                      setSelectedTransactionForRefund(null);
+                    }}
+                    variant="outline"
+                    className="border-gray-200 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleProcessRefund}
+                    className="bg-red-500 hover:bg-red-600 text-white"
+                    disabled={!refundAmount || refundAmount <= 0 || refundAmount > selectedTransactionForRefund.amount}
+                  >
+                    Confirm Refund
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
