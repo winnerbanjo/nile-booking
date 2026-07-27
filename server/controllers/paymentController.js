@@ -343,9 +343,21 @@ export const verifyManualPayment = async (req, res) => {
       return res.status(404).json({ message: 'Transaction not found' });
     }
 
+    if (transaction.status === 'successful') {
+      return res.status(400).json({ message: 'Transaction is already verified' });
+    }
+
     const booking = await Booking.findById(transaction.booking).populate('service customer');
     if (!booking) {
       return res.status(404).json({ message: 'Associated booking not found' });
+    }
+
+    if (booking.provider.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'You are not authorized to verify this booking' });
+    }
+
+    if (booking.status === 'cancelled') {
+      return res.status(400).json({ message: 'Cannot verify a cancelled booking' });
     }
 
     transaction.status = 'successful';

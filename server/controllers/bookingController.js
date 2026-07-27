@@ -172,6 +172,7 @@ export const createBooking = async (req, res) => {
       paymentGateway: 'bank_transfer',
       gatewayReference: transactionReference,
       transactionReference,
+      reference: transactionReference, // to satisfy old DB index
       customerEmail: customer.email,
       status: 'pending', // pending manual verification
     });
@@ -327,6 +328,20 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     booking.status = status;
+    if (status === 'cancelled') {
+      booking.paymentStatus = 'cancelled';
+      
+      const transaction = await Transaction.findOne({ booking: booking._id });
+      if (transaction) {
+        if (transaction.status === 'successful') {
+          transaction.status = 'refunded';
+        } else if (transaction.status === 'pending' || transaction.status === 'processing') {
+          transaction.status = 'cancelled';
+        }
+        await transaction.save();
+      }
+    }
+
     await booking.save();
     res.json(booking);
   } catch (error) {

@@ -27,7 +27,7 @@ const transactionSchema = new mongoose.Schema(
     },
     paymentGateway: {
       type: String,
-      enum: ['paystack', 'flutterwave'],
+      enum: ['paystack', 'flutterwave', 'bank_transfer', 'pay_later'],
       required: true,
     },
     gatewayReference: {
@@ -38,6 +38,11 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       required: true,
       unique: true,
+    },
+    reference: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
     customerEmail: {
       type: String,

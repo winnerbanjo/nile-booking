@@ -177,6 +177,15 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
+        alert('Invalid file format. Please upload a JPG, PNG, or PDF.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size exceeds 5MB limit. Please upload a smaller file.');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setReceiptImage(reader.result as string);
@@ -702,9 +711,9 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                   <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-emerald-400">Bank Transfer</span>
                 </div>
                 <div className="pt-1">
-                  <p className="text-sm font-bold text-white">Access Bank</p>
-                  <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">8123843076</p>
-                  <p className="text-xs text-zinc-300">{data.provider.businessName}</p>
+                  <p className="text-sm font-bold text-white">{data?.provider?.bankAccount?.bankName || 'Nile Technologies Inc'}</p>
+                  <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">{data?.provider?.bankAccount?.accountNumber || '8123843076'}</p>
+                  <p className="text-xs text-zinc-300">{data?.provider?.bankAccount?.accountName || data?.provider?.businessName}</p>
                 </div>
               </div>
             )}
@@ -739,21 +748,25 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               {/* Optional Transfer Receipt Image Upload */}
               {checkoutPaymentType === 'bank_transfer' && (
                 <div>
-                  <Label className="text-xs font-medium text-zinc-700 mb-1 block">Upload Transfer Receipt Image (Optional)</Label>
-                  <div className="flex items-center gap-3">
+                  <Label className="text-xs font-medium text-zinc-700 mb-1 block">Upload Transfer Receipt (Optional)</Label>
+                  <div className="flex flex-col gap-2">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg, image/png, application/pdf"
                       onChange={handleReceiptUpload}
                       className="text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
                     />
+                    {!receiptImage && (
+                      <p className="text-[10px] text-zinc-500 leading-tight">
+                        You can skip this step and complete your booking now. If you do, please send your receipt to {data.provider.businessName} via WhatsApp or reply to the confirmation email later.
+                      </p>
+                    )}
+                    {receiptImage && (
+                      <p className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Receipt ready to upload
+                      </p>
+                    )}
                   </div>
-                  {receiptImage && (
-                    <div className="mt-2 text-xs text-emerald-700 flex items-center gap-1 font-medium">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Receipt screenshot attached!
-                    </div>
-                  )}
                 </div>
               )}
             </div>
