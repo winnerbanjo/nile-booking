@@ -148,9 +148,9 @@ export const createBooking = async (req, res) => {
       date: new Date(date),
       timeSlot,
       status: 'pending',
-      paymentStatus: 'pending',
-      paymentType: paymentType || 'bank_transfer',
-      receiptImage: receiptImageUrl,
+      paymentStatus: receiptImageUrl ? 'awaiting_verification' : 'awaiting_payment',
+      paymentType: 'bank_transfer',
+      receiptImageUrl,
       pricing: {
         servicePrice,
         depositAmount,
@@ -160,71 +160,45 @@ export const createBooking = async (req, res) => {
       notes,
     });
 
+    const transactionReference = `TX-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    
+    // Create a manual transaction record to represent the bank transfer
+    await Transaction.create({
+      booking: booking._id,
+      provider: service.provider,
+      type: 'payment',
+      amount: servicePrice,
+      currency: 'NGN',
+      paymentGateway: 'bank_transfer',
+      gatewayReference: transactionReference,
+      transactionReference,
+      customerEmail: customer.email,
+      status: 'pending', // pending manual verification
+    });
+
     // Send Emails asynchronously
     User.findById(service.provider).then((providerUser) => {
       if (providerUser && customer.email) {
         // Email to Customer
         sendEmail({
           to: customer.email,
-          subject: 'Booking Confirmation - Nile Booking',
-          html: `<p>Hi ${customer.name},</p><p>Your booking for <b>${service.name}</b> on ${new Date(date).toLocaleDateString()} at ${timeSlot.startTime} is confirmed!</p><p>Thank you for using Nile Booking.</p>`,
+          subject: 'Booking Received - Nile Booking',
+          html: `<p>Hi ${customer.name},</p><p>Your booking for <b>${service.name}</b> on ${new Date(date).toLocaleDateString()} at ${timeSlot.startTime} has been received.</p><p>We are currently reviewing your bank transfer receipt. You will receive another email once your booking is confirmed!</p><p>Thank you for using Nile Booking.</p>`,
         });
         
         // Email to Merchant
         if (providerUser.email) {
           sendEmail({
             to: providerUser.email,
-            subject: 'New Booking Alert!',
-            html: `<p>Hi ${providerUser.businessName || providerUser.name},</p><p>You have a new booking from ${customer.name} (${customer.email} / ${customer.phone}) for <b>${service.name}</b> on ${new Date(date).toLocaleDateString()} at ${timeSlot.startTime}.</p>`,
+            subject: 'New Booking Awaiting Verification!',
+            html: `<p>Hi ${providerUser.businessName || providerUser.name},</p><p>You have a new booking from ${customer.name} (${customer.email} / ${customer.phone}) for <b>${service.name}</b> on ${new Date(date).toLocaleDateString()} at ${timeSlot.startTime}.</p><p>Please check your dashboard to verify the payment receipt and confirm the booking.</p>`,
           });
         }
       }
     }).catch(err => console.error("Error fetching provider for email:", err));
 
-    // Payment Integration
-    let paymentData = null;
-    if (paymentType !== 'pay_later' && paymentType !== 'bank_transfer' && req.body.paymentGateway) {
-      const transactionReference = `TX-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
-      
-      const transaction = await Transaction.create({
-        booking: booking._id,
-        provider: service.provider,
-        type: paymentType === 'deposit' ? 'deposit' : 'payment',
-        amount: paymentType === 'deposit' ? depositAmount : servicePrice,
-        currency: 'NGN',
-        paymentGateway: req.body.paymentGateway,
-        gatewayReference: transactionReference,
-        transactionReference,
-        customerEmail: customer.email,
-        status: 'pending',
-      });
-
-      if (req.body.paymentGateway === 'paystack') {
-        paymentData = await paystackService.initializePayment(
-          transaction.amount,
-          customer.email,
-          transactionReference,
-          {
-            bookingId: booking._id,
-            providerId: service.provider,
-          }
-        );
-      } else if (req.body.paymentGateway === 'flutterwave') {
-        paymentData = await flutterwaveService.initializePayment(
-          transaction.amount,
-          customer.email,
-          transactionReference,
-          {
-            bookingId: booking._id,
-            providerId: service.provider,
-          }
-        );
-      }
-    }
-
     res.status(201).json({
       booking,
-      paymentData,
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

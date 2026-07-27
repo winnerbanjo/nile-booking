@@ -41,8 +41,7 @@ export const Checkout: React.FC = () => {
       email: '',
       phone: '',
     },
-    paymentType: 'full',
-    paymentGateway: 'paystack',
+    paymentType: 'bank_transfer',
     notes: '',
   });
 
@@ -114,13 +113,6 @@ export const Checkout: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (formData.paymentType === 'bank_transfer') {
-      if (!receiptUploaded || !formData.receiptImage) {
-        setError('Please upload your payment receipt');
-        return;
-      }
-    }
-
     setLoading(true);
     setError('');
 
@@ -130,30 +122,14 @@ export const Checkout: React.FC = () => {
         serviceId: (service as Service)._id,
         date,
         timeSlot,
-        paymentType: formData.paymentType,
-        paymentGateway: formData.paymentGateway,
+        paymentType: 'bank_transfer',
         notes: formData.notes,
-        receiptImage: formData.receiptImage, // Include receipt for bank transfer
+        receiptImage: formData.receiptImage, // Optional: might be undefined
       });
 
-      // If bank transfer, show pending verification screen
-      if (formData.paymentType === 'bank_transfer') {
-        setShowPendingVerification(true);
-        setLoading(false);
-        return;
-      }
-
-      // Redirect to payment if needed
-      if (response.paymentData && formData.paymentType !== 'pay_later') {
-        if (formData.paymentGateway === 'paystack') {
-          window.location.href = response.paymentData.data.authorization_url;
-        } else if (formData.paymentGateway === 'flutterwave') {
-          window.location.href = response.paymentData.data.link;
-        }
-      } else {
-        // Pay later - show success
-        navigate('/checkout/success', { state: { booking: response.booking } });
-      }
+      // Navigate to success page
+      setShowPendingVerification(true);
+      setLoading(false);
     } catch (err: any) {
       setError(err.message || 'Failed to create booking. Please try again.');
       setLoading(false);
@@ -300,92 +276,17 @@ export const Checkout: React.FC = () => {
                   <p className="text-sm text-gray-500">{formData.customer.phone}</p>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-4">Payment Option</h3>
+                  <h3 className="font-semibold text-gray-900 mb-4">Payment Method</h3>
                   <div className="space-y-3">
-                    <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentType"
-                        value="full"
-                        checked={formData.paymentType === 'full'}
-                        onChange={(e) => handleInputChange('paymentType', e.target.value)}
-                        className="mr-3"
-                      />
+                    <div className="flex items-center p-4 border-2 border-green-500 rounded-lg bg-green-50">
+                      <Wallet className="h-5 w-5 mr-3 text-green-600" />
                       <div className="flex-1">
-                        <div className="flex items-center">
-                          <CreditCard className="h-5 w-5 mr-2 text-gray-600" />
-                          <span className="font-medium">Full Payment</span>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">₦{pricing.servicePrice.toLocaleString()}</p>
+                        <span className="font-medium text-green-900">Manual Bank Transfer</span>
+                        <p className="text-sm text-green-700 mt-1">Pay via bank transfer and upload your receipt on the next screen.</p>
                       </div>
-                    </label>
-                    <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentType"
-                        value="deposit"
-                        checked={formData.paymentType === 'deposit'}
-                        onChange={(e) => handleInputChange('paymentType', e.target.value)}
-                        className="mr-3"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center">
-                          <Wallet className="h-5 w-5 mr-2 text-gray-600" />
-                          <span className="font-medium">Deposit (30%)</span>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">₦{pricing.depositAmount.toLocaleString()} now, rest later</p>
-                      </div>
-                    </label>
-                    <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentType"
-                        value="bank_transfer"
-                        checked={formData.paymentType === 'bank_transfer'}
-                        onChange={(e) => handleInputChange('paymentType', e.target.value)}
-                        className="mr-3"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center">
-                          <Wallet className="h-5 w-5 mr-2 text-gray-600" />
-                          <span className="font-medium">Bank Transfer</span>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">Pay via bank transfer | Upload receipt</p>
-                      </div>
-                    </label>
-                    <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="radio"
-                        name="paymentType"
-                        value="pay_later"
-                        checked={formData.paymentType === 'pay_later'}
-                        onChange={(e) => handleInputChange('paymentType', e.target.value)}
-                        className="mr-3"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center">
-                          <Clock className="h-5 w-5 mr-2 text-gray-600" />
-                          <span className="font-medium">Pay Later</span>
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">Pay at the time of service</p>
-                      </div>
-                    </label>
+                    </div>
                   </div>
                 </div>
-                {formData.paymentType !== 'pay_later' && formData.paymentType !== 'bank_transfer' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="gateway">Payment Gateway</Label>
-                    <select
-                      id="gateway"
-                      value={formData.paymentGateway}
-                      onChange={(e) => handleInputChange('paymentGateway', e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="paystack">Paystack</option>
-                      <option value="flutterwave">Flutterwave</option>
-                    </select>
-                  </div>
-                )}
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold">Total Amount</span>
@@ -396,19 +297,7 @@ export const Checkout: React.FC = () => {
             )}
 
             {/* Step 3: Payment */}
-            {currentStep === 2 && formData.paymentType !== 'bank_transfer' && (
-              <div className="space-y-4">
-                <div className="text-center py-8">
-                  <CreditCard className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Redirecting to Payment...</h3>
-                  <p className="text-gray-600">
-                    You will be redirected to {formData.paymentGateway === 'paystack' ? 'Paystack' : 'Flutterwave'} to complete your payment.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 2 && formData.paymentType === 'bank_transfer' && (
+            {currentStep === 2 && (
               <div className="space-y-4">
                 <div className="p-6 bg-white/50 rounded-xl border border-white/50">
                   <h3 className="text-lg font-semibold mb-4">Bank Transfer Details</h3>
@@ -444,6 +333,11 @@ export const Checkout: React.FC = () => {
                       <Check className="h-5 w-5" />
                       <span className="font-medium">Receipt uploaded successfully</span>
                     </div>
+                  </div>
+                )}
+                {!receiptUploaded && (
+                  <div className="text-center mt-4 text-sm text-gray-500">
+                    <p>You can upload your receipt later. Your booking will be marked as "Awaiting Payment".</p>
                   </div>
                 )}
               </div>

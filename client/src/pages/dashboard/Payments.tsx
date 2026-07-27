@@ -81,15 +81,29 @@ export const Payments: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const getStatusBadge = (status: string, paymentStatus: string) => {
-    if (status === 'completed' && paymentStatus === 'paid') {
-      return { label: 'Payout Successful', color: 'bg-[#22c55e] text-white' };
+  const handleVerifyReceipt = async (transactionId: string) => {
+    try {
+      await paymentApi.verifyManualTransaction(transactionId);
+      // Reload data
+      loadData();
+    } catch (error) {
+      console.error('Failed to verify receipt', error);
+      alert('Failed to verify receipt');
     }
-    if (paymentStatus === 'paid') {
-      return { label: 'Fully Paid', color: 'bg-blue-500 text-white' };
+  };
+
+  const getStatusBadge = (transactionStatus: string, bookingPaymentStatus: string) => {
+    if (bookingPaymentStatus === 'confirmed' || transactionStatus === 'successful') {
+      return { label: 'Confirmed', color: 'bg-[#22c55e] text-white' };
     }
-    if (paymentStatus === 'partial') {
-      return { label: 'Deposit Paid', color: 'bg-yellow-500 text-white' };
+    if (bookingPaymentStatus === 'awaiting_verification') {
+      return { label: 'Awaiting Verification', color: 'bg-yellow-500 text-white' };
+    }
+    if (bookingPaymentStatus === 'awaiting_payment') {
+      return { label: 'Awaiting Payment', color: 'bg-orange-500 text-white' };
+    }
+    if (transactionStatus === 'failed' || bookingPaymentStatus === 'cancelled') {
+      return { label: 'Cancelled', color: 'bg-red-500 text-white' };
     }
     return { label: 'Pending', color: 'bg-gray-500 text-white' };
   };
@@ -324,8 +338,8 @@ export const Payments: React.FC = () => {
                   </tr>
                 ) : (
                   transactions.map((transaction, index) => {
-                    const badge = getStatusBadge(transaction.status, transaction.status);
                     const booking = transaction.booking || {};
+                    const badge = getStatusBadge(transaction.status, booking.paymentStatus || 'pending');
                     const customerName = transaction.customerEmail || 'N/A'; // Better: populated customer.name if it was a User ref, but here customer email is stored
                     const serviceName = booking.service?.name || 'N/A';
                     const amount = transaction.amount || 0;
@@ -360,9 +374,20 @@ export const Payments: React.FC = () => {
                           </div>
                         </td>
                         <td className="py-4 px-4 text-center">
-                          <span className="text-xs text-gray-600 font-light">
-                            {transaction.paymentGateway ? transaction.paymentGateway.charAt(0).toUpperCase() + transaction.paymentGateway.slice(1) : 'N/A'}
-                          </span>
+                          {booking.paymentStatus === 'awaiting_verification' ? (
+                            <Button
+                              onClick={() => handleVerifyReceipt(transaction._id)}
+                              size="sm"
+                              className="bg-[#22c55e] hover:bg-green-600 text-white text-xs px-3 py-1 h-auto"
+                            >
+                              <Shield className="h-3 w-3 mr-1" />
+                              Verify
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-gray-600 font-light">
+                              {transaction.paymentGateway ? transaction.paymentGateway.charAt(0).toUpperCase() + transaction.paymentGateway.slice(1) : 'N/A'}
+                            </span>
+                          )}
                         </td>
                       </motion.tr>
                     );
@@ -380,8 +405,8 @@ export const Payments: React.FC = () => {
               </div>
             ) : (
               transactions.map((transaction, index) => {
-                const badge = getStatusBadge(transaction.status, transaction.status);
                 const booking = transaction.booking || {};
+                const badge = getStatusBadge(transaction.status, booking.paymentStatus || 'pending');
                 const customerName = transaction.customerEmail || 'N/A';
                 const serviceName = booking.service?.name || 'N/A';
                 const amount = transaction.amount || 0;
@@ -408,6 +433,16 @@ export const Payments: React.FC = () => {
                     <div className="flex items-center justify-between pt-2 border-t border-white/30">
                       <div className="text-xs text-gray-500 font-light">
                         {format(new Date(transaction.createdAt), 'MMM d')}
+                        {booking.paymentStatus === 'awaiting_verification' && (
+                          <Button
+                            onClick={() => handleVerifyReceipt(transaction._id)}
+                            size="sm"
+                            className="w-full mt-3 bg-[#22c55e] hover:bg-green-600 text-white text-xs h-auto py-2"
+                          >
+                            <Shield className="h-4 w-4 mr-2" />
+                            Verify Payment Receipt
+                          </Button>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>

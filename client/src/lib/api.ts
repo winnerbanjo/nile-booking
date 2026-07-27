@@ -336,6 +336,12 @@ export const paymentApi = {
       `/payments/transactions?${query.toString()}`
     );
   },
+
+  verifyManualTransaction: async (transactionId: string) => {
+    return request<{ message: string; transaction: any; booking: any }>(`/payments/transactions/${transactionId}/verify`, {
+      method: 'PUT',
+    });
+  },
 };
 
 // Admin API
