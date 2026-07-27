@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { bookingApi } from '../../lib/api';
+import { bookingApi, paymentApi } from '../../lib/api';
 import { Button } from '../../components/ui/button';
 import { DollarSign, TrendingUp, Clock, CheckCircle, Copy, CreditCard, Shield, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import type { BookingStats, Booking } from '../../types';
@@ -40,7 +40,7 @@ const glassCardClass = "bg-white/40 backdrop-blur-xl border border-white/40 roun
 
 export const Payments: React.FC = () => {
   const [stats, setStats] = useState<BookingStats | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -51,12 +51,12 @@ export const Payments: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [statsData, bookingsData] = await Promise.all([
+      const [statsData, transactionsData] = await Promise.all([
         bookingApi.getBookingStats(),
-        bookingApi.getBookings({ limit: 50 }),
+        paymentApi.getTransactions({ limit: 50 }),
       ]);
       setStats(statsData);
-      setBookings(bookingsData.bookings);
+      setTransactions(transactionsData.transactions);
     } catch (error) {
       console.error('Failed to load financial data:', error);
       // Use mock data on error
@@ -69,7 +69,7 @@ export const Payments: React.FC = () => {
         pendingPayouts: 0,
         successRate: 0,
       });
-      setBookings([]);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -316,17 +316,19 @@ export const Payments: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {bookings.length === 0 ? (
+                {transactions.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-gray-500 font-light">
                       No transactions found.
                     </td>
                   </tr>
                 ) : (
-                  bookings.map((transaction, index) => {
-                    const badge = getStatusBadge(transaction.status, transaction.paymentStatus);
-                    const serviceName = typeof transaction.service === 'object' ? transaction.service.name : 'N/A';
-                    const amount = transaction.pricing?.totalAmount || 0;
+                  transactions.map((transaction, index) => {
+                    const badge = getStatusBadge(transaction.status, transaction.status);
+                    const booking = transaction.booking || {};
+                    const customerName = transaction.customerEmail || 'N/A'; // Better: populated customer.name if it was a User ref, but here customer email is stored
+                    const serviceName = booking.service?.name || 'N/A';
+                    const amount = transaction.amount || 0;
 
                     return (
                       <motion.tr
@@ -338,10 +340,10 @@ export const Payments: React.FC = () => {
                       >
                         <td className="py-4 px-4">
                           <p className="text-sm font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                            {transaction.customer.name}
+                            {customerName}
                           </p>
                           <p className="text-xs text-gray-500 font-light">
-                            {format(new Date(transaction.date), 'MMM d, yyyy')} | {transaction.timeSlot.startTime}
+                            {format(new Date(transaction.createdAt), 'MMM d, yyyy')}
                           </p>
                         </td>
                         <td className="py-4 px-4">
@@ -372,15 +374,17 @@ export const Payments: React.FC = () => {
 
           {/* Mobile: Card View */}
           <div className="md:hidden space-y-3">
-            {bookings.length === 0 ? (
+            {transactions.length === 0 ? (
               <div className="py-8 text-center text-gray-500 font-light">
                 No transactions found.
               </div>
             ) : (
-              bookings.map((transaction, index) => {
-                const badge = getStatusBadge(transaction.status, transaction.paymentStatus);
-                const serviceName = typeof transaction.service === 'object' ? transaction.service.name : 'N/A';
-                const amount = transaction.pricing?.totalAmount || 0;
+              transactions.map((transaction, index) => {
+                const badge = getStatusBadge(transaction.status, transaction.status);
+                const booking = transaction.booking || {};
+                const customerName = transaction.customerEmail || 'N/A';
+                const serviceName = booking.service?.name || 'N/A';
+                const amount = transaction.amount || 0;
 
                 return (
                   <motion.div
@@ -393,7 +397,7 @@ export const Payments: React.FC = () => {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <p className="text-sm font-black text-gray-900 tracking-tighter mb-1" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                          {transaction.customer.name}
+                          {customerName}
                         </p>
                         <p className="text-xs text-gray-600 font-light">{serviceName}</p>
                       </div>
@@ -403,7 +407,7 @@ export const Payments: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-white/30">
                       <div className="text-xs text-gray-500 font-light">
-                        {format(new Date(transaction.date), 'MMM d')} | {transaction.timeSlot.startTime}
+                        {format(new Date(transaction.createdAt), 'MMM d')}
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>

@@ -34,10 +34,40 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    transactionReference: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    customerEmail: {
+      type: String,
+      required: true,
+    },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: false,
+    },
     status: {
       type: String,
-      enum: ['pending', 'success', 'failed', 'refunded'],
+      enum: ['pending', 'processing', 'successful', 'failed', 'cancelled', 'refunded', 'partially_refunded'],
       default: 'pending',
+    },
+    failureReason: {
+      type: String,
+    },
+    initializedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    verifiedAt: {
+      type: Date,
+    },
+    paidAt: {
+      type: Date,
+    },
+    refundedAt: {
+      type: Date,
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed,

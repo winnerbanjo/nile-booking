@@ -6,6 +6,8 @@ import { notifyPaymentConfirmation, notifyBookingCancellation } from '../service
 import { uploadImage } from '../services/cloudinaryService.js';
 import { getMockMode, mockServices } from '../utils/mockMode.js';
 import { sendEmail } from '../utils/email.js';
+import { paystackService, flutterwaveService } from '../services/paymentService.js';
+import crypto from 'crypto';
 
 // @desc    Create new booking
 // @route   POST /api/bookings
@@ -179,9 +181,50 @@ export const createBooking = async (req, res) => {
       }
     }).catch(err => console.error("Error fetching provider for email:", err));
 
+    // Payment Integration
+    let paymentData = null;
+    if (paymentType !== 'pay_later' && paymentType !== 'bank_transfer' && req.body.paymentGateway) {
+      const transactionReference = `TX-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+      
+      const transaction = await Transaction.create({
+        booking: booking._id,
+        provider: service.provider,
+        type: paymentType === 'deposit' ? 'deposit' : 'payment',
+        amount: paymentType === 'deposit' ? depositAmount : servicePrice,
+        currency: 'NGN',
+        paymentGateway: req.body.paymentGateway,
+        gatewayReference: transactionReference,
+        transactionReference,
+        customerEmail: customer.email,
+        status: 'pending',
+      });
+
+      if (req.body.paymentGateway === 'paystack') {
+        paymentData = await paystackService.initializePayment(
+          transaction.amount,
+          customer.email,
+          transactionReference,
+          {
+            bookingId: booking._id,
+            providerId: service.provider,
+          }
+        );
+      } else if (req.body.paymentGateway === 'flutterwave') {
+        paymentData = await flutterwaveService.initializePayment(
+          transaction.amount,
+          customer.email,
+          transactionReference,
+          {
+            bookingId: booking._id,
+            providerId: service.provider,
+          }
+        );
+      }
+    }
+
     res.status(201).json({
       booking,
-      paymentData: null,
+      paymentData,
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -348,7 +391,7 @@ export const getBookingStats = async (req, res) => {
       Booking.countDocuments({ provider: providerId, status: 'completed' }),
       Booking.countDocuments({ provider: providerId, status: 'pending' }),
       Transaction.aggregate([
-        { $match: { provider: providerId, status: 'success' } },
+        { $match: { provider: providerId, status: 'successful' } },
         { $group: { _id: null, total: { $sum: '$amount' } } },
       ]),
     ]);

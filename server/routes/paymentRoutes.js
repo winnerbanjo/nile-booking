@@ -6,6 +6,7 @@ import {
   flutterwaveWebhook,
   getBanks,
   verifyBankAccount,
+  getTransactions,
 } from '../controllers/paymentController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -22,5 +23,6 @@ router.post('/flutterwave/webhook', express.json(), flutterwaveWebhook);
 // Bank account routes
 router.get('/banks', protect, getBanks);
 router.post('/verify-bank', protect, verifyBankAccount);
+router.get('/transactions', protect, getTransactions);
 
 export default router;

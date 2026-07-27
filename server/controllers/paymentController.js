@@ -18,39 +18,47 @@ export const verifyPaystackPayment = async (req, res) => {
     const verification = await paystackService.verifyPayment(reference);
 
     if (verification.data.status === 'success') {
-      // Find booking by reference (bookingNumber)
-      const booking = await Booking.findOne({ bookingNumber: reference })
-        .populate('service');
+      const transaction = await Transaction.findOne({ transactionReference: reference }).populate('booking');
+      
+      if (transaction) {
+        // Idempotency check
+        if (transaction.status === 'successful') {
+          return res.json({ success: true, booking: transaction.booking, message: 'Payment already verified' });
+        }
 
-      if (booking) {
-        // Update booking status
-        booking.status = 'confirmed';
-        booking.paymentStatus = booking.paymentType === 'deposit' ? 'partial' : 'paid';
-        booking.paymentReference = reference;
-        booking.paymentGateway = 'paystack';
-        await booking.save();
+        const expectedAmount = transaction.amount * 100; // Paystack is in kobo
+        const actualAmount = verification.data.amount;
+        const actualCurrency = verification.data.currency;
 
-        // Create transaction record
-        await Transaction.create({
-          booking: booking._id,
-          provider: booking.provider,
-          type: booking.paymentType === 'deposit' ? 'deposit' : 'payment',
-          amount: verification.data.amount / 100, // Convert from kobo
-          currency: 'USD',
-          paymentGateway: 'paystack',
-          gatewayReference: reference,
-          status: 'success',
-          metadata: verification.data,
-        });
+        if (actualAmount >= expectedAmount && actualCurrency === transaction.currency) {
+          transaction.status = 'successful';
+          transaction.verifiedAt = new Date();
+          transaction.paidAt = new Date();
+          transaction.gatewayReference = verification.data.reference || reference;
+          transaction.metadata = verification.data;
+          await transaction.save();
 
-        // Send notifications (WhatsApp + Email to customer and merchant)
-        await notifyPaymentConfirmation(booking._id);
+          const booking = await Booking.findById(transaction.booking._id).populate('service');
+          if (booking) {
+            booking.status = 'confirmed';
+            booking.paymentStatus = booking.paymentType === 'deposit' ? 'partial' : 'paid';
+            booking.paymentReference = reference;
+            booking.paymentGateway = 'paystack';
+            await booking.save();
+            await notifyPaymentConfirmation(booking._id);
+          }
 
-        return res.json({
-          success: true,
-          booking,
-          message: 'Payment verified and booking confirmed',
-        });
+          return res.json({
+            success: true,
+            booking,
+            message: 'Payment verified and booking confirmed',
+          });
+        } else {
+          transaction.status = 'failed';
+          transaction.failureReason = 'Amount or currency mismatch';
+          await transaction.save();
+          return res.json({ success: false, message: 'Amount or currency mismatch' });
+        }
       }
     }
 
@@ -75,31 +83,35 @@ export const paystackWebhook = async (req, res) => {
     const event = req.body;
 
     if (event.event === 'charge.success') {
-      const { reference, amount, customer } = event.data;
+      const { reference, amount, currency } = event.data;
 
-      const booking = await Booking.findOne({ bookingNumber: reference })
-        .populate('service');
+      const transaction = await Transaction.findOne({ transactionReference: reference }).populate('booking');
 
-      if (booking && booking.status === 'pending') {
-        booking.status = 'confirmed';
-        booking.paymentStatus = booking.paymentType === 'deposit' ? 'partial' : 'paid';
-        booking.paymentReference = reference;
-        booking.paymentGateway = 'paystack';
-        await booking.save();
+      if (transaction && transaction.status !== 'successful') {
+        const expectedAmount = transaction.amount * 100;
+        
+        if (amount >= expectedAmount && currency === transaction.currency) {
+          transaction.status = 'successful';
+          transaction.verifiedAt = new Date();
+          transaction.paidAt = new Date();
+          transaction.gatewayReference = reference;
+          transaction.metadata = event.data;
+          await transaction.save();
 
-        await Transaction.create({
-          booking: booking._id,
-          provider: booking.provider,
-          type: booking.paymentType === 'deposit' ? 'deposit' : 'payment',
-          amount: amount / 100,
-          currency: 'USD',
-          paymentGateway: 'paystack',
-          gatewayReference: reference,
-          status: 'success',
-          metadata: event.data,
-        });
-
-        await notifyPaymentConfirmation(booking._id);
+          const booking = await Booking.findById(transaction.booking._id).populate('service');
+          if (booking && booking.status === 'pending') {
+            booking.status = 'confirmed';
+            booking.paymentStatus = booking.paymentType === 'deposit' ? 'partial' : 'paid';
+            booking.paymentReference = reference;
+            booking.paymentGateway = 'paystack';
+            await booking.save();
+            await notifyPaymentConfirmation(booking._id);
+          }
+        } else {
+          transaction.status = 'failed';
+          transaction.failureReason = 'Webhook: Amount or currency mismatch';
+          await transaction.save();
+        }
       }
     }
 
@@ -281,6 +293,39 @@ export const verifyBankAccount = async (req, res) => {
     }
 
     res.status(400).json({ message: 'Bank account verification failed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Get provider transactions
+// @route   GET /api/payments/transactions
+// @access  Private (Provider)
+export const getTransactions = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 20 } = req.query;
+    const query = { provider: req.user._id };
+    if (status) query.status = status;
+
+    const limitNum = Number(limit) || 20;
+    const pageNum = Number(page) || 1;
+
+    const [transactions, total] = await Promise.all([
+      Transaction.find(query)
+        .populate('booking')
+        .sort({ createdAt: -1 })
+        .limit(limitNum)
+        .skip((pageNum - 1) * limitNum)
+        .lean(),
+      Transaction.countDocuments(query),
+    ]);
+
+    res.json({
+      transactions,
+      totalPages: Math.ceil(total / limitNum),
+      currentPage: pageNum,
+      total,
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

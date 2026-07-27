@@ -326,6 +326,16 @@ export const paymentApi = {
       body: JSON.stringify({ accountNumber, bankCode }),
     });
   },
+
+  getTransactions: async (params?: { status?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.status) query.append('status', params.status);
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    return request<{ transactions: any[]; totalPages: number; currentPage: number; total: number }>(
+      `/payments/transactions?${query.toString()}`
+    );
+  },
 };
 
 // Admin API
