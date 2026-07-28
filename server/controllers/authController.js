@@ -435,9 +435,12 @@ export const forgotPassword = async (req, res) => {
       return res.status(404).json({ message: 'No registered merchant account found with this email address.' });
     }
 
-    // Cool-down check: prevent spamming OTP requests (less than 30s since previous issuance)
-    if (user.otpExpires && (new Date(user.otpExpires).getTime() - Date.now() > 9 * 60 * 1000 + 30 * 1000)) {
-      return res.status(429).json({ message: 'Please wait a minute before requesting another reset code.' });
+    // Cool-down check: prevent spamming OTP requests (< 30 seconds since last OTP issued)
+    if (user.otpExpires) {
+      const timeRemainingMs = new Date(user.otpExpires).getTime() - Date.now();
+      if (timeRemainingMs > 570000 && timeRemainingMs <= 600000) {
+        return res.status(429).json({ message: 'Please wait 30 seconds before requesting another reset code.' });
+      }
     }
 
     // Cryptographically secure 6-digit OTP
