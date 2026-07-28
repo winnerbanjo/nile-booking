@@ -238,37 +238,16 @@ export const getServicesBySlug = async (req, res) => {
     }
 
     const User = (await import('../models/User.js')).default;
-    let provider = await User.findOne({ slug: req.params.slug }).lean();
+    const provider = await User.findOne({ slug: req.params.slug }).lean();
 
     if (!provider) {
-      provider = await User.findOne({ role: 'provider' }).lean();
-    }
-
-    if (!provider) {
-      provider = {
-        _id: 'default_barber_id',
-        name: 'The Modern Barber',
-        businessName: 'The Modern Barber',
-        slug: 'the-modern-barber',
-        phone: '+2348123843076',
-        bio: 'Premier luxury barbershop in Lagos offering skin fades, beard grooming, and hot towel treatments.',
-        location: 'Lekki Phase 1, Lagos',
-        logo: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=200&h=200&fit=crop',
-        headerImage: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&h=600&fit=crop',
-        headerImages: [
-          'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&h=600&fit=crop',
-          'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600&h=600&fit=crop',
-          'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1600&h=600&fit=crop',
-        ],
-      };
+      return res.status(404).json({ message: 'Storefront not found' });
     }
 
     const services = await Service.find({
       provider: provider._id,
       isActive: true,
     }).sort({ createdAt: -1 }).lean();
-
-    const finalServices = services.length > 0 ? services : defaultMockServicesList;
 
     res.json({
       provider: {
@@ -279,17 +258,17 @@ export const getServicesBySlug = async (req, res) => {
         phone: provider.phone,
         bio: provider.bio,
         location: provider.location,
-        logo: provider.logo,
-        profileImage: provider.profileImage,
-        headerImage: provider.headerImage || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&h=600&fit=crop',
-        headerImages: provider.headerImages && provider.headerImages.length > 0 ? provider.headerImages : [provider.headerImage || 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&h=600&fit=crop'],
+        logo: provider.logo || null,
+        profileImage: provider.profileImage || null,
+        headerImage: provider.headerImage || null,
+        headerImages: provider.headerImages || [],
         address: provider.address,
         socialHandles: provider.socialHandles,
         policies: provider.policies,
-        gallery: provider.gallery,
-        testimonials: provider.testimonials,
+        gallery: provider.gallery || [],
+        testimonials: provider.testimonials || [],
       },
-      services: finalServices,
+      services,
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

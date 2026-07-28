@@ -1,14 +1,10 @@
 import React, { useState } from 'react';
-import { Tag, Plus, CheckCircle2, Copy } from 'lucide-react';
+import { Tag, Plus } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 
 export const Discounts: React.FC = () => {
-  const [coupons, setCoupons] = useState([
-    { id: 'c1', code: 'WELCOME10', type: 'Percentage', value: '10% OFF', status: 'Active', uses: 24 },
-    { id: 'c2', code: 'LAGOSCUTS', type: 'Fixed Amount', value: '₦2,000 OFF', status: 'Active', uses: 12 },
-  ]);
-
+  const [coupons, setCoupons] = useState<any[]>([]);
   const [code, setCode] = useState('');
   const [discountValue, setDiscountValue] = useState('');
 
@@ -77,21 +73,29 @@ export const Discounts: React.FC = () => {
 
         <div className="lg:col-span-2 bg-white border border-zinc-200/80 rounded-xl p-6 shadow-sm space-y-4">
           <h2 className="text-base font-semibold text-zinc-900 tracking-tight">Active Promo Codes</h2>
-          <div className="divide-y divide-zinc-100">
-            {coupons.map((c) => (
-              <div key={c.id} className="py-3 flex items-center justify-between">
-                <div>
-                  <span className="font-mono text-xs font-bold text-zinc-900 bg-zinc-100 px-2 py-1 rounded border border-zinc-200">
-                    {c.code}
-                  </span>
-                  <span className="text-xs text-emerald-700 ml-3 font-semibold">{c.value}</span>
+          {coupons.length === 0 ? (
+            <div className="py-12 text-center space-y-2 border border-dashed border-zinc-200 rounded-xl">
+              <Tag className="w-8 h-8 text-zinc-300 mx-auto" />
+              <p className="text-xs font-semibold text-zinc-900">No promo codes created yet</p>
+              <p className="text-xs text-zinc-500 font-normal">Use the form to create your first discount code for clients.</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-100">
+              {coupons.map((c) => (
+                <div key={c.id} className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-mono text-xs font-bold text-zinc-900 bg-zinc-100 px-2 py-1 rounded border border-zinc-200">
+                      {c.code}
+                    </span>
+                    <span className="text-xs text-emerald-700 ml-3 font-semibold">{c.value}</span>
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    {c.uses} redemptions
+                  </div>
                 </div>
-                <div className="text-xs text-zinc-500">
-                  {c.uses} redemptions
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

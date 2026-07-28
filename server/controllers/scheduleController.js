@@ -127,23 +127,34 @@ export const getScheduleBySlug = async (req, res) => {
     }
 
     const User = (await import('../models/User.js')).default;
-    let provider = await User.findOne({ slug: req.params.slug }).lean();
+    const provider = await User.findOne({ slug: req.params.slug }).lean();
 
     if (!provider) {
-      provider = await User.findOne({ role: 'provider' }).lean();
+      return res.status(404).json({ message: 'Schedule not found' });
     }
 
-    let schedule = null;
-    if (provider) {
-      schedule = await Schedule.findOne({ provider: provider._id }).lean();
-    }
+    let schedule = await Schedule.findOne({ provider: provider._id }).lean();
 
     if (!schedule) {
-      schedule = defaultMockSchedule;
+      schedule = {
+        provider: provider._id,
+        timezone: 'Africa/Lagos',
+        bufferTime: 15,
+        unavailableDates: [],
+        weeklySchedule: {
+          monday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+          tuesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+          wednesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+          thursday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+          friday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+          saturday: { enabled: true, timeSlots: [{ startTime: '10:00', endTime: '16:00' }] },
+          sunday: { enabled: false, timeSlots: [] },
+        },
+      };
     }
 
     res.json(schedule);
   } catch (error) {
-    res.json(defaultMockSchedule);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

@@ -76,9 +76,9 @@ export const Profile: React.FC = () => {
         businessName: user.businessName || '',
         bio: user.bio || '',
         location: user.location || '',
-        logo: user.logo || PRESET_LOGOS[0].url,
+        logo: user.logo || '',
         profileImage: user.profileImage || '',
-        headerImage: user.headerImage || PRESET_BANNERS[0].url,
+        headerImage: user.headerImage || '',
         socialHandles: {
           instagram: user.socialHandles?.instagram || '',
           whatsapp: user.socialHandles?.whatsapp || '',

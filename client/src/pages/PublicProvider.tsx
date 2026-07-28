@@ -377,11 +377,6 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                       {data.provider.location}
                     </span>
                   )}
-                  <span>•</span>
-                  <span className="flex items-center gap-1 text-amber-300 font-medium">
-                    <Star className="w-3.5 h-3.5 fill-amber-300" />
-                    4.9 (120+ verified bookings)
-                  </span>
                 </div>
               </div>
             </div>
@@ -407,9 +402,15 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
           </div>
 
           {/* Services Selection Grid */}
-          <div className="space-y-3">
-            {data.services.map((service) => {
-              const isSelected = selectedService?._id === service._id;
+          {data.services.length === 0 ? (
+            <div className="bg-white border border-zinc-200/80 rounded-xl p-8 text-center space-y-2 shadow-sm">
+              <p className="text-sm font-semibold text-zinc-900">No Services Added Yet</p>
+              <p className="text-xs text-zinc-500 font-normal">Services will appear here once they are added by the merchant.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {data.services.map((service) => {
+                const isSelected = selectedService?._id === service._id;
               return (
                 <div
                   key={service._id}
@@ -454,6 +455,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               );
             })}
           </div>
+          )}
 
         </main>
       </div>

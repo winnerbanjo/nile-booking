@@ -120,7 +120,7 @@ export const Services: React.FC = () => {
         {/* Services Cards Grid */}
         {services.length === 0 ? (
           <div className="bg-white border border-zinc-200/80 rounded-xl p-12 text-center">
-            <p className="text-zinc-500 text-sm mb-4">No active services configured.</p>
+            <p className="text-zinc-500 text-sm mb-4">Services will appear here once they are added.</p>
             <Button onClick={handleCreate} className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-medium">
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Create First Service
