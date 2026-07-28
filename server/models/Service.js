@@ -19,8 +19,7 @@ const serviceSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      required: [true, 'Please provide a category'],
-      enum: ['cruise', 'hotel', 'tour', 'restaurant', 'transportation', 'other'],
+      trim: true,
       default: 'other',
     },
     price: {

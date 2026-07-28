@@ -78,9 +78,9 @@ export const createService = async (req, res) => {
   try {
     const { name, description, category, price, duration, capacity, images, location, features } = req.body;
 
-    if (!name || !description || !category || !price || !duration) {
+    if (!name || !description || !price || !duration) {
       return res.status(400).json({
-        message: 'Please provide name, description, category, price, and duration',
+        message: 'Please provide name, description, price, and duration',
       });
     }
 
