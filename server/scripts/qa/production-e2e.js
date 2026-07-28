@@ -160,7 +160,7 @@ async function runTests() {
     if (!res.ok) throw new Error(`Forgot password failed: ${res.status}`);
     
     user = await User.findOne({ email: merchantEmailC });
-    console.log('OTP received for reset:', user.otpCode);
+    console.log('OTP received for reset (hidden for security)');
 
     res = await fetch(`${API_BASE}/auth/reset-password`, {
       method: 'POST',
