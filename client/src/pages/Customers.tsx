@@ -41,19 +41,27 @@ export const Customers: React.FC = () => {
     const bookingsList = response.bookings || [];
 
     // Group bookings by customer email/phone to create CRM aggregation
-    const customerMap = new Map<string, CustomerSummary>();
+    const acc: CustomerSummary[] = [];
 
     bookingsList.forEach((booking) => {
-      const key = booking.customer.email.toLowerCase() || booking.customer.phone;
-      const serviceName = typeof booking.service === 'object' ? booking.service.name : 'General Service';
+      const existingCustomer = acc.find(c => c.email === booking.customer?.email);
+      const serviceName = typeof booking.service === 'object' && booking.service ? booking.service.name : 'General Service';
       const amount = booking.pricing?.totalAmount || 0;
 
-      if (!customerMap.has(key)) {
-        customerMap.set(key, {
-          id: key,
-          name: booking.customer.name,
-          email: booking.customer.email,
-          phone: booking.customer.phone,
+      if (existingCustomer) {
+        existingCustomer.totalBookings += 1;
+        existingCustomer.totalSpent += amount;
+        existingCustomer.bookingsHistory.push(booking);
+        if (safeDate(booking.date) || new Date(booking.date) > new Date(existingCustomer.lastVisit)) {
+          existingCustomer.lastVisit = booking.date;
+          existingCustomer.favoriteService = serviceName;
+        }
+      } else {
+        acc.push({
+          id: booking.customer?._id || booking._id || `cust_${Date.now()}_${Math.random()}`,
+          name: booking.customer?.name || 'Unknown Customer',
+          email: booking.customer?.email || 'N/A',
+          phone: booking.customer?.phone || 'N/A',
           totalBookings: 1,
           totalSpent: amount,
           lastVisit: booking.date,

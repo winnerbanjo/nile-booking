@@ -302,10 +302,10 @@ export const Bookings: React.FC = () => {
                   <span className="text-zinc-500">Booking Number</span>
                   <span className="font-semibold text-zinc-900">{selectedReceipt.bookingNumber}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-zinc-500">Client Name</span>
-                  <span className="font-medium text-zinc-900">{selectedReceipt.customer.name}</span>
-                </div>
+                <div className="flex justify-between items-center pb-4 border-b border-zinc-100">
+                <span className="text-zinc-500">Customer</span>
+                <span className="font-medium text-zinc-900">{selectedReceipt.customer?.name || 'Unknown customer'}</span>
+              </div>
                 <div className="flex justify-between">
                   <span className="text-zinc-500">Amount</span>
                   <span className="font-bold text-zinc-900">₦{selectedReceipt.pricing?.totalAmount?.toLocaleString()}</span>

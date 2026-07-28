@@ -179,7 +179,7 @@ export const Calendar: React.FC = () => {
                             </span>
                           </div>
                           <p className="text-[10px] text-emerald-700 font-medium truncate">
-                            {typeof b.service === 'object' ? b.service.name : 'Service'}
+                            {typeof b.service === 'object' && b.service ? b.service.name : 'Service'}
                           </p>
                         </div>
                       ))}

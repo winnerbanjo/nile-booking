@@ -188,8 +188,8 @@ export const Financial: React.FC = () => {
                   ) : bookings.map((tx: any) => (
                     <tr key={tx._id} className="hover:bg-zinc-50/50 transition-colors">
                       <td className="px-6 py-3.5 font-mono text-zinc-900 font-medium">{tx.bookingNumber}</td>
-                      <td className="px-6 py-3.5 font-medium text-zinc-900">{tx.customer.name}</td>
-                      <td className="px-6 py-3.5 text-zinc-600">{tx.service.name}</td>
+                      <td className="px-6 py-3.5 font-medium text-zinc-900">{tx.customer?.name || 'Unknown customer'}</td>
+                      <td className="px-6 py-3.5 text-zinc-600">{tx.service?.name || 'Deleted service'}</td>
                       <td className="px-6 py-3.5 font-semibold text-zinc-900">₦{tx.pricing.totalAmount.toLocaleString()}</td>
                       <td className="px-6 py-3.5">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${

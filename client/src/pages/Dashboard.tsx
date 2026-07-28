@@ -67,7 +67,7 @@ export const Dashboard: React.FC = () => {
   const handleWhatsAppNudge = (appointment: any) => {
     const clientName = appointment.customer?.name || 'Client';
     const clientPhone = (appointment.customer?.phone || '').replace(/[^0-9]/g, '');
-    const serviceName = typeof appointment.service === 'object' ? appointment.service.name : 'Booking';
+    const serviceName = typeof appointment.service === 'object' && appointment.service ? appointment.service.name : 'Booking';
     const startTime = appointment.timeSlot?.startTime || 'your scheduled time';
 
     const message = encodeURIComponent(

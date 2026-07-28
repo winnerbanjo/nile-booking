@@ -118,6 +118,7 @@ interface ErrorBoundaryProps {
   children: ReactNode;
   location: any;
   user: any;
+  logout?: () => void;
 }
 
 class AppErrorBoundaryInner extends Component<
@@ -219,12 +220,18 @@ class AppErrorBoundaryInner extends Component<
               {this.props.user && (
                 <button
                   onClick={() => {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('nile_user');
-                    localStorage.removeItem('nile_dashboard_bookings');
-                    localStorage.removeItem('nile_crm_cache');
-                    sessionStorage.clear();
-                    window.location.href = '/login';
+                    if (this.props.logout) {
+                      this.props.logout();
+                      window.location.href = '/login';
+                    } else {
+                      import('./lib/queryClient').then(({ queryClient }) => queryClient.clear());
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('nile_user');
+                      localStorage.removeItem('nile_dashboard_bookings');
+                      localStorage.removeItem('nile_crm_cache');
+                      sessionStorage.clear();
+                      window.location.href = '/login';
+                    }
                   }}
                   className="w-full px-6 py-2.5 text-gray-500 rounded-xl text-sm font-medium hover:text-red-600 transition-colors"
                 >
@@ -241,7 +248,7 @@ class AppErrorBoundaryInner extends Component<
 }
 
 function AppErrorBoundary({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   
   // Custom hook usage for location since useLocation is inside router
   // We need to conditionally use it if router context exists, but since we are inside BrowserRouter, we can just use window.location as fallback or use a hook inside another wrapper if needed.
@@ -254,7 +261,7 @@ function AppErrorBoundary({ children }: { children: ReactNode }) {
     location = { pathname: window.location.pathname, search: window.location.search };
   }
 
-  return <AppErrorBoundaryInner user={user} location={location}>{children}</AppErrorBoundaryInner>;
+  return <AppErrorBoundaryInner user={user} location={location} logout={logout}>{children}</AppErrorBoundaryInner>;
 }
 
 function StorefrontApp({ slug }: { slug: string }) {
