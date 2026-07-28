@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShareCard } from '../components/dashboard/ShareCard';
-import { Share2, TrendingUp, Star, Target } from 'lucide-react';
+import { Share2, TrendingUp, Megaphone, Target } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Marketing: React.FC = () => {
@@ -59,7 +59,7 @@ export const Marketing: React.FC = () => {
         {/* Flyer Generator */}
         <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm space-y-4">
           <div className="flex items-center gap-2 border-b border-zinc-100 pb-3">
-            <Share2 className="w-4 h-4 text-zinc-700" />
+            <Megaphone className="w-5 h-5 text-indigo-600" />
             <h2 className="text-base font-semibold text-zinc-900 tracking-tight">
               Promotional Share Card
             </h2>

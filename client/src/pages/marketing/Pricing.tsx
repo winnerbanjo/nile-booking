@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '../../components/ui/button';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Check, ArrowRight, Star } from 'lucide-react';
+import { Check, ArrowRight } from 'lucide-react';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -30,7 +30,7 @@ export const Pricing: React.FC = () => {
         {/* Header */}
         <motion.div variants={fadeInUp} className="text-center max-w-2xl mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-800 border border-zinc-200">
-            <Star className="w-3.5 h-3.5" />
+            <Check className="w-3.5 h-3.5" />
             Transparent Quarterly Pricing
           </div>
 

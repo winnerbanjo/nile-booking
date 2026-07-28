@@ -16,7 +16,6 @@ import {
   ChevronDown,
   ArrowRight,
   Check,
-  Star,
 } from 'lucide-react';
 
 const HERO_IMAGES = [
@@ -596,7 +595,7 @@ export const Landing: React.FC = () => {
 
           <div className="space-y-3 max-w-3xl mx-auto relative z-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium bg-white/10 text-emerald-400 border border-white/10 backdrop-blur-md">
-              <Star className="w-3.5 h-3.5" />
+              <Check className="w-3.5 h-3.5" />
               Join Thousands of Modern Service Businesses
             </div>
 
