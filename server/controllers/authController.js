@@ -32,14 +32,15 @@ const ensureDemoAccount = async (email, role = 'provider') => {
       if (isBarber) {
         await Schedule.create({
           provider: user._id,
-          weeklySchedule: [
-            { day: 'monday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-            { day: 'tuesday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-            { day: 'wednesday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-            { day: 'thursday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-            { day: 'friday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-            { day: 'saturday', isOpen: true, slots: [{ startTime: '10:00', endTime: '16:00' }] },
-          ],
+          weeklySchedule: {
+            monday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+            tuesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+            wednesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+            thursday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+            friday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+            saturday: { enabled: true, timeSlots: [{ startTime: '10:00', endTime: '16:00' }] },
+            sunday: { enabled: false, timeSlots: [] },
+          },
         });
       }
     }
@@ -62,6 +63,17 @@ export const register = async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const normalizedAccountNumber = String(accountNumber || '').trim();
+
+    if (bankName || accountName || accountNumber) {
+      if (!bankName || !accountName || !accountNumber) {
+        return res.status(400).json({ message: 'Please fill in all payout details (Bank Name, Account Name, and Account Number).' });
+      }
+      if (!/^\d{10}$/.test(normalizedAccountNumber)) {
+        return res.status(400).json({ message: 'Account number must be exactly 10 digits.' });
+      }
+    }
+
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
 
@@ -78,7 +90,7 @@ export const register = async (req, res) => {
         phone: phone || '+2348123456789',
         country: country || 'Nigeria',
         industry: industry || 'other',
-        bankAccount: { bankName, accountName, accountNumber },
+        bankAccount: { bankName: bankName?.trim(), accountName: accountName?.trim(), accountNumber: normalizedAccountNumber },
         isVerified: false,
         otpCode,
         otpExpires,
@@ -94,7 +106,7 @@ export const register = async (req, res) => {
         category: 'OTP Verification',
       });
 
-      console.log(`\n\n=== 🔐 [AUTH] OTP GENERATED (MOCK MODE) ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==============================\n\n`);
+      console.log(`[AUTH] OTP GENERATED for ${cleanEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c)}`);
 
       return res.status(201).json({
         message: 'Registration initiated. Please verify your 6-digit OTP code.',
@@ -130,9 +142,9 @@ export const register = async (req, res) => {
       country: country || 'Nigeria',
       industry: industry || 'other',
       bankAccount: {
-        bankName,
-        accountName,
-        accountNumber
+        bankName: bankName ? bankName.trim() : undefined,
+        accountName: accountName ? accountName.trim() : undefined,
+        accountNumber: normalizedAccountNumber || undefined
       },
       isVerified: false,
       otpCode,
@@ -141,14 +153,15 @@ export const register = async (req, res) => {
 
     await Schedule.create({
       provider: user._id,
-      weeklySchedule: [
-        { day: 'monday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-        { day: 'tuesday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-        { day: 'wednesday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-        { day: 'thursday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-        { day: 'friday', isOpen: true, slots: [{ startTime: '09:00', endTime: '18:00' }] },
-        { day: 'saturday', isOpen: true, slots: [{ startTime: '10:00', endTime: '16:00' }] },
-      ],
+      weeklySchedule: {
+        monday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        tuesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        wednesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        thursday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        friday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
+        saturday: { enabled: true, timeSlots: [{ startTime: '10:00', endTime: '16:00' }] },
+        sunday: { enabled: false, timeSlots: [] },
+      },
     });
 
     const emailResult = await sendMailtrapApiEmail({
@@ -176,7 +189,7 @@ export const register = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ message: 'A user with this information already exists.' });
     }
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(400).json({ message: error.message || 'Registration failed. Please check your details.' });
   }
 };
 
