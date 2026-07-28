@@ -20,7 +20,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { dashboardApi } from '../lib/api';
+import { dashboardApi, authApi } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { getStorefrontUrl } from '../lib/subdomain';
 import type { Booking } from '../types';
@@ -28,14 +28,17 @@ import type { Booking } from '../types';
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [appointmentStatuses, setAppointmentStatuses] = useState<{ [key: string]: string }>({});
-  const [checklistDismissed, setChecklistDismissed] = useState(() => {
-    if (!user?._id) return false;
-    return localStorage.getItem(`nile_checklist_dismissed_${user._id}`) === 'true';
-  });
+  const [localDismissed, setLocalDismissed] = useState(false);
+  
+  const checklistDismissed = localDismissed || user?.onboarding?.setupChecklistDismissed;
 
-  const dismissChecklist = () => {
-    setChecklistDismissed(true);
-    if (user?._id) localStorage.setItem(`nile_checklist_dismissed_${user._id}`, 'true');
+  const dismissChecklist = async () => {
+    setLocalDismissed(true);
+    try {
+      await authApi.updateOnboarding({ setupChecklistDismissed: true });
+    } catch (err) {
+      console.error('Failed to dismiss checklist', err);
+    }
   };
 
   const { data, isLoading, isError, refetch } = useQuery({

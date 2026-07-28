@@ -191,6 +191,7 @@ export const authApi = {
     firstServiceSkipped?: boolean;
     availabilityConfigured?: boolean;
     onboardingCompleted?: boolean;
+    setupChecklistDismissed?: boolean;
   }) => {
     return request<{ onboarding: any }>('/auth/onboarding', {
       method: 'PATCH',

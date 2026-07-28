@@ -30,7 +30,7 @@ export const RefundPolicy: React.FC = () => {
           <section className="space-y-2">
             <h2 className="text-base font-bold text-zinc-900">3. Platform Subscription Refunds</h2>
             <p>
-              Merchant quarterly plan subscriptions (Starter ₦10,000, Growth ₦15,000, Premium ₦25,000) are refundable within 7 days of initial subscription purchase if no storefront bookings have been processed.
+              Merchant quarterly plan subscriptions (Starter ₦10,000, Growth ₦15,000, Premium ₦25,000) are refundable within 7 days of initial subscription purchase if no website bookings have been processed.
             </p>
           </section>
         </div>

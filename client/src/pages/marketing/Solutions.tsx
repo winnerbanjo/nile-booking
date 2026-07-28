@@ -106,7 +106,7 @@ export const Solutions: React.FC = () => {
               className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-10 px-6 text-xs font-medium shadow-md transition-all transform hover:-translate-y-0.5"
             >
               <Link to="/register">
-                Start Free Storefront
+                Start Free Website
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Link>
             </Button>

@@ -74,7 +74,7 @@ export const Landing: React.FC = () => {
   };
 
   const featureGridItems = [
-    { title: 'Professional website', desc: 'Fast, mobile-optimized storefront for your business' },
+    { title: 'Professional website', desc: 'Fast, mobile-optimized website for your business' },
     { title: 'Online booking', desc: 'Instant 24/7 appointment self-scheduling' },
     { title: 'Deposit collection', desc: 'Protect your calendar with automatic upfront deposits' },
     { title: 'Online payments', desc: 'Accept direct bank transfer & payment receipts' },
@@ -375,7 +375,7 @@ export const Landing: React.FC = () => {
               How It Works
             </h2>
             <p className="text-xs sm:text-sm text-zinc-500 font-normal">
-              Launch your online booking storefront in 4 simple steps
+              Launch your online booking website in 4 simple steps
             </p>
           </div>
 

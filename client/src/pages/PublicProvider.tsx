@@ -40,10 +40,12 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   });
   const [loading, setLoading] = useState(true);
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+  const [pageError, setPageError] = useState<{status: number, message: string} | null>(null);
 
   useEffect(() => {
     if (slug) {
       setLoading(true);
+      setPageError(null);
       loadData();
     }
   }, [slug]);
@@ -77,7 +79,10 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     if (!slug) return;
     try {
       const [servicesData, scheduleData] = await Promise.all([
-        serviceApi.getServicesBySlug(slug).catch(() => null),
+        serviceApi.getServicesBySlug(slug).catch((err) => {
+          if (err.status === 404) return null;
+          throw err;
+        }),
         scheduleApi.getScheduleBySlug(slug).catch(() => null),
       ]);
 
@@ -112,9 +117,10 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
         setData(null);
         setSchedule(fallbackSchedule as Schedule);
       }
-    } catch (error) {
-      console.error('Failed to load storefront:', error);
+    } catch (error: any) {
+      console.error('Failed to load website:', error);
       setData(null);
+      setPageError({ status: error.status || 500, message: error.message || 'Failed to load' });
     } finally {
       setLoading(false);
     }
@@ -265,6 +271,30 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-xs text-zinc-500 font-normal">Loading booking page...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (pageError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="text-center p-8 bg-white border border-zinc-200 rounded-xl max-w-sm shadow-sm space-y-4">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-2">
+            <span className="text-xl">⚠️</span>
+          </div>
+          <div>
+            <h1 className="text-base font-semibold text-zinc-900 mb-1">Unable to Load Website</h1>
+            <p className="text-xs text-zinc-500 leading-relaxed">
+              We encountered a network or server issue while trying to load this page. Please check your connection or try again.
+            </p>
+          </div>
+          <Button
+            onClick={() => { setLoading(true); setPageError(null); loadData(); }}
+            className="w-full bg-zinc-900 text-white hover:bg-zinc-800 text-xs h-9 rounded-lg mt-2"
+          >
+            Retry Loading
+          </Button>
         </div>
       </div>
     );

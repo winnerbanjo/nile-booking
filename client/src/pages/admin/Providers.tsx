@@ -196,7 +196,7 @@ export const Providers: React.FC = () => {
           'Status': selectedProvider.status,
         } : {}}
         actions={[
-          { label: 'View Storefront', variant: 'primary', onClick: () => alert('Opening storefront...') },
+          { label: 'View Website', variant: 'primary', onClick: () => alert('Opening website...') },
           { label: 'Send Payout Report', variant: 'secondary', onClick: () => alert('Report sent.') },
           { 
             label: updating ? 'Updating...' : (selectedProvider?.status === 'Active' ? 'Suspend Provider' : 'Activate Provider'), 

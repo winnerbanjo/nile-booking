@@ -226,6 +226,8 @@ const userSchema = new mongoose.Schema(
       availabilityConfigured: { type: Boolean, default: false },
       onboardingCompleted: { type: Boolean, default: false },
       completedAt: { type: Date },
+      setupChecklistDismissed: { type: Boolean, default: false },
+      setupChecklistDismissedAt: { type: Date },
     },
   },
   {

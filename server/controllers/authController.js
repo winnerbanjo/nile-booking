@@ -649,7 +649,7 @@ export const updateProfile = async (req, res) => {
 // @access  Private
 export const updateOnboarding = async (req, res) => {
   try {
-    const { firstServiceAdded, firstServiceSkipped, availabilityConfigured, onboardingCompleted } = req.body;
+    const { firstServiceAdded, firstServiceSkipped, availabilityConfigured, onboardingCompleted, setupChecklistDismissed } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -662,6 +662,12 @@ export const updateOnboarding = async (req, res) => {
       user.onboarding.onboardingCompleted = onboardingCompleted;
       if (onboardingCompleted && !user.onboarding.completedAt) {
         user.onboarding.completedAt = new Date();
+      }
+    }
+    if (setupChecklistDismissed !== undefined) {
+      user.onboarding.setupChecklistDismissed = setupChecklistDismissed;
+      if (setupChecklistDismissed && !user.onboarding.setupChecklistDismissedAt) {
+        user.onboarding.setupChecklistDismissedAt = new Date();
       }
     }
 

@@ -16,7 +16,7 @@ export const PrivacyPolicy: React.FC = () => {
           <section className="space-y-2">
             <h2 className="text-base font-bold text-zinc-900">1. Overview & Commitment</h2>
             <p>
-              Nile Booking Technologies Inc. ("Nile Booking", "we", "us", or "our") respects your privacy and is committed to protecting your personal data. This Privacy Policy describes how we collect, use, process, and disclose your information across our website, mobile dashboard, and storefront booking services.
+              Nile Booking Technologies Inc. ("Nile Booking", "we", "us", or "our") respects your privacy and is committed to protecting your personal data. This Privacy Policy describes how we collect, use, process, and disclose your information across our website, mobile dashboard, and website booking services.
             </p>
           </section>
 
@@ -26,7 +26,7 @@ export const PrivacyPolicy: React.FC = () => {
               <strong>Merchant Data:</strong> Name, business name, work email address, WhatsApp phone number, logo, service listings, working hours, and bank settlement details.
             </p>
             <p>
-              <strong>Client Data:</strong> When clients book an appointment on a merchant storefront, we collect client full name, email, WhatsApp phone number, requested service, appointment date/time, and transfer receipt screenshots.
+              <strong>Client Data:</strong> When clients book an appointment on a merchant website, we collect client full name, email, WhatsApp phone number, requested service, appointment date/time, and transfer receipt screenshots.
             </p>
           </section>
 

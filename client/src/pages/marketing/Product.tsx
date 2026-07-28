@@ -36,7 +36,7 @@ export const Product: React.FC = () => {
             Engineered for Modern Service Businesses
           </h1>
           <p className="text-sm sm:text-base text-zinc-600 font-normal leading-relaxed">
-            Discover the complete suite of storefront, scheduling, payment settlement, CRM, and multi-staff management tools.
+            Discover the complete suite of website, scheduling, payment settlement, CRM, and multi-staff management tools.
           </p>
         </motion.div>
 
@@ -44,7 +44,7 @@ export const Product: React.FC = () => {
         <motion.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
           {[
-            { icon: Globe, title: 'Storefront & Custom Domain', desc: 'Launch a lightning-fast booking site on your custom domain or Nile subdomain. Upload your business logo, banner, and service catalog.' },
+            { icon: Globe, title: 'Website & Custom Domain', desc: 'Launch a lightning-fast booking site on your custom domain or Nile subdomain. Upload your business logo, banner, and service catalog.' },
             { icon: Calendar, title: 'Automated Calendar & Slots', desc: 'Set custom weekly working hours, buffer times between appointments, and blocked break periods.' },
             { icon: CreditCard, title: 'Bank Transfer & Upfront Deposits', desc: 'Collect 50% deposits or full upfront payment to protect your time and eliminate no-shows. Direct transfer details & receipt upload.' },
             { icon: Users, title: 'Customer CRM Directory', desc: 'Track client booking frequency, cumulative lifetime revenue (LTV), appointment history, and 1-click WhatsApp messaging.' },
