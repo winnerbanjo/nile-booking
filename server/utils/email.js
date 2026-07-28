@@ -16,7 +16,11 @@ const createTransporter = async () => {
   }
 
   // Fallback to Ethereal test account for local development
-  // In a real production scenario, you would log a warning if SMTP is not configured
+  // In a real production scenario, fail if SMTP is not configured
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SMTP_HOST, SMTP_USER, and SMTP_PASS are required in production.');
+  }
+
   console.log('Using ethereal test email account...');
   let testAccount = await nodemailer.createTestAccount();
   return nodemailer.createTransport({
