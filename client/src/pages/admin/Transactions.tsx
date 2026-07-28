@@ -1,218 +1,141 @@
 import React, { useState } from 'react';
-import { Search, Filter, Download, ArrowRightLeft, CheckCircle2, AlertCircle, MoreHorizontal } from 'lucide-react';
-import { ActionModal } from '../../components/admin/ActionModal';
-
-const mockTransactions = [
-  {
-    id: 'TXN-89234',
-    bookingId: 'BKG-98321',
-    provider: 'Zenith Photography',
-    amount: 150000,
-    nileCommission: 15000,
-    providerPayout: 135000,
-    paymentMethod: 'Bank Transfer',
-    status: 'Settled',
-    date: '2026-07-25T14:30:00Z',
-  },
-  {
-    id: 'TXN-89233',
-    bookingId: 'BKG-98320',
-    provider: 'The Modern Chef',
-    amount: 85000,
-    nileCommission: 8500,
-    providerPayout: 76500,
-    paymentMethod: 'Card (Paystack)',
-    status: 'Processing',
-    date: '2026-07-25T12:15:00Z',
-  },
-  {
-    id: 'TXN-89232',
-    bookingId: 'BKG-98319',
-    provider: 'Elite Hair Studio',
-    amount: 45000,
-    nileCommission: 4500,
-    providerPayout: 40500,
-    paymentMethod: 'Bank Transfer',
-    status: 'Settled',
-    date: '2026-07-24T09:45:00Z',
-  },
-  {
-    id: 'TXN-89231',
-    bookingId: 'BKG-98318',
-    provider: 'Glamour MUA',
-    amount: 25000,
-    nileCommission: 2500,
-    providerPayout: 22500,
-    paymentMethod: 'Card (Paystack)',
-    status: 'Failed',
-    date: '2026-07-24T08:20:00Z',
-  },
-  {
-    id: 'TXN-89230',
-    bookingId: 'BKG-98317',
-    provider: 'Zenith Photography',
-    amount: 35000,
-    nileCommission: 3500,
-    providerPayout: 31500,
-    paymentMethod: 'Bank Transfer',
-    status: 'Refunded',
-    date: '2026-07-23T16:10:00Z',
-  }
-];
+import { useQuery } from '@tanstack/react-query';
+import { Search, ArrowRightLeft } from 'lucide-react';
+import { adminApi } from '../../lib/api';
+import { Button } from '../../components/ui/button';
 
 export const Transactions: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTxn, setSelectedTxn] = useState<any>(null);
+  const [page, setPage] = useState(1);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'Settled': 
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider"><CheckCircle2 className="w-3 h-3" /> {status}</span>;
-      case 'Processing': 
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-amber-100 text-amber-700 text-[10px] font-bold uppercase tracking-wider"><ArrowRightLeft className="w-3 h-3" /> {status}</span>;
-      case 'Failed': 
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-700 text-[10px] font-bold uppercase tracking-wider"><AlertCircle className="w-3 h-3" /> {status}</span>;
-      case 'Refunded': 
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-100 text-purple-700 text-[10px] font-bold uppercase tracking-wider"><ArrowRightLeft className="w-3 h-3" /> {status}</span>;
-      default: 
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 text-gray-700 text-[10px] font-bold uppercase tracking-wider">{status}</span>;
-    }
-  };
+  const { data, isLoading } = useQuery({
+    queryKey: ['adminTransactions', page, searchTerm],
+    queryFn: () => adminApi.getTransactions({ page, limit: 25, search: searchTerm }),
+    staleTime: 1000 * 30,
+  });
+
+  const transactions = data?.transactions || [];
+  const total = data?.total || 0;
+  const totalPages = data?.totalPages || 1;
 
   return (
     <div className="w-full space-y-6">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black tracking-tight text-gray-900">Financial Ledger</h2>
-          <p className="text-sm text-gray-500 mt-1">Global transaction records, commission tracking, and settlement status.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => alert('Action triggered!')} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg shadow-sm transition-colors">
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
+          <h2 className="text-2xl font-black tracking-tight text-gray-900">Transaction Ledger</h2>
+          <p className="text-sm text-gray-500 mt-1">Audit ecosystem gross payments, escrow holds, and gateway references.</p>
         </div>
       </div>
 
-      {/* KPI Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-zinc-950 rounded-xl p-5 shadow-sm text-white">
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Total Processing Volume</p>
-          <p className="text-3xl font-black tracking-tighter">₦4,500,000</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Settled Volume</p>
-          <p className="text-3xl font-black tracking-tighter text-emerald-600">₦4,150,000</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Pending Volume</p>
-          <p className="text-3xl font-black tracking-tighter text-amber-600">₦350,000</p>
-        </div>
-      </div>
-
-      {/* Filters Bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search by transaction ID, booking ID, or provider..." 
+      {/* Controls Bar */}
+      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search ref or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <select className="bg-gray-50 border border-gray-200 text-gray-700 rounded-lg px-3 py-2 text-sm font-medium focus:outline-none">
-            <option>All Statuses</option>
-            <option>Settled</option>
-            <option>Processing</option>
-            <option>Failed</option>
-            <option>Refunded</option>
-          </select>
-          <button onClick={() => alert('Action triggered!')} className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-100">
-            <Filter className="w-4 h-4" />
-            More Filters
-          </button>
+        <div className="text-xs text-gray-500 font-medium">
+          Showing {transactions.length} of {total} total transactions
         </div>
       </div>
 
-      {/* Table */}
+      {/* Transactions Table */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm text-gray-600">
             <thead className="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4">Transaction / Date</th>
-                <th className="px-6 py-4">Booking Ref</th>
-                <th className="px-6 py-4">Provider</th>
-                <th className="px-6 py-4">Gross Amount</th>
-                <th className="px-6 py-4">Method / Status</th>
-                <th className="px-6 py-4"></th>
+                <th className="px-6 py-3">Txn Reference</th>
+                <th className="px-6 py-3">Provider</th>
+                <th className="px-6 py-3">Method</th>
+                <th className="px-6 py-3">Amount</th>
+                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {mockTransactions.map((txn) => (
-                <tr key={txn.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <p className="font-mono text-xs font-bold text-gray-900">{txn.id}</p>
-                    <p className="text-[10px] text-gray-500">{new Date(txn.date).toLocaleString()}</p>
-                  </td>
-                  <td className="px-6 py-4 font-mono text-xs text-blue-600 hover:underline cursor-pointer">
-                    {txn.bookingId}
-                  </td>
-                  <td className="px-6 py-4 font-bold text-gray-900">
-                    {txn.provider}
-                  </td>
-                  <td className="px-6 py-4 font-bold text-gray-900">
-                    ₦{txn.amount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 space-y-1.5">
-                    <p className="text-xs text-gray-500 font-medium">{txn.paymentMethod}</p>
-                    <div>{getStatusBadge(txn.status)}</div>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={() => setSelectedTxn(txn)} 
-                      className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
-                    >
-                      <MoreHorizontal className="w-5 h-5" />
-                    </button>
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-100 rounded"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 w-28 bg-gray-100 rounded"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-100 rounded"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 w-16 bg-gray-100 rounded"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-100 rounded"></div></td>
+                    <td className="px-6 py-4"><div className="h-4 w-16 bg-gray-100 rounded"></div></td>
+                  </tr>
+                ))
+              ) : transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <ArrowRightLeft className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-gray-900">No transactions recorded yet</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Verified payment transactions will appear in this ledger.</p>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                transactions.map((txn) => {
+                  const providerName = (txn.provider as any)?.businessName || (txn.provider as any)?.email || 'Merchant';
+                  return (
+                    <tr key={txn._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-gray-900">{txn.transactionReference}</td>
+                      <td className="px-6 py-4 font-medium text-gray-900">{providerName}</td>
+                      <td className="px-6 py-4 text-xs capitalize text-gray-600">{txn.paymentGateway}</td>
+                      <td className="px-6 py-4 font-semibold text-gray-900">
+                        ₦{(txn.amount || 0).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-gray-500">
+                        {new Date(txn.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                          txn.status === 'successful' || txn.status === 'completed'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {txn.status.toUpperCase()}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between text-sm text-gray-500">
-          <span>Showing 1 to 5 of 3,192 transactions</span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => alert('Action triggered!')} className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 disabled:opacity-50">Prev</button>
-            <button onClick={() => alert('Action triggered!')} className="px-3 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50">Next</button>
-          </div>
-        </div>
-      </div>
 
-      <ActionModal
-        isOpen={!!selectedTxn}
-        onClose={() => setSelectedTxn(null)}
-        title="Transaction Details"
-        data={selectedTxn ? {
-          'Txn ID': selectedTxn.id,
-          'Booking Ref': selectedTxn.bookingId,
-          'Provider': selectedTxn.provider,
-          'Amount': `₦${selectedTxn.amount.toLocaleString()}`,
-          'Method': selectedTxn.paymentMethod,
-          'Date': new Date(selectedTxn.date).toLocaleString(),
-          'Status': selectedTxn.status,
-        } : {}}
-        actions={[
-          { label: 'View Receipt', variant: 'primary', onClick: () => alert('Viewing receipt...') },
-          { label: 'Refund Transaction', variant: 'danger', onClick: () => alert('Transaction refunded.') },
-        ]}
-      />
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="text-xs"
+            >
+              Previous
+            </Button>
+            <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="text-xs"
+            >
+              Next
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

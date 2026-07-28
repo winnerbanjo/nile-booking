@@ -97,6 +97,7 @@ const transactionSchema = new mongoose.Schema(
 
 // Indexes
 transactionSchema.index({ provider: 1, status: 1 });
+transactionSchema.index({ provider: 1, createdAt: -1 });
 transactionSchema.index({ booking: 1 });
 transactionSchema.index({ gatewayReference: 1 });
 

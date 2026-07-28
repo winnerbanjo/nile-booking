@@ -1,5 +1,14 @@
 import express from 'express';
-import { getAdminStats, getPendingVerifications, verifyReceipt, getProviders, updateProviderStatus } from '../controllers/adminController.js';
+import {
+  getAdminStats,
+  getPendingVerifications,
+  verifyReceipt,
+  getProviders,
+  updateProviderStatus,
+  getAdminBookings,
+  getAdminCustomers,
+  getAdminTransactions,
+} from '../controllers/adminController.js';
 
 const router = express.Router();
 
@@ -13,5 +22,10 @@ router.post('/verifications/:bookingId/verify', verifyReceipt);
 // Provider management routes
 router.get('/providers', getProviders);
 router.put('/providers/:providerId/status', updateProviderStatus);
+
+// Resource listing routes
+router.get('/bookings', getAdminBookings);
+router.get('/customers', getAdminCustomers);
+router.get('/transactions', getAdminTransactions);
 
 export default router;

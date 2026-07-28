@@ -91,8 +91,9 @@ bookingSchema.pre('save', async function (next) {
   next();
 });
 
-// Indexes (bookingNumber already has unique index, so no need to duplicate)
 bookingSchema.index({ provider: 1, status: 1 });
+bookingSchema.index({ provider: 1, createdAt: -1 });
+bookingSchema.index({ status: 1, createdAt: -1 });
 bookingSchema.index({ 'customer.email': 1 });
 bookingSchema.index({ date: 1 });
 

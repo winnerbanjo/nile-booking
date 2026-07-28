@@ -1,104 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { 
-  DollarSign, TrendingUp, ShieldAlert, Clock, Home, CheckCircle2, 
-  Users, BarChart3, ArrowUpRight, User, Activity, AlertTriangle, ArrowDownRight, CreditCard
+  DollarSign, TrendingUp, ShieldAlert, Clock, CheckCircle2, 
+  Users, User, Activity, ArrowUpRight, CreditCard
 } from 'lucide-react';
 import { adminApi } from '../../lib/api';
 
-const defaultKpiData = {
-  ecosystemGMV: 0,
-  activeSubscriptions: 0,
-  completedGMV: 0,
-  pendingSettlement: 0,
-  trustScore: 0,
-  pendingVerifications: 0,
-  activeProviders: 0,
-  totalCustomers: 0,
-  totalBookings: 0,
-  recentProviders: [],
-};
-
-const ACTION_ALERTS = [
-  {
-    id: 1,
-    priority: 'high',
-    entity: 'Zenith Photography',
-    amount: null,
-    age: '2 hours',
-    assigned: 'Unassigned',
-    action: 'Review Verification',
-    link: '/admin/verification',
-    icon: ShieldAlert,
-    color: 'text-amber-500',
-    bg: 'bg-amber-50',
-    border: 'border-amber-200'
-  },
-  {
-    id: 2,
-    priority: 'critical',
-    entity: 'The Modern Chef',
-    amount: '₦250,000',
-    age: '4 hours',
-    assigned: 'Finance Team',
-    action: 'Approve Payout',
-    link: '/admin/payouts',
-    icon: CreditCard,
-    color: 'text-red-500',
-    bg: 'bg-red-50',
-    border: 'border-red-200'
-  },
-  {
-    id: 3,
-    priority: 'medium',
-    entity: 'Elite Hair Studio',
-    amount: '₦15,000',
-    age: '1 day',
-    assigned: 'Support Team',
-    action: 'Resolve Dispute',
-    link: '/admin/risk',
-    icon: AlertTriangle,
-    color: 'text-blue-500',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200'
-  }
-];
-
 export const AdminDashboard: React.FC = () => {
-  const [kpiData, setKpiData] = useState<any>(defaultKpiData);
-  const [loading, setLoading] = useState(true);
-  const [alerts, setAlerts] = useState(ACTION_ALERTS);
+  const { data: statsData, isLoading, isError } = useQuery({
+    queryKey: ['adminStats'],
+    queryFn: () => adminApi.getAdminStats(),
+    staleTime: 1000 * 30, // 30s
+  });
 
-  const handleAction = (id: number) => {
-    alert(`Action completed for alert ID: ${id}`);
-    setAlerts(alerts.filter(a => a.id !== id));
+  const kpiData = {
+    ecosystemGMV: statsData?.gmv || 0,
+    activeSubscriptions: statsData?.activeProviders || 0,
+    completedGMV: statsData?.gmv || 0,
+    pendingSettlement: 0,
+    pendingVerifications: statsData?.pendingTransfers || 0,
+    activeProviders: statsData?.activeProviders || 0,
+    totalCustomers: statsData?.totalCustomers || 0,
+    totalBookings: statsData?.totalBookings || 0,
+    recentProviders: statsData?.recentProviders || [],
   };
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await adminApi.getAdminStats();
-        setKpiData({
-          ecosystemGMV: data.gmv || 0,
-          activeSubscriptions: data.activeProviders || 0, // Mocking active subs with active providers for now
-          completedGMV: data.gmv || 0,
-          pendingSettlement: 0,
-          trustScore: 5.0,
-          pendingVerifications: data.pendingTransfers || 0,
-          activeProviders: data.activeProviders || 0,
-          totalCustomers: data.totalCustomers || 0,
-          totalBookings: data.totalBookings || 0,
-          recentProviders: data.recentProviders || [],
-        });
-      } catch (err) {
-        console.error('Failed to fetch admin stats', err);
-        setKpiData(defaultKpiData);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
 
   const formatMoney = (amount: number) => {
     return `₦${amount.toLocaleString('en-US', { minimumFractionDigits: 0 })}`;
@@ -113,18 +39,6 @@ export const AdminDashboard: React.FC = () => {
           <h2 className="text-2xl font-black tracking-tight text-gray-900">Platform Overview</h2>
           <p className="text-sm text-gray-500 mt-1">Live metrics across the Nile Booking ecosystem.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <select className="text-sm bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500">
-            <option>Today</option>
-            <option>Yesterday</option>
-            <option>Last 7 Days</option>
-            <option>This Month</option>
-            <option>This Quarter</option>
-          </select>
-          <button onClick={() => alert('Action triggered!')} className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white text-sm font-medium rounded-lg shadow-sm transition-colors">
-            Export Report
-          </button>
-        </div>
       </div>
 
       {/* KPI Grid - Row 1 (Financials) */}
@@ -136,28 +50,27 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <p className="text-3xl font-black text-gray-900 tracking-tighter">
-              {loading ? '...' : formatMoney(kpiData.ecosystemGMV)}
+              {isLoading ? '...' : formatMoney(kpiData.ecosystemGMV)}
             </p>
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
             <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>+12.5% from last period</span>
+            <span>Verified Bookings</span>
           </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Active Subscriptions</h3>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Active Providers</h3>
             <TrendingUp className="w-4 h-4 text-emerald-500" />
           </div>
           <div className="flex items-baseline gap-2">
             <p className="text-3xl font-black text-emerald-600 tracking-tighter">
-              {loading ? '...' : kpiData.activeSubscriptions}
+              {isLoading ? '...' : kpiData.activeSubscriptions}
             </p>
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-            <ArrowUpRight className="w-3.5 h-3.5" />
-            <span>Active merchants</span>
+            <span>Registered merchants</span>
           </div>
         </div>
 
@@ -168,11 +81,11 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <p className="text-3xl font-black text-gray-900 tracking-tighter">
-              {loading ? '...' : formatMoney(kpiData.completedGMV)}
+              {isLoading ? '...' : formatMoney(kpiData.completedGMV)}
             </p>
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-gray-500">
-            <span>Value of fully completed bookings</span>
+            <span>Completed appointments</span>
           </div>
         </div>
 
@@ -183,7 +96,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
           <div className="flex items-baseline gap-2">
             <p className="text-3xl font-black text-gray-900 tracking-tighter">
-              {loading ? '...' : formatMoney(kpiData.pendingSettlement)}
+              {isLoading ? '...' : formatMoney(kpiData.pendingSettlement)}
             </p>
           </div>
           <div className="mt-3 flex items-center gap-1.5 text-xs font-medium text-amber-600">
@@ -236,90 +149,42 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Action Centre */}
+        {/* Main Column */}
         <div className="lg:col-span-2 space-y-6">
+          
+          {/* Recent Merchant Registrations */}
           <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-base font-bold text-gray-900">Action Centre</h3>
-              </div>
-              <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
-                {alerts.length} Urgent Actions
-              </span>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {alerts.length === 0 ? (
-                <div className="p-6 text-center text-sm text-gray-500">All caught up! No urgent actions.</div>
-              ) : (
-                alerts.map((alert) => (
-                <div key={alert.id} className="p-4 sm:px-6 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center border ${alert.bg} ${alert.border} ${alert.color}`}>
-                      <alert.icon className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                        {alert.entity}
-                        {alert.amount && (
-                          <span className="text-xs font-semibold text-gray-500 border border-gray-200 px-1.5 rounded bg-white">
-                            {alert.amount}
-                          </span>
-                        )}
-                      </h4>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        <span className="font-medium text-gray-700">{alert.action}</span> • Assigned: {alert.assigned} • Waiting {alert.age}
-                      </p>
-                    </div>
-                  </div>
-                  <button 
-                    onClick={() => handleAction(alert.id)}
-                    className="shrink-0 flex items-center justify-center px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 hover:text-emerald-600 transition-colors"
-                  >
-                    Take Action
-                  </button>
-                </div>
-              )))}
-            </div>
-          </div>
-
-          {/* Recent Transactions */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-base font-bold text-gray-900">Recent Transactions</h3>
-              <Link to="/admin/transactions" className="text-sm font-semibold text-emerald-600 hover:text-emerald-700">View Ledger</Link>
+              <h3 className="text-base font-bold text-gray-900">Recent Merchant Registrations</h3>
+              <Link to="/admin/providers" className="text-sm font-semibold text-emerald-600 hover:text-emerald-700">View All</Link>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm text-gray-600">
                 <thead className="bg-gray-50/50 text-xs uppercase text-gray-500 font-bold border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3">Reference</th>
-                    <th className="px-6 py-3">Provider</th>
-                    <th className="px-6 py-3">Gross Amount</th>
-                    <th className="px-6 py-3">Status</th>
+                    <th className="px-6 py-3">Business Name</th>
+                    <th className="px-6 py-3">Owner Email</th>
+                    <th className="px-6 py-3">Registered Date</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono text-xs font-medium text-gray-900">TXN-8923</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">The Modern Chef</td>
-                    <td className="px-6 py-4">₦15,000</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                        SUCCESS
-                      </span>
-                    </td>
-                  </tr>
-                  <tr className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono text-xs font-medium text-gray-900">TXN-8922</td>
-                    <td className="px-6 py-4 font-medium text-gray-900">Glamour MUA</td>
-                    <td className="px-6 py-4">₦22,000</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                        SUCCESS
-                      </span>
-                    </td>
-                  </tr>
+                  {kpiData.recentProviders.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-8 text-center text-sm text-gray-500">
+                        No merchants registered yet
+                      </td>
+                    </tr>
+                  ) : (
+                    kpiData.recentProviders.map((p: any) => (
+                      <tr key={p._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 font-medium text-gray-900">{p.businessName || p.name}</td>
+                        <td className="px-6 py-4 text-xs font-mono text-gray-600">{p.email}</td>
+                        <td className="px-6 py-4 text-xs text-gray-500">
+                          {new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -328,64 +193,23 @@ export const AdminDashboard: React.FC = () => {
 
         {/* Side Column */}
         <div className="space-y-6">
-          {/* Trust Score */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Platform Trust Score</h3>
-            <div className="flex items-end gap-3 mb-4">
-              <span className="text-5xl font-black text-gray-900">{kpiData.trustScore}</span>
-              <span className="text-lg font-bold text-gray-400 mb-1">/ 5.0</span>
-            </div>
-            <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden mb-4">
-              <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(kpiData.trustScore / 5) * 100}%` }} />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Booking Completion</span>
-                <span className="font-bold text-gray-900">94%</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-gray-500">Dispute Rate</span>
-                <span className="font-bold text-gray-900">1.2%</span>
-              </div>
-            </div>
-          </div>
-
-          {/* System Health */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">System Health</h3>
-            <div className="space-y-4">
+          {/* System Status */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-4">
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">System Status</h3>
+            <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-sm font-medium text-gray-700">Core API</span>
-                </div>
-                <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">Operational</span>
+                <span className="text-gray-700 font-medium">Vercel API Gateway</span>
+                <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold">Operational</span>
               </div>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-sm font-medium text-gray-700">Payment Gateway</span>
-                </div>
-                <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">Operational</span>
+                <span className="text-gray-700 font-medium">MongoDB Atlas</span>
+                <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold">Operational</span>
               </div>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-sm font-medium text-gray-700">WhatsApp Engine</span>
-                </div>
-                <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">Operational</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                  <span className="text-sm font-medium text-gray-700">Email Service</span>
-                </div>
-                <span className="text-xs text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded">Degraded</span>
+                <span className="text-gray-700 font-medium">Mailtrap Sending API</span>
+                <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-bold">Operational</span>
               </div>
             </div>
-            <button onClick={() => alert('Action triggered!')} className="w-full mt-5 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              View Status Page
-            </button>
           </div>
         </div>
       </div>

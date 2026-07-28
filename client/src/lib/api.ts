@@ -371,6 +371,24 @@ const updateProviderStatus = async (providerId: string, status: string) => {
   });
 };
 
+export const dashboardApi = {
+  getSummary: async () => {
+    return request<{
+      metrics: {
+        totalBookings: number;
+        confirmedBookings: number;
+        pendingBookings: number;
+        totalRevenue: number;
+        totalDepositEscrow: number;
+        totalCustomers: number;
+        activeServices: number;
+      };
+      recentBookings: Booking[];
+      upcomingAppointments: any[];
+    }>('/dashboard/summary');
+  },
+};
+
 export const adminApi = {
   getAdminStats,
   getPendingVerifications: async () => {
@@ -384,6 +402,18 @@ export const adminApi = {
   },
   getProviders,
   updateProviderStatus,
+  getBookings: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return request<{ bookings: Booking[]; total: number; page: number; totalPages: number }>(`/admin/bookings${query ? `?${query}` : ''}`);
+  },
+  getCustomers: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return request<{ customers: User[]; total: number; page: number; totalPages: number }>(`/admin/customers${query ? `?${query}` : ''}`);
+  },
+  getTransactions: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return request<{ transactions: any[]; total: number; page: number; totalPages: number }>(`/admin/transactions${query ? `?${query}` : ''}`);
+  },
 };
 
 export const staffApi = {

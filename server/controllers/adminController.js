@@ -1,54 +1,38 @@
 import Booking from '../models/Booking.js';
 import User from '../models/User.js';
 import Service from '../models/Service.js';
-import { getMockMode } from '../utils/mockMode.js';
+import Transaction from '../models/Transaction.js';
 
 // @desc    Get admin statistics
 // @route   GET /api/admin/stats
 // @access  Admin only
 export const getAdminStats = async (req, res) => {
   try {
-    if (getMockMode()) {
-      return res.json({
-        gmv: 4850000,
-        nileRevenue: 485000,
-        pendingTransfers: 3,
-        activeProviders: 42,
-        totalCustomers: 1250,
-        totalBookings: 320,
-        recentProviders: [
-          { _id: 'mock_1', name: 'James Stylist', businessName: 'James Cuts', email: 'james@example.com', createdAt: new Date().toISOString() },
-          { _id: 'mock_2', name: 'Sarah Beauty', businessName: 'Sarah Spa', email: 'sarah@example.com', createdAt: new Date().toISOString() }
-        ]
-      });
-    }
-
-    const gmvResult = await Booking.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalGMV: { $sum: '$pricing.totalAmount' },
+    const [gmvResult, pendingTransfers, activeProviders, totalCustomers, totalBookings, recentProviders] = await Promise.all([
+      Booking.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalGMV: { $sum: '$pricing.totalAmount' },
+          },
         },
-      },
+      ]),
+      Booking.countDocuments({
+        paymentStatus: 'pending_verification',
+        receiptImage: { $ne: null },
+      }),
+      User.countDocuments({ role: 'provider' }),
+      User.countDocuments({ role: 'customer' }),
+      Booking.countDocuments(),
+      User.find({ role: 'provider' })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .select('name businessName email createdAt phone')
+        .lean(),
     ]);
 
     const totalGMV = gmvResult.length > 0 ? gmvResult[0].totalGMV : 0;
     const nileRevenue = totalGMV * 0.1;
-
-    const pendingTransfers = await Booking.countDocuments({
-      paymentStatus: 'pending_verification',
-      receiptImage: { $ne: null },
-    });
-
-    const activeProviders = await User.countDocuments({ role: 'provider' });
-    const totalCustomers = await User.countDocuments({ role: 'customer' });
-    const totalBookings = await Booking.countDocuments();
-    
-    const recentProviders = await User.find({ role: 'provider' })
-      .sort({ createdAt: -1 })
-      .limit(5)
-      .select('name businessName email createdAt phone')
-      .lean();
 
     res.json({
       gmv: totalGMV || 0,
@@ -60,17 +44,6 @@ export const getAdminStats = async (req, res) => {
       recentProviders: recentProviders || [],
     });
   } catch (error) {
-    if (getMockMode()) {
-      return res.json({
-        gmv: 4850000,
-        nileRevenue: 485000,
-        pendingTransfers: 3,
-        activeProviders: 42,
-        totalCustomers: 1250,
-        totalBookings: 320,
-        recentProviders: [],
-      });
-    }
     res.status(500).json({
       message: 'Error fetching admin statistics',
       error: error.message,
@@ -90,23 +63,6 @@ export const getAdminStats = async (req, res) => {
 // @access  Admin only
 export const getPendingVerifications = async (req, res) => {
   try {
-    if (getMockMode()) {
-      return res.json({
-        bookings: [
-          {
-            _id: 'ver_1',
-            bookingNumber: 'BK-994820',
-            customer: { name: 'David Oladipo', phone: '+2348123456789' },
-            service: { name: 'VIP Skin Fade & Beard Sculpting' },
-            provider: { businessName: 'The Modern Barber' },
-            pricing: { totalAmount: 15000 },
-            receiptImage: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=500&fit=crop',
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      });
-    }
-
     const bookings = await Booking.find({
       paymentStatus: 'pending_verification',
       receiptImage: { $ne: null },
@@ -114,13 +70,11 @@ export const getPendingVerifications = async (req, res) => {
       .populate('provider', 'businessName email')
       .populate('service', 'name')
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(50)
+      .lean();
 
     res.json({ bookings });
   } catch (error) {
-    if (getMockMode()) {
-      return res.json({ bookings: [] });
-    }
     res.status(500).json({ message: 'Error fetching pending verifications', error: error.message });
   }
 };
@@ -132,13 +86,6 @@ export const verifyReceipt = async (req, res) => {
   try {
     const { bookingId } = req.params;
     const { action } = req.body;
-
-    if (getMockMode()) {
-      return res.json({
-        message: action === 'approve' ? 'Receipt verified and booking confirmed' : 'Receipt rejected',
-        booking: { _id: bookingId, status: action === 'approve' ? 'confirmed' : 'rejected' },
-      });
-    }
 
     const booking = await Booking.findById(bookingId);
     if (!booking) {
@@ -172,13 +119,9 @@ export const getProviders = async (req, res) => {
       .select('name businessName email phone address location isVerified isActive createdAt')
       .lean();
     
-    // Calculate some basic mock stats for each provider if real ones aren't available
     const enrichedProviders = providers.map(p => ({
       ...p,
       city: p.location || p.address?.city || 'Unknown',
-      rating: 4.5,
-      totalBookings: 0,
-      totalRevenue: 0,
       status: p.isActive ? 'Active' : 'Suspended'
     }));
 
@@ -211,5 +154,129 @@ export const updateProviderStatus = async (req, res) => {
     res.json(provider);
   } catch (error) {
     res.status(500).json({ message: 'Error updating provider status', error: error.message });
+  }
+};
+
+// @desc    Get all bookings (Admin)
+// @route   GET /api/admin/bookings
+// @access  Admin only
+export const getAdminBookings = async (req, res) => {
+  try {
+    const { page = 1, limit = 25, search = '', status = '' } = req.query;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const query = {};
+    if (status) query.status = status;
+    if (search) {
+      query.$or = [
+        { bookingNumber: { $regex: search, $options: 'i' } },
+        { 'customer.name': { $regex: search, $options: 'i' } },
+        { 'customer.email': { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const [bookings, total] = await Promise.all([
+      Booking.find(query)
+        .populate('provider', 'businessName name email')
+        .populate('service', 'name price')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Booking.countDocuments(query),
+    ]);
+
+    res.json({
+      bookings: bookings || [],
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum) || 1,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching admin bookings', error: error.message });
+  }
+};
+
+// @desc    Get all customers (Admin)
+// @route   GET /api/admin/customers
+// @access  Admin only
+export const getAdminCustomers = async (req, res) => {
+  try {
+    const { page = 1, limit = 25, search = '' } = req.query;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const query = { role: 'customer' };
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const [customers, total] = await Promise.all([
+      User.find(query)
+        .select('name email phone location isVerified createdAt')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      User.countDocuments(query),
+    ]);
+
+    res.json({
+      customers: customers || [],
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum) || 1,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching admin customers', error: error.message });
+  }
+};
+
+// @desc    Get all transactions (Admin)
+// @route   GET /api/admin/transactions
+// @access  Admin only
+export const getAdminTransactions = async (req, res) => {
+  try {
+    const { page = 1, limit = 25, search = '', status = '' } = req.query;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const query = {};
+    if (status) query.status = status;
+    if (search) {
+      query.$or = [
+        { transactionReference: { $regex: search, $options: 'i' } },
+        { gatewayReference: { $regex: search, $options: 'i' } },
+        { customerEmail: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const [transactions, total] = await Promise.all([
+      Transaction.find(query)
+        .populate('provider', 'businessName email')
+        .populate('booking', 'bookingNumber pricing')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Transaction.countDocuments(query),
+    ]);
+
+    res.json({
+      transactions: transactions || [],
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum) || 1,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching admin transactions', error: error.message });
   }
 };

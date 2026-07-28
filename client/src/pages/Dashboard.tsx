@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   DollarSign,
   TrendingUp,
-  Calendar,
   MessageCircle,
   Play,
   Package,
@@ -11,109 +11,49 @@ import {
   ArrowUpRight,
   ExternalLink,
   ShieldCheck,
-  CheckCircle2,
-  Clock,
-  UserCheck,
   Plus,
   Store,
+  Calendar,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { bookingApi } from '../lib/api';
+import { dashboardApi } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import type { Booking } from '../types';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [upcomingAppointments, setUpcomingAppointments] = useState<Array<{
-    id: string;
-    client: string;
-    phone: string;
-    service: string;
-    time: string;
-    status: string;
-    price: number;
-  }>>([]);
-  const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
-  const [loadingBookings, setLoadingBookings] = useState(false);
   const [appointmentStatuses, setAppointmentStatuses] = useState<{ [key: string]: string }>({});
 
-  const totalGMV = recentBookings.reduce((sum, b) => sum + (b.pricing?.totalAmount || 0), 0);
-  const totalEscrow = recentBookings.reduce((sum, b) => sum + (b.pricing?.depositAmount || 0), 0);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['dashboardSummary', user?._id],
+    queryFn: () => dashboardApi.getSummary(),
+    enabled: !!user?._id,
+    staleTime: 1000 * 30, // 30 seconds
+  });
 
-  const stats = {
-    netRevenue: totalGMV,
-    revenueGrowth: totalGMV > 0 ? 15 : 0,
-    totalBookingsCount: recentBookings.length,
-    depositEscrow: totalEscrow,
-    activeServicesCount: recentBookings.length,
+  const metrics = data?.metrics || {
+    totalBookings: 0,
+    confirmedBookings: 0,
+    pendingBookings: 0,
+    totalRevenue: 0,
+    totalDepositEscrow: 0,
+    totalCustomers: 0,
+    activeServices: 0,
   };
 
-  useEffect(() => {
-    const cached = localStorage.getItem('nile_dashboard_bookings');
-    if (cached) {
-      try {
-        setRecentBookings(JSON.parse(cached));
-      } catch (e) {}
-    }
-  }, []);
+  const recentBookings: Booking[] = data?.recentBookings || [];
+  const upcomingAppointments: any[] = data?.upcomingAppointments || [];
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const response = await bookingApi.getBookings({ limit: 50 });
-        const allBookings = response.bookings || [];
-        setRecentBookings(allBookings.slice(0, 6));
-        localStorage.setItem('nile_dashboard_bookings', JSON.stringify(allBookings.slice(0, 6)));
+  const handleWhatsAppNudge = (appointment: any) => {
+    const clientName = appointment.customer?.name || 'Client';
+    const clientPhone = (appointment.customer?.phone || '').replace(/[^0-9]/g, '');
+    const serviceName = typeof appointment.service === 'object' ? appointment.service.name : 'Booking';
+    const startTime = appointment.timeSlot?.startTime || 'your scheduled time';
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const todayList = allBookings
-          .filter((booking: Booking) => {
-            const bookingDate = new Date(booking.date);
-            bookingDate.setHours(0, 0, 0, 0);
-            return bookingDate >= today;
-          })
-          .slice(0, 5)
-          .map((booking: Booking) => {
-            const serviceName = typeof booking.service === 'object' ? booking.service.name : 'Service';
-            const timeSlot = booking.timeSlot || { startTime: '10:00', endTime: '11:00' };
-            const time = new Date(`2000-01-01T${timeSlot.startTime}`).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            });
-
-            return {
-              id: booking._id,
-              client: booking.customer.name,
-              phone: booking.customer.phone,
-              service: serviceName,
-              time,
-              status: booking.status,
-              price: booking.pricing?.totalAmount || booking.pricing?.servicePrice || 0,
-            };
-          });
-
-        setUpcomingAppointments(todayList);
-      } catch (error) {
-        console.error('Failed to fetch bookings:', error);
-        // Clean fallback
-        setUpcomingAppointments([]);
-      } finally {
-        setLoadingBookings(false);
-      }
-    };
-
-    fetchBookings();
-  }, [user?._id]);
-
-  const handleWhatsAppNudge = (appointment: typeof upcomingAppointments[0]) => {
     const message = encodeURIComponent(
-      `Hi ${appointment.client.split(' ')[0]}, this is ${user?.businessName || 'your provider'} from Nile. Checking in on our ${appointment.service} session at ${appointment.time}. See you soon!`
+      `Hi ${clientName.split(' ')[0]}, this is ${user?.businessName || 'your provider'} from Nile. Checking in on our ${serviceName} session at ${startTime}. See you soon!`
     );
-    const phone = appointment.phone.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    window.open(`https://wa.me/${clientPhone}?text=${message}`, '_blank');
   };
 
   const handleStartSession = (appointmentId: string) => {
@@ -146,7 +86,7 @@ export const Dashboard: React.FC = () => {
 
           <div className="flex items-center gap-2.5">
             <Link
-              to={`/p/${user?.slug || 'the-modern-barber'}`}
+              to={`/p/${user?.slug || ''}`}
               target="_blank"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-md hover:bg-zinc-50 transition-colors shadow-2xs"
             >
@@ -164,7 +104,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 4 Stripe-Style Clean Metric Cards */}
+        {/* Metric Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           
           {/* Net Revenue */}
@@ -176,15 +116,18 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3">
-              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                ₦{(stats.netRevenue / 1000).toFixed(0)}k
-              </div>
+              {isLoading ? (
+                <div className="h-8 w-24 bg-zinc-100 animate-pulse rounded"></div>
+              ) : (
+                <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                  ₦{metrics.totalRevenue.toLocaleString()}
+                </div>
+              )}
               <div className="flex items-center gap-1.5 mt-1 text-xs">
                 <span className="inline-flex items-center text-emerald-600 font-medium">
                   <TrendingUp className="w-3 h-3 mr-0.5" />
-                  +{stats.revenueGrowth}%
+                  Verified Payouts
                 </span>
-                <span className="text-zinc-400">vs last week</span>
               </div>
             </div>
           </div>
@@ -198,11 +141,15 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3">
-              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                {stats.totalBookingsCount}
-              </div>
+              {isLoading ? (
+                <div className="h-8 w-16 bg-zinc-100 animate-pulse rounded"></div>
+              ) : (
+                <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                  {metrics.totalBookings}
+                </div>
+              )}
               <div className="text-xs text-zinc-500 mt-1">
-                32 confirmed • 16 pending
+                {metrics.confirmedBookings} confirmed • {metrics.pendingBookings} pending
               </div>
             </div>
           </div>
@@ -216,9 +163,13 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3">
-              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                ₦{(stats.depositEscrow / 1000).toFixed(0)}k
-              </div>
+              {isLoading ? (
+                <div className="h-8 w-24 bg-zinc-100 animate-pulse rounded"></div>
+              ) : (
+                <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                  ₦{metrics.totalDepositEscrow.toLocaleString()}
+                </div>
+              )}
               <div className="text-xs text-zinc-500 mt-1">
                 Rolling 2-day payouts
               </div>
@@ -234,9 +185,13 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3">
-              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                {stats.activeServicesCount} Offered
-              </div>
+              {isLoading ? (
+                <div className="h-8 w-16 bg-zinc-100 animate-pulse rounded"></div>
+              ) : (
+                <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                  {metrics.activeServices} Offered
+                </div>
+              )}
               <div className="text-xs text-emerald-600 font-medium mt-1">
                 Online & available
               </div>
@@ -277,9 +232,19 @@ export const Dashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                    {recentBookings.length > 0 ? (
+                    {isLoading ? (
+                      Array.from({ length: 3 }).map((_, i) => (
+                        <tr key={i} className="animate-pulse">
+                          <td className="px-6 py-4"><div className="h-4 w-28 bg-zinc-100 rounded"></div></td>
+                          <td className="px-6 py-4"><div className="h-4 w-24 bg-zinc-100 rounded"></div></td>
+                          <td className="px-6 py-4"><div className="h-4 w-20 bg-zinc-100 rounded"></div></td>
+                          <td className="px-6 py-4"><div className="h-4 w-16 bg-zinc-100 rounded"></div></td>
+                          <td className="px-6 py-4"><div className="h-4 w-16 bg-zinc-100 rounded"></div></td>
+                        </tr>
+                      ))
+                    ) : recentBookings.length > 0 ? (
                       recentBookings.map((booking) => {
-                        const serviceName = typeof booking.service === 'object' ? booking.service.name : 'Service';
+                        const serviceName = typeof booking.service === 'object' ? booking.service?.name : 'Service';
                         return (
                           <tr key={booking._id} className="hover:bg-zinc-50/50 transition-colors">
                             <td className="px-6 py-3.5 font-medium text-zinc-900">
@@ -316,7 +281,7 @@ export const Dashboard: React.FC = () => {
                             size="sm"
                             variant="outline"
                             onClick={() => {
-                              const url = `https://nilebooking.co/p/${user?.slug || 'my-shop'}`;
+                              const url = `https://nilebooking.co/p/${user?.slug || ''}`;
                               navigator.clipboard.writeText(url);
                               alert('Shop link copied to clipboard!');
                             }}
@@ -346,55 +311,70 @@ export const Dashboard: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                {upcomingAppointments.map((item) => {
-                  const isInProgress = appointmentStatuses[item.id] === 'in_progress';
-                  return (
-                    <div
-                      key={item.id}
-                      className={`p-3.5 rounded-lg border transition-all ${
-                        isInProgress
-                          ? 'border-emerald-500 bg-emerald-50/40'
-                          : 'border-zinc-200 bg-zinc-50/40'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-xs font-semibold text-zinc-900">{item.client}</p>
-                          <p className="text-xs text-zinc-500 mt-0.5">{item.service}</p>
+                {isLoading ? (
+                  <div className="space-y-3">
+                    <div className="h-16 bg-zinc-100 animate-pulse rounded-lg"></div>
+                    <div className="h-16 bg-zinc-100 animate-pulse rounded-lg"></div>
+                  </div>
+                ) : upcomingAppointments.length === 0 ? (
+                  <div className="py-8 text-center space-y-1">
+                    <Calendar className="w-8 h-8 text-zinc-300 mx-auto" />
+                    <p className="text-xs font-semibold text-zinc-900">No appointments scheduled for today</p>
+                    <p className="text-[11px] text-zinc-500 font-normal">Upcoming appointments will appear here.</p>
+                  </div>
+                ) : (
+                  upcomingAppointments.map((item) => {
+                    const isInProgress = appointmentStatuses[item._id] === 'in_progress';
+                    const serviceName = typeof item.service === 'object' ? item.service?.name : 'Service';
+                    const timeStr = item.timeSlot?.startTime || '10:00';
+                    return (
+                      <div
+                        key={item._id}
+                        className={`p-3.5 rounded-lg border transition-all ${
+                          isInProgress
+                            ? 'border-emerald-500 bg-emerald-50/40'
+                            : 'border-zinc-200 bg-zinc-50/40'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-xs font-semibold text-zinc-900">{item.customer?.name}</p>
+                            <p className="text-xs text-zinc-500 mt-0.5">{serviceName}</p>
+                          </div>
+                          <span className="text-xs font-medium text-zinc-700 bg-white px-2 py-0.5 rounded border border-zinc-200">
+                            {timeStr}
+                          </span>
                         </div>
-                        <span className="text-xs font-medium text-zinc-700 bg-white px-2 py-0.5 rounded border border-zinc-200">
-                          {item.time}
-                        </span>
-                      </div>
 
-                      <div className="flex items-center gap-2 mt-3 pt-2 border-t border-zinc-200/60">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleWhatsAppNudge(item)}
-                          className="flex-1 h-7 text-[11px] font-medium bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50"
-                        >
-                          <MessageCircle className="w-3 h-3 mr-1 text-emerald-600" />
-                          WhatsApp
-                        </Button>
+                        <div className="flex items-center gap-2 mt-3 pt-2 border-t border-zinc-200/60">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleWhatsAppNudge(item)}
+                            className="flex-1 h-7 text-[11px] font-medium bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                          >
+                            <MessageCircle className="w-3 h-3 mr-1 text-emerald-600" />
+                            WhatsApp
+                          </Button>
 
-                        <Button
-                          size="sm"
-                          onClick={() => handleStartSession(item.id)}
-                          disabled={isInProgress}
-                          className={`flex-1 h-7 text-[11px] font-medium ${
-                            isInProgress
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-zinc-900 text-white hover:bg-zinc-800'
-                          }`}
-                        >
-                          <Play className="w-3 h-3 mr-1" />
-                          {isInProgress ? 'In Progress' : 'Start'}
-                        </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleStartSession(item._id)}
+                            disabled={isInProgress}
+                            className={`flex-1 h-7 text-[11px] font-medium ${
+                              isInProgress
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                            }`}
+                          >
+                            <Play className="w-3 h-3 mr-1" />
+                            {isInProgress ? 'In Progress' : 'Start'}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
 
