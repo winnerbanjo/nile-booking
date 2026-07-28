@@ -34,11 +34,33 @@ export const sendMailtrapApiEmail = async ({ toEmail, toName, subject, htmlConte
       },
     });
 
-    console.log(`✅ Mailtrap Email Sent to ${toEmail} | Response:`, response.data);
-    return { success: true, data: response.data };
+    const maskedEmail = toEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c);
+    console.log(JSON.stringify({
+      event: 'email_delivery',
+      type: category,
+      email: maskedEmail,
+      provider: 'mailtrap_api',
+      status: 'success',
+      messageId: response.data?.message_ids?.[0] || 'unknown',
+      error: null
+    }));
+
+    return { success: true, data: response.data, messageId: response.data?.message_ids?.[0] };
   } catch (error) {
-    console.error('❌ Mailtrap API error:', error.response?.data || error.message);
-    return { success: false, error: error.response?.data || error.message };
+    const errorMsg = error.response?.data || error.message;
+    const maskedEmail = toEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c);
+    
+    console.error(JSON.stringify({
+      event: 'email_delivery',
+      type: category,
+      email: maskedEmail,
+      provider: 'mailtrap_api',
+      status: 'failed',
+      messageId: null,
+      error: errorMsg
+    }));
+    
+    return { success: false, error: errorMsg };
   }
 };
 
