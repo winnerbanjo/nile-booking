@@ -167,8 +167,8 @@ export const Bookings: React.FC = () => {
                           {booking.bookingNumber}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="font-medium text-zinc-900">{booking.customer.name}</div>
-                          <div className="text-[11px] text-zinc-400 font-normal">{booking.customer.email} • {booking.customer.phone}</div>
+                          <div className="font-medium text-zinc-900">{booking.customer?.name || 'Unknown'}</div>
+                          <div className="text-[11px] text-zinc-400 font-normal">{booking.customer?.email || 'No email'} • {booking.customer?.phone || 'No phone'}</div>
                         </td>
                         <td className="px-6 py-4 font-medium text-zinc-800">
                           {service ? service.name : 'Service'}

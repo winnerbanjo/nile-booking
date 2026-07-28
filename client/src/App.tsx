@@ -122,11 +122,11 @@ interface ErrorBoundaryProps {
 
 class AppErrorBoundaryInner extends Component<
   ErrorBoundaryProps,
-  { hasError: boolean; error: Error | null; errorInfo: ErrorInfo | null; errorId: string }
+  { hasError: boolean; error: Error | null; errorInfo: ErrorInfo | null; errorId: string; retryCount: number }
 > {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null, errorInfo: null, errorId: '' };
+    this.state = { hasError: false, error: null, errorInfo: null, errorId: '', retryCount: 0 };
   }
   static getDerivedStateFromError(error: Error) {
     return { hasError: true, error, errorId: Math.random().toString(36).substring(2, 9).toUpperCase() };
@@ -199,13 +199,19 @@ class AppErrorBoundaryInner extends Component<
             
             <div className="flex flex-col gap-3 pt-2">
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => {
+                  if (this.state.retryCount > 1) {
+                    window.location.reload();
+                  } else {
+                    this.setState(prev => ({ hasError: false, error: null, errorId: '', retryCount: prev.retryCount + 1 }));
+                  }
+                }}
                 className="w-full px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors"
               >
                 Try Again
               </button>
               <a
-                href="/dashboard"
+                href={this.props.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'}
                 className="w-full px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors inline-block"
               >
                 Return to Dashboard
@@ -213,7 +219,11 @@ class AppErrorBoundaryInner extends Component<
               {this.props.user && (
                 <button
                   onClick={() => {
-                    localStorage.clear();
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('nile_user');
+                    localStorage.removeItem('nile_dashboard_bookings');
+                    localStorage.removeItem('nile_crm_cache');
+                    sessionStorage.clear();
                     window.location.href = '/login';
                   }}
                   className="w-full px-6 py-2.5 text-gray-500 rounded-xl text-sm font-medium hover:text-red-600 transition-colors"

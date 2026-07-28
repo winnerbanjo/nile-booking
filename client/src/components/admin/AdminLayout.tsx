@@ -260,7 +260,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
         {/* Page Content */}
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)]">
-          <AdminErrorBoundary>
+          <AdminErrorBoundary user={user} location={location}>
             <Suspense fallback={
               <div className="w-full animate-pulse">
                 <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>

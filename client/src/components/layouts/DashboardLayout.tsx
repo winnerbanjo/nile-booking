@@ -40,6 +40,7 @@ import {
   staffImport, 
   invoicesImport 
 } from '../../App';
+import { PageErrorBoundary } from './PageErrorBoundary';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -248,19 +249,21 @@ export const DashboardLayout: React.FC = () => {
 
         {/* Page Content Outlet */}
         <main className="p-0">
-          <Suspense fallback={
-            <div className="p-8 w-full animate-pulse">
-              <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="h-32 bg-gray-200 rounded-xl"></div>
-                <div className="h-32 bg-gray-200 rounded-xl"></div>
-                <div className="h-32 bg-gray-200 rounded-xl"></div>
+          <PageErrorBoundary user={user} location={location}>
+            <Suspense fallback={
+              <div className="p-8 w-full animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <div className="h-32 bg-gray-200 rounded-xl"></div>
+                  <div className="h-32 bg-gray-200 rounded-xl"></div>
+                  <div className="h-32 bg-gray-200 rounded-xl"></div>
+                </div>
+                <div className="h-96 bg-gray-200 rounded-xl"></div>
               </div>
-              <div className="h-96 bg-gray-200 rounded-xl"></div>
-            </div>
-          }>
-            <Outlet />
-          </Suspense>
+            }>
+              <Outlet />
+            </Suspense>
+          </PageErrorBoundary>
         </main>
       </div>
     </div>

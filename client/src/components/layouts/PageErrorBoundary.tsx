@@ -14,7 +14,7 @@ interface State {
   retryCount: number;
 }
 
-export class AdminErrorBoundary extends Component<Props, State> {
+export class PageErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
     this.state = { hasError: false, errorId: '', retryCount: 0 };
@@ -28,7 +28,7 @@ export class AdminErrorBoundary extends Component<Props, State> {
     const deploymentVersion = import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA || 'unknown';
     
     // Log to console
-    console.error(`[AdminPageCrash-${this.state.errorId}] Unhandled Runtime Error:`);
+    console.error(`[PageCrash-${this.state.errorId}] Unhandled Runtime Error:`);
     console.error(`Message: ${error.message}`);
     console.error(`Stack: ${error.stack}`);
 
@@ -54,11 +54,11 @@ export class AdminErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="bg-red-50/50 border border-red-100 rounded-xl p-6 flex flex-col items-center justify-center text-center min-h-[300px]">
+        <div className="bg-red-50/50 border border-red-100 rounded-xl p-6 flex flex-col items-center justify-center text-center min-h-[300px] w-full">
           <AlertCircle className="w-10 h-10 text-red-400 mb-3" />
           <h3 className="text-base font-bold text-red-900 mb-1">Failed to load content</h3>
           <p className="text-sm text-red-600 max-w-sm mx-auto mb-2">
-            {this.props.fallbackMessage || "We couldn't load this section of the admin panel right now."}
+            {this.props.fallbackMessage || "We encountered an unexpected error while rendering this page."}
           </p>
           <div className="mb-6 px-3 py-1.5 bg-red-100/50 rounded text-xs font-mono text-red-800 border border-red-200">
             Error Ref: {this.state.errorId}
