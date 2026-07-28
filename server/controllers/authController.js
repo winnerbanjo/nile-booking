@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Schedule from '../models/Schedule.js';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { getMockMode, mockUsers } from '../utils/mockMode.js';
 import { sendMailtrapApiEmail } from '../services/notificationService.js';
 import { uploadImage } from '../services/cloudinaryService.js';
@@ -292,7 +293,7 @@ export const resendOtp = async (req, res) => {
       return res.json({ message: 'New OTP sent successfully' });
     }
 
-    const user = await User.findOne({ email: cleanEmail });
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     user.otpCode = otpCode;
     user.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
@@ -396,56 +397,87 @@ export const login = async (req, res) => {
 
 // @desc    Forgot Password Request
 // @route   POST /api/auth/forgot-password
+// @desc    Forgot Password Request
+// @route   POST /api/auth/forgot-password
 // @access  Public
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email address is required' });
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: 'Work email address is required.' });
+    }
 
     const cleanEmail = email.trim().toLowerCase();
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-    let userFound = false;
 
     if (getMockMode()) {
       const mockUser = mockUsers.get(cleanEmail);
-      if (mockUser) {
-        mockUser.otpCode = otpCode;
-        mockUser.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
-        userFound = true;
+      if (!mockUser) {
+        return res.status(404).json({ message: 'No registered merchant account found with this email address.' });
       }
+      const otpCode = crypto.randomInt(100000, 1000000).toString();
+      mockUser.otpCode = otpCode;
+      mockUser.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+      await sendMailtrapApiEmail({
+        toEmail: cleanEmail,
+        toName: mockUser.name || 'Merchant',
+        subject: `Your Nile Booking Reset Code: ${otpCode}`,
+        htmlContent: `<h2>Password Reset Request</h2><p>Your 6-digit OTP code to reset your Nile Booking password is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 10 minutes.</p>`,
+        category: 'Password Reset',
+      });
+
+      return res.json({ message: '6-digit reset code sent to your email.' });
     }
 
-    const user = await User.findOne({ email: cleanEmail });
-    if (user) {
-      user.otpCode = otpCode;
-      user.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
-      await user.save();
-      userFound = true;
+    // Select +password so Mongoose required validation passes on user.save()
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
+    if (!user) {
+      return res.status(404).json({ message: 'No registered merchant account found with this email address.' });
     }
 
-    // Even if user not found, we send the email to prevent email enumeration attacks (security best practice),
-    // but in a real app you might want to silently ignore. Here we just proceed to send it.
+    // Cool-down check: prevent spamming OTP requests (less than 30s since previous issuance)
+    if (user.otpExpires && (new Date(user.otpExpires).getTime() - Date.now() > 9 * 60 * 1000 + 30 * 1000)) {
+      return res.status(429).json({ message: 'Please wait a minute before requesting another reset code.' });
+    }
 
-    // Dispatch reset email via Mailtrap API
+    // Cryptographically secure 6-digit OTP
+    const otpCode = crypto.randomInt(100000, 1000000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+
+    user.otpCode = otpCode;
+    user.otpExpires = otpExpires;
+    await user.save();
+
     const emailResult = await sendMailtrapApiEmail({
-      toEmail: cleanEmail,
-      toName: cleanEmail,
-      subject: `Your New Nile Booking OTP: ${otpCode}`,
-      htmlContent: `<h2>Verification Code</h2><p>Your new 6-digit OTP code to verify your Nile Booking account is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
+      toEmail: user.email,
+      toName: user.name || 'Merchant',
+      subject: `Your Nile Booking Reset Code: ${otpCode}`,
+      htmlContent: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
+          <h2 style="color: #000; font-size: 20px;">Password Reset Request</h2>
+          <p>Hello ${user.name || 'Merchant'},</p>
+          <p>We received a request to reset your password for your Nile Booking merchant account.</p>
+          <p>Your 6-digit reset code is:</p>
+          <div style="background-color: #f4f4f5; border-radius: 8px; padding: 16px; text-align: center; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #22c55e;">${otpCode}</span>
+          </div>
+          <p style="font-size: 13px; color: #666;">This code is valid for <strong>10 minutes</strong>.</p>
+        </div>
+      `,
       category: 'Password Reset',
     });
 
     console.log(`[AUTH] PASSWORD RESET OTP GENERATED for ${cleanEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c)}`);
 
     if (!emailResult.success) {
-      console.error('Mailtrap rejected the email:', emailResult.error);
-      return res.status(500).json({ message: 'Failed to send OTP email. Mailtrap may have blocked it. Please check terminal logs for the OTP.' });
+      console.error('[AUTH] Mailtrap rejected password reset email:', emailResult.error);
+      return res.status(500).json({ message: 'Unable to deliver reset email. Please try again later.' });
     }
 
-    res.json({ message: 'Password reset OTP code sent to your email.' });
+    res.json({ message: '6-digit reset code sent to your email.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Server error processing password reset.' });
   }
 };
 
@@ -456,57 +488,71 @@ export const resetPassword = async (req, res) => {
   try {
     const { email, otpCode, newPassword } = req.body;
     if (!email || !otpCode || !newPassword) {
-      return res.status(400).json({ message: 'Email, OTP code, and new password are required' });
+      return res.status(400).json({ message: 'Email, 6-digit reset code, and new password are required.' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
+    const cleanOtp = otpCode.trim();
 
-    let resetSuccessful = false;
-    let userName = cleanEmail;
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
+    }
 
     if (getMockMode()) {
       const mockUser = mockUsers.get(cleanEmail);
-      if (mockUser) {
-        if (mockUser.otpCode !== otpCode.trim()) {
-          return res.status(400).json({ message: 'Invalid or expired OTP code' });
-        }
-        mockUser.password = newPassword;
-        mockUser.otpCode = null;
-        mockUser.comparePassword = async (p) => p === newPassword;
-        resetSuccessful = true;
-        userName = mockUser.name;
+      if (!mockUser) {
+        return res.status(404).json({ message: 'No registered account found with this email address.' });
       }
+      if (!mockUser.otpCode || mockUser.otpCode !== cleanOtp) {
+        return res.status(400).json({ message: 'Invalid 6-digit reset code.' });
+      }
+      if (!mockUser.otpExpires || Date.now() > new Date(mockUser.otpExpires).getTime()) {
+        mockUser.otpCode = null;
+        mockUser.otpExpires = null;
+        return res.status(400).json({ message: 'Reset code has expired. Please request a new code.' });
+      }
+      mockUser.password = newPassword;
+      mockUser.otpCode = null;
+      mockUser.otpExpires = null;
+      mockUser.comparePassword = async (p) => p === newPassword;
+      return res.json({ message: 'Password reset successful! You can now log in.' });
     }
 
     const user = await User.findOne({ email: cleanEmail }).select('+password');
-    if (user) {
-      if (user.otpCode !== otpCode.trim()) {
-        return res.status(400).json({ message: 'Invalid or expired OTP code' });
-      }
-      user.password = newPassword;
+    if (!user) {
+      return res.status(404).json({ message: 'No registered account found with this email address.' });
+    }
+
+    if (!user.otpCode || user.otpCode !== cleanOtp) {
+      return res.status(400).json({ message: 'Invalid 6-digit reset code.' });
+    }
+
+    if (!user.otpExpires || Date.now() > new Date(user.otpExpires).getTime()) {
       user.otpCode = null;
       user.otpExpires = null;
-      user.passwordChangedAt = Date.now();
       await user.save();
-      resetSuccessful = true;
-      userName = user.name;
+      return res.status(400).json({ message: 'Reset code has expired. Please request a new code.' });
     }
 
-    if (!resetSuccessful) {
-      return res.status(400).json({ message: 'Invalid or expired OTP code' });
-    }
+    user.password = newPassword;
+    user.otpCode = null;
+    user.otpExpires = null;
+    user.passwordChangedAt = new Date();
+    await user.save();
 
-    await sendMailtrapApiEmail({
-      toEmail: cleanEmail,
-      toName: userName,
-      subject: `Security Alert: Your Nile Password Has Been Reset`,
-      htmlContent: `<h2>Password Reset Successful</h2><p>Hello ${userName}, your Nile Booking password was updated successfully.</p>`,
+    // Fire-and-forget security notification email
+    sendMailtrapApiEmail({
+      toEmail: user.email,
+      toName: user.name || 'Merchant',
+      subject: `Security Alert: Your Nile Booking Password Has Been Reset`,
+      htmlContent: `<h2>Password Updated</h2><p>Hello ${user.name || 'Merchant'}, your Nile Booking password was updated successfully.</p>`,
       category: 'Security Alert',
-    });
+    }).catch((e) => console.error('[AUTH] Security notification failed:', e.message));
 
-    res.json({ message: 'Password reset successful. You can now log in with your new password.' });
+    res.json({ message: 'Password reset successful! You can now log in with your new password.' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Server error resetting password.' });
   }
 };
 
