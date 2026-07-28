@@ -5,12 +5,12 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { NileLogo } from '../components/ui/NileLogo';
-import { ArrowRight, ArrowLeft, Eye, EyeOff, Scissors, Dumbbell, Sparkles, Briefcase, LayoutGrid } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Eye, EyeOff, Scissors, Dumbbell, Star, Briefcase, LayoutGrid } from 'lucide-react';
 
 const INDUSTRIES = [
   { id: 'barber', label: 'Barbers & Stylists', icon: Scissors },
   { id: 'fitness', label: 'Fitness & Wellness', icon: Dumbbell },
-  { id: 'beauty', label: 'Beauty & Spa', icon: Sparkles },
+  { id: 'beauty', label: 'Beauty & Spa', icon: Star },
   { id: 'professional', label: 'Professional Services', icon: Briefcase },
   { id: 'other', label: 'Other', icon: LayoutGrid },
 ];

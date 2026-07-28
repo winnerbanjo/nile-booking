@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import {
   ArrowRight, RefreshCw, CheckCircle2, PartyPopper, ExternalLink,
-  Copy, Check, Globe, Sparkles, Clock, MapPin, ChevronDown, CheckCircle, Circle
+  Copy, Check, Globe, Star, Clock, MapPin, ChevronDown, CheckCircle, Circle
 } from 'lucide-react';
 
 type Phase = 'verify' | 'website' | 'service' | 'complete';
@@ -366,7 +366,7 @@ export const VerifyOtp: React.FC = () => {
                 onClick={() => setPhase('service')}
                 className="w-full bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl h-11 text-xs font-semibold shadow-md transition-all flex items-center justify-center gap-2"
               >
-                <Sparkles className="w-4 h-4" />
+                <Star className="w-4 h-4" />
                 Add Your First Service
                 <ArrowRight className="w-4 h-4" />
               </Button>
@@ -398,7 +398,7 @@ export const VerifyOtp: React.FC = () => {
 
             <div className="text-center">
               <div className="mx-auto w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center mb-3">
-                <Sparkles className="w-6 h-6 text-zinc-600" />
+                <Star className="w-6 h-6 text-zinc-600" />
               </div>
               <h2 className="text-xl font-bold tracking-tight text-zinc-900 mb-1">Add your first service</h2>
               <p className="text-xs text-zinc-500 leading-relaxed">

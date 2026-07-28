@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { Scissors, Camera, Briefcase, GraduationCap, HeartPulse, Sparkles, ArrowRight } from 'lucide-react';
+import { Scissors, Camera, Briefcase, GraduationCap, HeartPulse, Star, ArrowRight } from 'lucide-react';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -25,7 +25,7 @@ export const Solutions: React.FC = () => {
       desc: 'Eliminate 15+ WhatsApp DMs a day. Clients select cuts, pick available slots, pay deposits, and receive instant confirmation.',
     },
     {
-      icon: Sparkles,
+      icon: Star,
       title: 'Beauty Salons & Spas',
       desc: 'Manage multi-staff schedules, service catalogs, packages, and deposit settlements seamlessly.',
     },

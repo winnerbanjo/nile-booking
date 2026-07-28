@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShareCard } from '../components/dashboard/ShareCard';
-import { Share2, TrendingUp, Sparkles, Target } from 'lucide-react';
+import { Share2, TrendingUp, Star, Target } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export const Marketing: React.FC = () => {

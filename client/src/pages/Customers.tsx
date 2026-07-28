@@ -3,7 +3,7 @@ import { bookingApi } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Users, Phone, Mail, Calendar, DollarSign, Search, MessageCircle, X, Shield, Sparkles, Clock, CheckCircle2, UserPlus } from 'lucide-react';
+import { Users, Phone, Mail, Calendar, DollarSign, Search, MessageCircle, X, Shield, Star, Clock, CheckCircle2, UserPlus } from 'lucide-react';
 import type { Booking } from '../types';
 import { format, parseISO } from 'date-fns';
 

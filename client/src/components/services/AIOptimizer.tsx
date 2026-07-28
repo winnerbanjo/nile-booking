@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Star, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { optimizeServiceDescription } from '../../services/aiService';
@@ -40,7 +40,7 @@ export const AIOptimizer: React.FC<AIOptimizerProps> = ({
     <Card className="border-2 border-dashed">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5" />
+          <Star className="h-5 w-5" />
           AI Service Optimizer
         </CardTitle>
         <CardDescription>
@@ -61,7 +61,7 @@ export const AIOptimizer: React.FC<AIOptimizerProps> = ({
             </>
           ) : (
             <>
-              <Sparkles className="mr-2 h-4 w-4" />
+              <Star className="mr-2 h-4 w-4" />
               Optimize Description
             </>
           )}
