@@ -159,7 +159,7 @@ export const register = async (req, res) => {
       category: 'OTP Verification',
     });
 
-    console.log(`\n\n=== 🔐 [AUTH] OTP GENERATED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==============================\n\n`);
+    console.log(`[AUTH] OTP GENERATED for ${cleanEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c)}`);
 
     if (!emailResult.success) {
       console.error('Mailtrap rejected the email:', emailResult.error);
@@ -293,7 +293,7 @@ export const resendOtp = async (req, res) => {
       category: 'OTP Verification',
     });
 
-    console.log(`\n\n=== 🔐 [AUTH] NEW OTP REQUESTED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==================================\n\n`);
+    console.log(`[AUTH] NEW OTP REQUESTED for ${cleanEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c)}`);
 
     if (!emailResult.success) {
       console.error('Mailtrap rejected the email:', emailResult.error);
@@ -423,7 +423,7 @@ export const forgotPassword = async (req, res) => {
       category: 'Password Reset',
     });
 
-    console.log(`\n\n=== 🔐 [AUTH] PASSWORD RESET OTP GENERATED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n=============================================\n\n`);
+    console.log(`[AUTH] PASSWORD RESET OTP GENERATED for ${cleanEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c)}`);
 
     if (!emailResult.success) {
       console.error('Mailtrap rejected the email:', emailResult.error);
