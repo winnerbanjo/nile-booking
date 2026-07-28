@@ -364,8 +364,16 @@ export const Payments: React.FC = () => {
               <tbody>
                 {transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray-500 font-light">
-                      No transactions found.
+                    <td colSpan={5} className="py-12 text-center">
+                      <div className="max-w-xs mx-auto space-y-2">
+                        <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-400 mb-2">
+                          <CreditCard className="w-5 h-5 text-zinc-400" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-zinc-900">No transactions yet</h3>
+                        <p className="text-xs text-zinc-500 font-normal leading-relaxed">
+                          Payments and receipts will appear here after your first booking.
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : (

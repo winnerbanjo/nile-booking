@@ -35,6 +35,29 @@ export const Calendar: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8 space-y-6">
       
+      {/* Set Availability Banner when zero bookings */}
+      {bookings.length === 0 && !loading && (
+        <div className="bg-white border border-zinc-200/80 rounded-xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-900">Set your working hours</h3>
+              <p className="text-xs text-zinc-500 font-normal mt-0.5">
+                Customers can't book until you've added your availability.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => window.location.href = '/dashboard/settings'}
+            className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-medium px-4 py-2 shrink-0"
+          >
+            Set Availability
+          </Button>
+        </div>
+      )}
+
       {/* Calendar Header Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border border-zinc-200/80 p-4 rounded-xl shadow-sm">
         <div className="flex items-center gap-3">

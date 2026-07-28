@@ -169,7 +169,7 @@ export const Register: React.FC = () => {
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="barber@nile.ng"
+                    placeholder="alex@nilebooking.co"
                     value={formData.email}
                     onChange={handleChange}
                     className="h-9 text-xs border-zinc-300 rounded-lg"
@@ -400,7 +400,7 @@ export const Register: React.FC = () => {
                 {step < 4 ? (
                   <>Continue <ArrowRight className="w-3.5 h-3.5 ml-1.5" /></>
                 ) : loading ? (
-                  'Creating Account...'
+                  'Creating your storefront...'
                 ) : (
                   'Complete Registration'
                 )}

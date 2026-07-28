@@ -119,7 +119,7 @@ export const register = async (req, res) => {
     const userExists = await User.findOne({ email: cleanEmail });
     if (userExists) {
       if (userExists.isVerified) {
-        return res.status(400).json({ message: 'User already exists' });
+        return res.status(400).json({ message: 'An account with this email already exists. Try signing in instead.' });
       } else {
         await Schedule.deleteOne({ provider: userExists._id });
         await User.deleteOne({ _id: userExists._id });
@@ -329,29 +329,11 @@ export const login = async (req, res) => {
     const email = req.body.email?.trim().toLowerCase();
 
     if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
-    }
-
-    // Auto-seed demo accounts if trying demo emails
-    if (email === 'barber@nile.ng' || email === 'admin@nile.ng') {
-      await ensureDemoAccount(email);
+      return res.status(400).json({ message: 'Please fill in this field to continue.' });
     }
 
     if (getMockMode()) {
       let mockUser = mockUsers.get(email);
-      if (!mockUser && (email === 'barber@nile.ng' || email === 'admin@nile.ng')) {
-        mockUser = {
-          _id: `mock_${email}`,
-          name: email === 'barber@nile.ng' ? 'The Modern Barber' : 'Nile Administrator',
-          email,
-          password: 'password123',
-          role: email === 'admin@nile.ng' ? 'admin' : 'provider',
-          businessName: 'The Modern Barber',
-          slug: 'the-modern-barber',
-          comparePassword: async (p) => p === 'password123',
-        };
-        mockUsers.set(email, mockUser);
-      }
 
       if (mockUser && (await mockUser.comparePassword(password))) {
         return res.json({
@@ -364,21 +346,24 @@ export const login = async (req, res) => {
           token: generateToken(mockUser._id),
         });
       }
-      return res.status(401).json({ message: 'Invalid credentials. Please check your email and password.' });
+      return res.status(401).json({
+        message: "The password you entered doesn't match this account. Please try again or reset your password if you've forgotten it.",
+      });
     }
 
     let user = await User.findOne({ email }).select('+password');
-    if (!user && (email === 'barber@nile.ng' || email === 'admin@nile.ng')) {
-      user = await ensureDemoAccount(email);
-    }
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials. Please check your email and password.' });
+      return res.status(404).json({
+        message: "We couldn't find a merchant account associated with this email address.",
+      });
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials. Please check your email and password.' });
+      return res.status(401).json({
+        message: "The password you entered doesn't match this account. Please try again or reset your password if you've forgotten it.",
+      });
     }
 
     res.json({
@@ -391,7 +376,7 @@ export const login = async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: "We couldn't complete your request right now. Please try again in a moment." });
   }
 };
 
@@ -404,7 +389,7 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email || !email.trim()) {
-      return res.status(400).json({ message: 'Work email address is required.' });
+      return res.status(400).json({ message: 'Enter a valid email address.' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -412,7 +397,7 @@ export const forgotPassword = async (req, res) => {
     if (getMockMode()) {
       const mockUser = mockUsers.get(cleanEmail);
       if (!mockUser) {
-        return res.status(404).json({ message: 'No registered merchant account found with this email address.' });
+        return res.status(404).json({ message: "We couldn't find a merchant account using that email address. Please check the spelling or create a new storefront if you haven't registered yet." });
       }
       const otpCode = crypto.randomInt(100000, 1000000).toString();
       mockUser.otpCode = otpCode;
@@ -426,20 +411,20 @@ export const forgotPassword = async (req, res) => {
         category: 'Password Reset',
       });
 
-      return res.json({ message: '6-digit reset code sent to your email.' });
+      return res.json({ message: "We've sent a 6-digit verification code to your email. Enter the code below to continue resetting your password." });
     }
 
     // Select +password so Mongoose required validation passes on user.save()
     const user = await User.findOne({ email: cleanEmail }).select('+password');
     if (!user) {
-      return res.status(404).json({ message: 'No registered merchant account found with this email address.' });
+      return res.status(404).json({ message: "We couldn't find a merchant account using that email address. Please check the spelling or create a new storefront if you haven't registered yet." });
     }
 
     // Cool-down check: prevent spamming OTP requests (< 30 seconds since last OTP issued)
     if (user.otpExpires) {
       const timeRemainingMs = new Date(user.otpExpires).getTime() - Date.now();
       if (timeRemainingMs > 570000 && timeRemainingMs <= 600000) {
-        return res.status(429).json({ message: 'Please wait 30 seconds before requesting another reset code.' });
+        return res.status(429).json({ message: "For your security, we've temporarily paused sign-in. Please wait a few minutes before trying again." });
       }
     }
 
@@ -474,13 +459,13 @@ export const forgotPassword = async (req, res) => {
 
     if (!emailResult.success) {
       console.error('[AUTH] Mailtrap rejected password reset email:', emailResult.error);
-      return res.status(500).json({ message: 'Unable to deliver reset email. Please try again later.' });
+      return res.status(500).json({ message: 'Something went wrong while sending your reset code. Please try again in a moment.' });
     }
 
-    res.json({ message: '6-digit reset code sent to your email.' });
+    res.json({ message: "We've sent a 6-digit verification code to your email. Enter the code below to continue resetting your password." });
   } catch (error) {
     console.error('Forgot password error:', error);
-    res.status(500).json({ message: 'Server error processing password reset.' });
+    res.status(500).json({ message: "We couldn't complete your request right now. Please try again in a moment." });
   }
 };
 
@@ -491,50 +476,50 @@ export const resetPassword = async (req, res) => {
   try {
     const { email, otpCode, newPassword } = req.body;
     if (!email || !otpCode || !newPassword) {
-      return res.status(400).json({ message: 'Email, 6-digit reset code, and new password are required.' });
+      return res.status(400).json({ message: 'Please fill in this field to continue.' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanOtp = otpCode.trim();
 
     if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
+      return res.status(400).json({ message: 'Your password must be at least 8 characters long.' });
     }
 
     if (getMockMode()) {
       const mockUser = mockUsers.get(cleanEmail);
       if (!mockUser) {
-        return res.status(404).json({ message: 'No registered account found with this email address.' });
+        return res.status(404).json({ message: "We couldn't find a merchant account using that email address. Please check the spelling or create a new storefront if you haven't registered yet." });
       }
       if (!mockUser.otpCode || mockUser.otpCode !== cleanOtp) {
-        return res.status(400).json({ message: 'Invalid 6-digit reset code.' });
+        return res.status(400).json({ message: 'Please check the 6-digit code and try again.' });
       }
       if (!mockUser.otpExpires || Date.now() > new Date(mockUser.otpExpires).getTime()) {
         mockUser.otpCode = null;
         mockUser.otpExpires = null;
-        return res.status(400).json({ message: 'Reset code has expired. Please request a new code.' });
+        return res.status(400).json({ message: 'Your verification code has expired. Request a new one to continue.' });
       }
       mockUser.password = newPassword;
       mockUser.otpCode = null;
       mockUser.otpExpires = null;
       mockUser.comparePassword = async (p) => p === newPassword;
-      return res.json({ message: 'Password reset successful! You can now log in.' });
+      return res.json({ message: 'Your password has been changed successfully. You can now sign in using your new password.' });
     }
 
     const user = await User.findOne({ email: cleanEmail }).select('+password');
     if (!user) {
-      return res.status(404).json({ message: 'No registered account found with this email address.' });
+      return res.status(404).json({ message: "We couldn't find a merchant account using that email address. Please check the spelling or create a new storefront if you haven't registered yet." });
     }
 
     if (!user.otpCode || user.otpCode !== cleanOtp) {
-      return res.status(400).json({ message: 'Invalid 6-digit reset code.' });
+      return res.status(400).json({ message: 'Please check the 6-digit code and try again.' });
     }
 
     if (!user.otpExpires || Date.now() > new Date(user.otpExpires).getTime()) {
       user.otpCode = null;
       user.otpExpires = null;
       await user.save();
-      return res.status(400).json({ message: 'Reset code has expired. Please request a new code.' });
+      return res.status(400).json({ message: 'Your verification code has expired. Request a new one to continue.' });
     }
 
     user.password = newPassword;
@@ -552,10 +537,10 @@ export const resetPassword = async (req, res) => {
       category: 'Security Alert',
     }).catch((e) => console.error('[AUTH] Security notification failed:', e.message));
 
-    res.json({ message: 'Password reset successful! You can now log in with your new password.' });
+    res.json({ message: 'Your password has been changed successfully. You can now sign in using your new password.' });
   } catch (error) {
     console.error('Reset password error:', error);
-    res.status(500).json({ message: 'Server error resetting password.' });
+    res.status(500).json({ message: "We couldn't complete your request right now. Please try again in a moment." });
   }
 };
 

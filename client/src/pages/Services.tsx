@@ -119,11 +119,17 @@ export const Services: React.FC = () => {
 
         {/* Services Cards Grid */}
         {services.length === 0 ? (
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-12 text-center">
-            <p className="text-zinc-500 text-sm mb-4">Services will appear here once they are added.</p>
-            <Button onClick={handleCreate} className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-medium">
+          <div className="bg-white border border-zinc-200/80 rounded-xl p-12 text-center max-w-md mx-auto space-y-3 shadow-sm">
+            <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-400">
+              <Plus className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-semibold text-zinc-900">You're ready to add your first service</h3>
+            <p className="text-xs text-zinc-500 font-normal leading-relaxed">
+              Create services so customers can start booking appointments online.
+            </p>
+            <Button onClick={handleCreate} className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-medium px-4 py-2">
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Create First Service
+              Add Service
             </Button>
           </div>
         ) : (

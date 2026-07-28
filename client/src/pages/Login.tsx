@@ -128,7 +128,7 @@ export const Login: React.FC = () => {
               <Input
                 id="email"
                 type="email"
-                placeholder="barber@nile.ng"
+                placeholder="alex@nilebooking.co"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-10 text-xs border-zinc-300 rounded-lg"
@@ -168,7 +168,7 @@ export const Login: React.FC = () => {
               disabled={loading}
               className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-10 text-xs font-medium transition-colors shadow-sm"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? 'Signing you in...' : 'Sign In'}
               <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
             </Button>
           </form>
@@ -202,14 +202,14 @@ export const Login: React.FC = () => {
             </div>
 
             {forgotErr && (
-              <div className="p-2.5 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg">
-                {forgotErr}
+              <div className="p-3 text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg space-y-1">
+                <p className="font-semibold">{forgotErr}</p>
               </div>
             )}
 
             {forgotMsg && (
-              <div className="p-2.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="p-3 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <span>{forgotMsg}</span>
               </div>
             )}
@@ -221,7 +221,7 @@ export const Login: React.FC = () => {
                   type="email"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
-                  placeholder="barber@nile.ng"
+                  placeholder="alex@nilebooking.co"
                   className="h-9 text-xs border-zinc-300 rounded-lg"
                   required
                 />
@@ -248,10 +248,10 @@ export const Login: React.FC = () => {
                       type="password"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Minimum 6 characters"
+                      placeholder="Minimum 8 characters"
                       className="h-9 text-xs border-zinc-300 rounded-lg"
                       required
-                      minLength={6}
+                      minLength={8}
                     />
                   </div>
                 </>
@@ -263,7 +263,9 @@ export const Login: React.FC = () => {
                 className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-9 text-xs font-medium"
               >
                 {forgotLoading
-                  ? 'Processing...'
+                  ? forgotStep === 1
+                    ? 'Sending verification code...'
+                    : 'Updating password...'
                   : forgotStep === 1
                   ? 'Send 6-Digit Reset OTP'
                   : 'Update Password & Save'}

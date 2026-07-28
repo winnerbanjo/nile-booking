@@ -73,7 +73,7 @@ export const VerifyOtp: React.FC = () => {
         setIsVerifiedSuccess(true);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'Invalid verification code. Please check your Mailtrap inbox.');
+      setError(err.response?.data?.message || err.message || 'Please check the 6-digit code and try again.');
     } finally {
       setLoading(false);
     }
@@ -215,7 +215,7 @@ export const VerifyOtp: React.FC = () => {
               className="w-full bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl h-11 text-xs font-semibold shadow-md transition-all flex items-center justify-center gap-2"
             >
               {loading ? (
-                <span>Verifying Code...</span>
+                <span>Verifying...</span>
               ) : (
                 <>
                   <span>Complete Account Setup</span>

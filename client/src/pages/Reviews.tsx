@@ -21,7 +21,7 @@ export const Reviews: React.FC = () => {
           <MessageSquare className="w-10 h-10 text-zinc-300 mx-auto" />
           <h3 className="text-sm font-semibold text-zinc-900">No reviews yet</h3>
           <p className="text-xs text-zinc-500 max-w-sm mx-auto font-normal">
-            Customer reviews will appear here after completed bookings.
+            Customer reviews will appear here after completed appointments.
           </p>
         </div>
       ) : (

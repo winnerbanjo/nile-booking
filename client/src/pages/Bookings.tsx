@@ -127,8 +127,27 @@ export const Bookings: React.FC = () => {
               <tbody className="divide-y divide-zinc-100 text-zinc-700">
                 {bookings.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-zinc-400">
-                      No bookings found for the selected filter.
+                    <td colSpan={8} className="px-6 py-16 text-center">
+                      <div className="max-w-xs mx-auto space-y-3">
+                        <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-400">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-zinc-900">No bookings yet</h3>
+                        <p className="text-xs text-zinc-500 font-normal leading-relaxed">
+                          Bookings from your customers will appear here once appointments start coming in.
+                        </p>
+                        <Button
+                          onClick={() => {
+                            const user = JSON.parse(localStorage.getItem('user') || '{}');
+                            const url = `https://nilebooking.co/p/${user.slug || ''}`;
+                            navigator.clipboard.writeText(url);
+                            alert('Booking link copied to clipboard: ' + url);
+                          }}
+                          className="mt-2 bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-medium px-4 py-2"
+                        >
+                          Share Your Booking Link
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ) : (

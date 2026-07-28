@@ -246,8 +246,16 @@ export const Customers: React.FC = () => {
               <tbody className="divide-y divide-zinc-100 text-zinc-700">
                 {filteredCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-zinc-400">
-                      No customer records match your search.
+                    <td colSpan={6} className="px-6 py-16 text-center">
+                      <div className="max-w-xs mx-auto space-y-2">
+                        <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-400 mb-3">
+                          <Users className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-sm font-semibold text-zinc-900">No customers yet</h3>
+                        <p className="text-xs text-zinc-500 font-normal leading-relaxed">
+                          Customer information will automatically appear after someone books with you.
+                        </p>
+                      </div>
                     </td>
                   </tr>
                 ) : (
