@@ -416,7 +416,11 @@ export const forgotPassword = async (req, res) => {
       return res.status(500).json({ message: 'Failed to send OTP email. Please check terminal logs for the OTP.' });
     }
 
-    res.json({ message: 'Password reset OTP code sent to your email.' });
+    res.json({ 
+      message: 'Password reset OTP code sent to your email.',
+      messageId: emailResult.messageId,
+      smtpConfigured: !!(process.env.SMTP_HOST)
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -459,6 +463,7 @@ export const resetPassword = async (req, res) => {
       user.password = newPassword;
       user.otpCode = null;
       user.otpExpires = null;
+      user.passwordChangedAt = Date.now();
       await user.save();
       resetSuccessful = true;
       userName = user.name;
