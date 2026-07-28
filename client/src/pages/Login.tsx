@@ -108,7 +108,7 @@ export const Login: React.FC = () => {
             Sign in to Merchant Hub
           </h1>
           <p className="text-xs text-zinc-500 font-normal">
-            Manage your storefront, bookings, and customer details
+            Manage your website, bookings, and customer details
           </p>
         </div>
 
@@ -177,7 +177,7 @@ export const Login: React.FC = () => {
             <p className="text-xs text-zinc-500 font-normal">
               Don't have a merchant account?{' '}
               <Link to="/register" className="text-zinc-900 font-semibold hover:underline">
-                Create Storefront
+                Create Your Website
               </Link>
             </p>
           </div>

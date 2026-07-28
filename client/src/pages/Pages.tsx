@@ -58,7 +58,7 @@ export const Pages: React.FC = () => {
               Store Policy Pages
             </h1>
             <p className="text-sm text-zinc-500 mt-1 font-normal">
-              Manage your custom Terms & Conditions, Return Policy, and Privacy Policy for your storefront footer
+              Manage your custom Terms & Conditions, Return Policy, and Privacy Policy for your website footer
             </p>
           </div>
           <Button
@@ -83,7 +83,7 @@ export const Pages: React.FC = () => {
             </div>
             <div>
               <Label className="text-xs font-medium text-zinc-700 mb-1.5 block">
-                Appointment & Storefront Terms
+                Appointment & Website Terms
               </Label>
               <textarea
                 rows={4}
@@ -92,7 +92,7 @@ export const Pages: React.FC = () => {
                 placeholder="Specify your booking rules, arrival policies, and appointment guidelines..."
                 className="w-full text-xs p-3 rounded-lg border border-zinc-300 focus:border-zinc-900 focus:ring-zinc-900 font-normal leading-relaxed text-zinc-800"
               />
-              <p className="text-[11px] text-zinc-400 mt-1">Displayed in your storefront footer modal link.</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Displayed in your website footer modal link.</p>
             </div>
           </div>
 
@@ -115,7 +115,7 @@ export const Pages: React.FC = () => {
                 placeholder="State your refund policy, deposit transfer rules, and service guarantees..."
                 className="w-full text-xs p-3 rounded-lg border border-zinc-300 focus:border-zinc-900 focus:ring-zinc-900 font-normal leading-relaxed text-zinc-800"
               />
-              <p className="text-[11px] text-zinc-400 mt-1">Displayed in your storefront footer modal link.</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Displayed in your website footer modal link.</p>
             </div>
           </div>
 
@@ -138,7 +138,7 @@ export const Pages: React.FC = () => {
                 placeholder="Explain how customer contact info and appointment details are handled..."
                 className="w-full text-xs p-3 rounded-lg border border-zinc-300 focus:border-zinc-900 focus:ring-zinc-900 font-normal leading-relaxed text-zinc-800"
               />
-              <p className="text-[11px] text-zinc-400 mt-1">Displayed in your storefront footer modal link.</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Displayed in your website footer modal link.</p>
             </div>
           </div>
 

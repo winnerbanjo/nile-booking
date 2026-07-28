@@ -264,7 +264,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-xs text-zinc-500 font-normal">Loading Merchant Storefront...</p>
+          <p className="text-xs text-zinc-500 font-normal">Loading booking page...</p>
         </div>
       </div>
     );
@@ -274,8 +274,8 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center p-6 bg-white border border-zinc-200 rounded-xl max-w-sm">
-          <h1 className="text-base font-semibold text-zinc-900 mb-1">Storefront Not Found</h1>
-          <p className="text-xs text-zinc-500">The merchant storefront you are looking for is currently unavailable.</p>
+          <h1 className="text-base font-semibold text-zinc-900 mb-1">Website Not Found</h1>
+          <p className="text-xs text-zinc-500">This booking website is currently unavailable or does not exist.</p>
         </div>
       </div>
     );
@@ -403,9 +403,48 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
 
           {/* Services Selection Grid */}
           {data.services.length === 0 ? (
-            <div className="bg-white border border-zinc-200/80 rounded-xl p-8 text-center space-y-2 shadow-sm">
-              <p className="text-sm font-semibold text-zinc-900">No Services Added Yet</p>
-              <p className="text-xs text-zinc-500 font-normal">Services will appear here once they are added by the merchant.</p>
+            <div className="bg-white border border-zinc-200/80 rounded-xl p-10 text-center space-y-4 shadow-sm">
+              <div className="w-14 h-14 rounded-full bg-zinc-100 flex items-center justify-center mx-auto">
+                <span className="text-2xl">🛎️</span>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-zinc-900 mb-1">Bookings will open soon</h3>
+                <p className="text-xs text-zinc-500 font-normal max-w-xs mx-auto leading-relaxed">
+                  This business is still setting up its services. Please check back shortly or contact the business directly.
+                </p>
+              </div>
+              {(socialHandles?.whatsapp || data.provider.phone || socialHandles?.instagram) && (
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  {(socialHandles?.whatsapp || data.provider.phone) && (
+                    <a
+                      href={`https://wa.me/${(socialHandles?.whatsapp || data.provider.phone || '').replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors"
+                    >
+                      WhatsApp
+                    </a>
+                  )}
+                  {data.provider.phone && (
+                    <a
+                      href={`tel:${data.provider.phone}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-zinc-700 bg-zinc-50 border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors"
+                    >
+                      Call
+                    </a>
+                  )}
+                  {socialHandles?.instagram && (
+                    <a
+                      href={`https://instagram.com/${socialHandles.instagram.replace('@', '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-zinc-700 bg-zinc-50 border border-zinc-200 rounded-lg hover:bg-zinc-100 transition-colors"
+                    >
+                      Instagram
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-3">

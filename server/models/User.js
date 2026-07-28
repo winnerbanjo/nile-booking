@@ -219,6 +219,14 @@ const userSchema = new mongoose.Schema(
         },
       },
     ],
+    onboarding: {
+      websiteGenerated: { type: Boolean, default: false },
+      firstServiceAdded: { type: Boolean, default: false },
+      firstServiceSkipped: { type: Boolean, default: false },
+      availabilityConfigured: { type: Boolean, default: false },
+      onboardingCompleted: { type: Boolean, default: false },
+      completedAt: { type: Date },
+    },
   },
   {
     timestamps: true,

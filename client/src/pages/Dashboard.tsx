@@ -14,15 +14,29 @@ import {
   Plus,
   Store,
   Calendar,
+  CheckCircle,
+  Circle,
+  X,
+  Globe,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { dashboardApi } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
+import { getStorefrontUrl } from '../lib/subdomain';
 import type { Booking } from '../types';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [appointmentStatuses, setAppointmentStatuses] = useState<{ [key: string]: string }>({});
+  const [checklistDismissed, setChecklistDismissed] = useState(() => {
+    if (!user?._id) return false;
+    return localStorage.getItem(`nile_checklist_dismissed_${user._id}`) === 'true';
+  });
+
+  const dismissChecklist = () => {
+    setChecklistDismissed(true);
+    if (user?._id) localStorage.setItem(`nile_checklist_dismissed_${user._id}`, 'true');
+  };
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['dashboardSummary', user?._id],
@@ -76,11 +90,11 @@ export const Dashboard: React.FC = () => {
               </h1>
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                Live Storefront
+                Live Website
               </span>
             </div>
             <p className="text-sm text-zinc-500 mt-1 font-normal">
-              {user?.businessName || 'Merchant Storefront'} • {user?.email}
+              {user?.businessName || 'My Business'} • {user?.email}
             </p>
           </div>
 
@@ -91,7 +105,7 @@ export const Dashboard: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-md hover:bg-zinc-50 transition-colors shadow-2xs"
             >
               <Store className="w-3.5 h-3.5 text-zinc-500" />
-              View Public Store
+              View Website
               <ExternalLink className="w-3 h-3 text-zinc-400" />
             </Link>
             <Link
@@ -103,6 +117,51 @@ export const Dashboard: React.FC = () => {
             </Link>
           </div>
         </div>
+
+        {/* Setup Checklist — dismissible, shown during onboarding */}
+        {!checklistDismissed && !user?.onboarding?.onboardingCompleted && (
+          <div className="bg-white border border-amber-200 rounded-xl p-5 shadow-sm space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-900">Complete your website setup</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {[true, user?.onboarding?.websiteGenerated, user?.onboarding?.firstServiceAdded].filter(Boolean).length} of 7 steps completed
+                </p>
+              </div>
+              <button onClick={dismissChecklist} className="text-zinc-400 hover:text-zinc-600 transition-colors mt-0.5 flex-shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {[
+                { label: 'Create your account', done: true, href: null },
+                { label: 'Generate your website', done: !!(user?.onboarding?.websiteGenerated), href: null },
+                { label: 'Add your first service', done: !!(user?.onboarding?.firstServiceAdded), href: '/dashboard/services' },
+                { label: 'Set your availability', done: false, href: '/dashboard/settings' },
+                { label: 'Add your business logo', done: !!(user?.logo || user?.profileImage), href: '/dashboard/profile' },
+                { label: 'Preview your website', done: false, href: user?.slug ? getStorefrontUrl(user.slug) : null, external: true },
+                { label: 'Share your website link', done: false, href: '/dashboard/marketing' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  {item.done ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                  ) : (
+                    <Circle className="w-4 h-4 text-zinc-200 flex-shrink-0" />
+                  )}
+                  {item.href && !item.done ? (
+                    (item as any).external ? (
+                      <a href={item.href} target="_blank" rel="noopener noreferrer" className="text-xs text-zinc-600 hover:text-zinc-900 hover:underline font-medium">{item.label}</a>
+                    ) : (
+                      <Link to={item.href} className="text-xs text-zinc-600 hover:text-zinc-900 hover:underline font-medium">{item.label}</Link>
+                    )
+                  ) : (
+                    <span className={`text-xs ${item.done ? 'text-zinc-400 line-through' : 'text-zinc-400'}`}>{item.label}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Metric Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -382,12 +441,12 @@ export const Dashboard: React.FC = () => {
             <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-zinc-900 uppercase tracking-wider">
-                  Storefront Setup
+                  Website Setup
                 </h3>
                 <Store className="w-4 h-4 text-emerald-600" />
               </div>
               <p className="text-xs text-zinc-500 font-normal">
-                Customize your merchant banner, bio, and mobile storefront.
+                Customize your merchant banner, bio, and booking website.
               </p>
               <Button
                 variant="outline"

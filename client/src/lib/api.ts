@@ -185,6 +185,18 @@ export const authApi = {
   logout: () => {
     localStorage.removeItem('token');
   },
+
+  updateOnboarding: async (data: {
+    firstServiceAdded?: boolean;
+    firstServiceSkipped?: boolean;
+    availabilityConfigured?: boolean;
+    onboardingCompleted?: boolean;
+  }) => {
+    return request<{ onboarding: any }>('/auth/onboarding', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 // Schedule API

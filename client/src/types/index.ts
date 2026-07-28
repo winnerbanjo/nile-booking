@@ -28,6 +28,20 @@ export interface User {
     card: boolean;
     transfer: boolean;
   };
+  bankAccount?: {
+    bankName?: string;
+    accountNumber?: string;
+    accountName?: string;
+    verified?: boolean;
+  };
+  onboarding?: {
+    websiteGenerated?: boolean;
+    firstServiceAdded?: boolean;
+    firstServiceSkipped?: boolean;
+    availabilityConfigured?: boolean;
+    onboardingCompleted?: boolean;
+    completedAt?: string;
+  };
 }
 
 export interface AuthResponse {

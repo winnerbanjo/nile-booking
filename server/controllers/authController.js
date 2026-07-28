@@ -129,7 +129,7 @@ export const register = async (req, res) => {
     let finalSlug = slug || (businessName || name).toLowerCase().replace(/[^a-z0-9]/g, '-');
     const existingSlug = await User.findOne({ slug: finalSlug });
     if (existingSlug && existingSlug.email !== cleanEmail) {
-      return res.status(400).json({ message: 'That Storefront URL is already taken. Please choose another.' });
+      return res.status(400).json({ message: 'That website URL is already taken. Please choose another.' });
     }
 
     const user = await User.create({
@@ -242,13 +242,15 @@ export const verifyOtp = async (req, res) => {
     user.isVerified = true;
     user.otpCode = null;
     user.otpExpires = null;
+    if (!user.onboarding) user.onboarding = {};
+    user.onboarding.websiteGenerated = true;
     await user.save();
 
     await sendMailtrapApiEmail({
       toEmail: user.email,
       toName: user.name,
-      subject: `🎉 Congratulations! Your Nile Website is Live: nilebooking.co/p/${user.slug}`,
-      htmlContent: `<h1>Congratulations ${user.name}!</h1><p>Your signup is complete and your professional website is live at:</p><h3 style="color:#22c55e;"><a href="https://nilebooking.co/p/${user.slug}">https://nilebooking.co/p/${user.slug}</a></h3><p>Log in to your dashboard anytime to manage your bookings and services.</p>`,
+      subject: `🎉 Your Nile Booking website is live: ${user.slug}.nilebooking.co`,
+      htmlContent: `<h1>Welcome, ${user.name}!</h1><p>Your booking website is live at:</p><h3 style="color:#22c55e;"><a href="https://${user.slug}.nilebooking.co">https://${user.slug}.nilebooking.co</a></h3><p>Log in to your dashboard to add your services and start receiving bookings.</p>`,
       category: 'Welcome Onboarding',
     });
 
@@ -260,6 +262,7 @@ export const verifyOtp = async (req, res) => {
       slug: user.slug,
       businessName: user.businessName,
       isVerified: true,
+      onboarding: user.onboarding,
       token: generateToken(user._id),
     });
   } catch (error) {
@@ -636,6 +639,35 @@ export const updateProfile = async (req, res) => {
 
     await user.save();
     res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Update onboarding progress
+// @route   PATCH /api/auth/onboarding
+// @access  Private
+export const updateOnboarding = async (req, res) => {
+  try {
+    const { firstServiceAdded, firstServiceSkipped, availabilityConfigured, onboardingCompleted } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (!user.onboarding) user.onboarding = {};
+    if (firstServiceAdded !== undefined) user.onboarding.firstServiceAdded = firstServiceAdded;
+    if (firstServiceSkipped !== undefined) user.onboarding.firstServiceSkipped = firstServiceSkipped;
+    if (availabilityConfigured !== undefined) user.onboarding.availabilityConfigured = availabilityConfigured;
+    if (onboardingCompleted !== undefined) {
+      user.onboarding.onboardingCompleted = onboardingCompleted;
+      if (onboardingCompleted && !user.onboarding.completedAt) {
+        user.onboarding.completedAt = new Date();
+      }
+    }
+
+    user.markModified('onboarding');
+    await user.save();
+    res.json({ onboarding: user.onboarding });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

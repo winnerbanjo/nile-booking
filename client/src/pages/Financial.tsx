@@ -299,7 +299,7 @@ export const Financial: React.FC = () => {
                 <Shield className="w-4 h-4 text-zinc-600" />
                 Accepted Payment Methods
               </h2>
-              <p className="text-xs text-zinc-500 font-normal">Choose how customers can pay on your storefront</p>
+              <p className="text-xs text-zinc-500 font-normal">Choose how customers can pay on your website</p>
             </div>
             
             <div className="space-y-4 pt-1">

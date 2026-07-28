@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
             <h4 className="font-semibold text-zinc-900 tracking-tight">Product</h4>
             <ul className="space-y-2 text-zinc-500">
               <li><Link to="/product#features" className="hover:text-zinc-900 transition-colors">Features</Link></li>
-              <li><Link to="/product#storefront" className="hover:text-zinc-900 transition-colors">Storefront</Link></li>
+              <li><Link to="/product#website" className="hover:text-zinc-900 transition-colors">Website</Link></li>
               <li><Link to="/product#domains" className="hover:text-zinc-900 transition-colors">Domains</Link></li>
               <li><Link to="/pricing" className="hover:text-zinc-900 transition-colors">Pricing</Link></li>
             </ul>

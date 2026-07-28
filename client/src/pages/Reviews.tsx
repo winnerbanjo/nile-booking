@@ -12,7 +12,7 @@ export const Reviews: React.FC = () => {
           Customer Reviews & Ratings
         </h1>
         <p className="text-xs text-zinc-500 font-normal mt-1">
-          Automated review requests sent after completed appointments to build trust on your storefront
+          Automated review requests sent after completed appointments to build trust on your website
         </p>
       </div>
 

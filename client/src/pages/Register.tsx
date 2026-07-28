@@ -77,7 +77,7 @@ export const Register: React.FC = () => {
       setStep(3);
     } else if (step === 3) {
       if (!formData.businessName || !formData.country || !formData.slug) {
-        setError('Please fill in required business details, including your Storefront URL.');
+        setError('Please fill in required business details, including your Website URL.');
         return;
       }
       setStep(4);
@@ -124,7 +124,7 @@ export const Register: React.FC = () => {
           <p className="text-xs text-zinc-500 font-normal">
             {step === 1 && 'Step 1 of 4: Account Basics'}
             {step === 2 && 'Step 2 of 4: Select Industry'}
-            {step === 3 && 'Step 3 of 4: Storefront Setup'}
+            {step === 3 && 'Step 3 of 4: Website Setup'}
             {step === 4 && 'Step 4 of 4: Get Paid'}
           </p>
         </div>
@@ -273,7 +273,7 @@ export const Register: React.FC = () => {
                 </div>
 
                 <div>
-                  <Label htmlFor="slug" className="text-xs font-medium text-zinc-700 mb-1 block">Storefront URL</Label>
+                  <Label htmlFor="slug" className="text-xs font-medium text-zinc-700 mb-1 block">Website URL</Label>
                   <div className="flex rounded-lg shadow-sm">
                     <Input
                       id="slug"
@@ -400,7 +400,7 @@ export const Register: React.FC = () => {
                 {step < 4 ? (
                   <>Continue <ArrowRight className="w-3.5 h-3.5 ml-1.5" /></>
                 ) : loading ? (
-                  'Creating your storefront...'
+                  'Creating your website...'
                 ) : (
                   'Complete Registration'
                 )}

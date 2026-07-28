@@ -137,10 +137,10 @@ export const Profile: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200/80 pb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-zinc-900 tracking-tight">
-              Storefront Branding & Profile
+              Website Branding & Profile
             </h1>
             <p className="text-sm text-zinc-500 mt-1 font-normal">
-              Manage your custom business logo, storefront header banner, and social media handles
+              Manage your custom business logo, website header banner, and social media handles
             </p>
           </div>
           <a
@@ -150,7 +150,7 @@ export const Profile: React.FC = () => {
             className="inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-zinc-900 bg-white border border-zinc-300 hover:bg-zinc-50 rounded-lg shadow-sm transition-all self-start md:self-auto"
           >
             <Store className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>View Public Storefront</span>
+            <span>View Website</span>
             <ExternalLink className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
           </a>
         </div>
@@ -163,7 +163,7 @@ export const Profile: React.FC = () => {
             {formData.headerImage ? (
               <img
                 src={formData.headerImage}
-                alt="Storefront Header Banner"
+                alt="Website Header Banner"
                 className="w-full h-full object-cover opacity-90"
               />
             ) : (
@@ -260,7 +260,7 @@ export const Profile: React.FC = () => {
                 <div>
                   <Label className="text-xs font-semibold text-zinc-900 uppercase tracking-wider block flex items-center gap-1.5">
                     <ImageIcon className="w-4 h-4 text-emerald-600" />
-                    Storefront Header Banner Image
+                    Website Header Banner Image
                   </Label>
                   <p className="text-xs text-zinc-500">
                     Upload your high-resolution shop banner or choose a curated industry preset.
@@ -381,10 +381,10 @@ export const Profile: React.FC = () => {
           <div className="border-b border-zinc-200/80 pb-3">
             <h2 className="text-base font-semibold text-zinc-900 flex items-center gap-1.5">
               <Share2 className="w-4 h-4 text-zinc-700" />
-              Storefront Footer Social Media Links
+              Website Footer Social Media Links
             </h2>
             <p className="text-xs text-zinc-500 font-normal">
-              These social channels will be linked in your public storefront footer
+              These social channels will be linked in your public website footer
             </p>
           </div>
 
@@ -461,7 +461,7 @@ export const Profile: React.FC = () => {
         {showToast && (
           <div className="fixed bottom-6 right-6 bg-zinc-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2.5 z-50 text-xs font-medium">
             <CheckCircle className="w-4 h-4 text-emerald-400" />
-            <span>Storefront Profile Saved Successfully</span>
+            <span>Website Profile Saved Successfully</span>
           </div>
         )}
 

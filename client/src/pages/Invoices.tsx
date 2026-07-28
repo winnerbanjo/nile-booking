@@ -254,7 +254,7 @@ export const Invoices: React.FC = () => {
               
               <div className="flex items-start justify-between border-b border-zinc-200 pb-4">
                 <div>
-                  <h2 className="text-xl font-bold text-zinc-900">{user?.businessName || 'Merchant Storefront'}</h2>
+                  <h2 className="text-xl font-bold text-zinc-900">{user?.businessName || 'Merchant Website'}</h2>
                   <p className="text-xs text-zinc-500 font-mono">Invoice #{selectedInvoice.invoiceNumber}</p>
                 </div>
                 <button
