@@ -170,13 +170,6 @@ export const register = async (req, res) => {
       message: 'Registration initiated. Please verify your 6-digit OTP code.',
       email: user.email,
       requiresOtp: true,
-      diagnostic: {
-        timestamp: new Date().toISOString(),
-        email: cleanEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c),
-        status: emailResult.success ? 'accepted' : 'failed',
-        messageId: emailResult.messageId || null,
-        providerResponse: emailResult.data || emailResult.error
-      }
     });
   } catch (error) {
     console.error('Registration error:', error);
@@ -307,16 +300,7 @@ export const resendOtp = async (req, res) => {
       return res.status(500).json({ message: 'Failed to send OTP email. Mailtrap may have blocked it. Please check terminal logs for the OTP.' });
     }
 
-    res.json({ 
-      message: 'New OTP sent successfully',
-      diagnostic: {
-        timestamp: new Date().toISOString(),
-        email: cleanEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c),
-        status: emailResult.success ? 'accepted' : 'failed',
-        messageId: emailResult.messageId || null,
-        providerResponse: emailResult.data || emailResult.error
-      }
-    });
+    res.json({ message: 'New OTP sent successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
