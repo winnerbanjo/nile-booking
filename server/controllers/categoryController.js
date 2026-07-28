@@ -1,7 +1,6 @@
 import slugify from 'slugify';
 import ServiceCategory from '../models/ServiceCategory.js';
 import Service from '../models/Service.js';
-import { ApiError } from '../utils/ApiError.js';
 import mongoose from 'mongoose';
 
 // @desc    Get all categories for merchant
@@ -49,7 +48,7 @@ export const createCategory = async (req, res, next) => {
   try {
     const { name, description, isActive } = req.body;
     if (!name || name.trim().length < 2 || name.trim().length > 60) {
-      return next(new ApiError('Category name must be between 2 and 60 characters', 400));
+      return res.status(400).json({ success: false, message: 'Category name must be between 2 and 60 characters' });
     }
 
     const trimmedName = name.trim();
@@ -68,7 +67,7 @@ export const createCategory = async (req, res, next) => {
         await existing.save();
         return res.status(200).json({ success: true, message: 'Restored deleted category', data: existing });
       }
-      return next(new ApiError('A category with this name already exists', 409));
+      return res.status(409).json({ success: false, message: 'A category with this name already exists' });
     }
 
     // Slug generation
@@ -115,7 +114,7 @@ export const getCategory = async (req, res, next) => {
     });
 
     if (!category) {
-      return next(new ApiError('Category not found', 404));
+      return res.status(404).json({ success: false, message: 'Category not found' });
     }
 
     res.status(200).json({ success: true, data: category });
@@ -136,7 +135,7 @@ export const updateCategory = async (req, res, next) => {
     });
 
     if (!category) {
-      return next(new ApiError('Category not found', 404));
+      return res.status(404).json({ success: false, message: 'Category not found' });
     }
 
     let nameChanged = false;
@@ -144,7 +143,7 @@ export const updateCategory = async (req, res, next) => {
     if (req.body.name) {
       const trimmedName = req.body.name.trim();
       if (trimmedName.length < 2 || trimmedName.length > 60) {
-        return next(new ApiError('Category name must be between 2 and 60 characters', 400));
+        return res.status(400).json({ success: false, message: 'Category name must be between 2 and 60 characters' });
       }
       const normalizedName = trimmedName.toLowerCase();
       
@@ -155,7 +154,7 @@ export const updateCategory = async (req, res, next) => {
           _id: { $ne: category._id }
         });
         if (existing) {
-          return next(new ApiError('A category with this name already exists', 409));
+          return res.status(409).json({ success: false, message: 'A category with this name already exists' });
         }
         category.name = trimmedName;
         category.normalizedName = normalizedName;
@@ -206,7 +205,7 @@ export const reorderCategories = async (req, res, next) => {
   try {
     const { categories } = req.body;
     if (!Array.isArray(categories)) {
-      return next(new ApiError('Invalid payload format', 400));
+      return res.status(400).json({ success: false, message: 'Invalid payload format' });
     }
 
     // Verify all categories belong to merchant
@@ -218,7 +217,7 @@ export const reorderCategories = async (req, res, next) => {
     });
 
     if (existingCount !== categories.length) {
-      return next(new ApiError('One or more categories are invalid or do not belong to you', 400));
+      return res.status(400).json({ success: false, message: 'One or more categories are invalid or do not belong to you' });
     }
 
     const bulkOps = categories.map((cat) => ({
@@ -250,7 +249,7 @@ export const deleteCategory = async (req, res, next) => {
     });
 
     if (!category) {
-      return next(new ApiError('Category not found', 404));
+      return res.status(404).json({ success: false, message: 'Category not found' });
     }
 
     const linkedServicesCount = await Service.countDocuments({
@@ -260,12 +259,12 @@ export const deleteCategory = async (req, res, next) => {
 
     if (linkedServicesCount > 0) {
       if (!action) {
-        return next(new ApiError('Action required because category contains services', 400));
+        return res.status(400).json({ success: false, message: 'Action required because category contains services' });
       }
 
       if (action === 'move') {
         if (!targetCategoryId) {
-          return next(new ApiError('Target category ID required', 400));
+          return res.status(400).json({ success: false, message: 'Target category ID required' });
         }
         const targetCat = await ServiceCategory.findOne({
           _id: targetCategoryId,
@@ -273,7 +272,7 @@ export const deleteCategory = async (req, res, next) => {
           deletedAt: null
         });
         if (!targetCat) {
-          return next(new ApiError('Target category not found', 404));
+          return res.status(404).json({ success: false, message: 'Target category not found' });
         }
         await Service.updateMany(
           { categoryId: category._id, provider: req.user._id },
@@ -285,7 +284,7 @@ export const deleteCategory = async (req, res, next) => {
           { $set: { categoryId: null, categoryNameSnapshot: '' } }
         );
       } else {
-        return next(new ApiError('Invalid action', 400));
+        return res.status(400).json({ success: false, message: 'Invalid action' });
       }
     }
 
