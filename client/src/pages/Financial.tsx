@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../lib/queryClient';
 import { bookingApi, authApi, paymentApi } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -6,14 +8,12 @@ import { Label } from '../components/ui/label';
 import { DollarSign, TrendingUp, Clock, Shield, ArrowUpRight, Building2, CheckCircle2 } from 'lucide-react';
 import type { BookingStats, Booking, User } from '../types';
 import { format } from 'date-fns';
+import { MetricCardSkeleton, TableSkeleton } from '../components/ui/SkeletonLoader';
+import { EmptyState } from '../components/ui/EmptyState';
 
 export const Financial: React.FC = () => {
-  const [stats, setStats] = useState<BookingStats | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showPayoutModal, setShowPayoutModal] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [banks, setBanks] = useState<Array<{ name: string; code: string }>>([]);
   const [bankAccount, setBankAccount] = useState({
     bankCode: '',
     accountNumber: '',
@@ -27,80 +27,41 @@ export const Financial: React.FC = () => {
 
 
 
-  useEffect(() => {
-    loadData();
-    loadUser();
-    loadBanks();
-  }, []);
+  const { data: user, isLoading: isUserLoading } = useQuery({
+    queryKey: queryKeys.auth.me,
+    queryFn: authApi.getMe,
+  });
 
-  const loadUser = async () => {
-    try {
-      const userData = await authApi.getMe();
-      setUser(userData);
-      if (userData.bankAccount) {
-        setBankAccount({
-          bankCode: userData.bankAccount.bankName || '',
-          accountNumber: userData.bankAccount.accountNumber || '',
-          accountName: userData.bankAccount.accountName || '',
-        });
-      }
-      if (userData.paymentMethods) {
-        setPaymentMethods({
-          cash: userData.paymentMethods.cash ?? true,
-          card: userData.paymentMethods.card ?? false,
-          transfer: userData.paymentMethods.transfer ?? true,
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load user:', error);
-    }
+  const { data: bankData } = useQuery({
+    queryKey: ['banks'],
+    queryFn: paymentApi.getBanks,
+  });
+
+  const { data: statsData, isLoading: isStatsLoading, isError: isStatsError, refetch: refetchStats } = useQuery({
+    queryKey: queryKeys.merchant.dashboard,
+    queryFn: bookingApi.getBookingStats,
+  });
+
+  const { data: bookingsData, isLoading: isBookingsLoading, isError: isBookingsError, refetch: refetchBookings } = useQuery({
+    queryKey: queryKeys.merchant.bookings({ limit: 50 }),
+    queryFn: () => bookingApi.getBookings({ limit: 50 }),
+  });
+
+  const stats = statsData || {
+    totalBookings: 0,
+    confirmedBookings: 0,
+    completedBookings: 0,
+    pendingBookings: 0,
+    totalRevenue: 0,
+    pendingPayouts: 0,
+    successRate: 0,
   };
+  const bookings = bookingsData?.bookings || [];
+  const banks = bankData?.data || [];
+  const isLoading = isStatsLoading || isBookingsLoading;
+  const isError = isStatsError || isBookingsError;
 
-  const loadBanks = async () => {
-    try {
-      const response = await paymentApi.getBanks();
-      if (response.status && response.data) {
-        setBanks(response.data);
-      }
-    } catch (error) {
-      console.error('Failed to load banks:', error);
-    }
-  };
 
-  const loadData = async () => {
-    try {
-      const [statsData, bookingsData] = await Promise.all([
-        bookingApi.getBookingStats(),
-        bookingApi.getBookings({ limit: 50 }),
-      ]);
-      setStats(statsData);
-      setBookings(bookingsData.bookings || []);
-    } catch (error) {
-      console.error('Failed to load financial data:', error);
-      setStats({
-        totalBookings: 0,
-        confirmedBookings: 0,
-        completedBookings: 0,
-        pendingBookings: 0,
-        totalRevenue: 0,
-        pendingPayouts: 0,
-        successRate: 0,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-xs text-zinc-500 font-normal">Loading financial stats...</p>
-        </div>
-      </div>
-    );
-  }
 
   const availableBalance = (stats?.totalRevenue || 1250000) - (stats?.pendingPayouts || 450000);
 
@@ -197,10 +158,31 @@ export const Financial: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                  {bookings.length === 0 ? (
+                  {isLoading ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-zinc-500 text-xs">
-                        No recent transactions found.
+                      <td colSpan={5} className="p-4">
+                        <TableSkeleton rows={4} columns={5} />
+                      </td>
+                    </tr>
+                  ) : isError ? (
+                    <tr>
+                      <td colSpan={5} className="p-0">
+                        <EmptyState 
+                          type="error"
+                          title="Failed to load transactions"
+                          description="We couldn't retrieve your payment records."
+                          primaryAction={{ label: 'Retry', onClick: () => refetchBookings() }}
+                        />
+                      </td>
+                    </tr>
+                  ) : bookings.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-0">
+                        <EmptyState 
+                          type="empty"
+                          title="No transactions yet"
+                          description="Transactions will appear here after your first booking."
+                        />
                       </td>
                     </tr>
                   ) : bookings.map((tx: any) => (

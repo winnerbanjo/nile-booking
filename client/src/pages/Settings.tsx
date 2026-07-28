@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../lib/queryClient';
 import { scheduleApi, bookingApi } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -6,6 +8,7 @@ import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import type { Schedule, WeeklySchedule } from '../types';
 import { Plus, Trash2, Clock, CheckCircle2, Sliders } from 'lucide-react';
+import { EmptyState } from '../components/ui/EmptyState';
 
 const DAYS = [
   { key: 'monday', label: 'Monday' },
@@ -18,8 +21,8 @@ const DAYS = [
 ] as const;
 
 export const Settings: React.FC = () => {
+  const queryClient = useQueryClient();
   const [schedule, setSchedule] = useState<Schedule | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showToast, setShowToast] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -31,21 +34,29 @@ export const Settings: React.FC = () => {
     loadData();
   }, []);
 
-  const autoSave = async () => {
-    if (!schedule) return;
+  const updateMutation = useMutation({
+    mutationFn: (data: { weeklySchedule?: WeeklySchedule; bufferTime?: number }) => scheduleApi.updateSchedule(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.schedule });
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 2000);
+    },
+    onError: (error) => {
+      console.error('Auto-save failed:', error);
+    }
+  });
+
+  const autoSave = (currentSchedule?: Schedule | null, currentBufferTime?: number) => {
+    const sched = currentSchedule || schedule;
+    const buf = currentBufferTime !== undefined ? currentBufferTime : bufferTime;
+    if (!sched) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await scheduleApi.updateSchedule({
-          weeklySchedule: schedule.weeklySchedule,
-          bufferTime,
-        });
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 2000);
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-      }
+    saveTimeoutRef.current = setTimeout(() => {
+      updateMutation.mutate({
+        weeklySchedule: sched.weeklySchedule,
+        bufferTime: buf,
+      });
     }, 800);
   };
 
@@ -68,26 +79,28 @@ export const Settings: React.FC = () => {
     },
   };
 
-  const loadData = async () => {
-    try {
-      const data = await scheduleApi.getSchedule();
-      if (data && data.weeklySchedule) {
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.merchant.schedule,
+    queryFn: scheduleApi.getSchedule,
+  });
+
+  useEffect(() => {
+    if (data) {
+      if (data.weeklySchedule) {
         setSchedule(data);
         setBufferTime(data.bufferTime || 15);
       } else {
         setSchedule(defaultSchedule);
       }
-    } catch (error) {
-      console.error('Failed to load schedule, using fallback:', error);
+    } else if (isError) {
+      console.error('Failed to load schedule, using fallback');
       setSchedule(defaultSchedule);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [data, isError]);
 
   const updateDayEnabled = (dayKey: keyof WeeklySchedule, enabled: boolean) => {
     if (!schedule) return;
-    setSchedule({
+    const newSchedule = {
       ...schedule,
       weeklySchedule: {
         ...schedule.weeklySchedule,
@@ -96,14 +109,15 @@ export const Settings: React.FC = () => {
           enabled,
         },
       },
-    });
-    autoSave();
+    };
+    setSchedule(newSchedule);
+    autoSave(newSchedule);
   };
 
   const addTimeSlot = (dayKey: keyof WeeklySchedule) => {
     if (!schedule) return;
     const day = schedule.weeklySchedule[dayKey];
-    setSchedule({
+    const newSchedule = {
       ...schedule,
       weeklySchedule: {
         ...schedule.weeklySchedule,
@@ -112,14 +126,15 @@ export const Settings: React.FC = () => {
           timeSlots: [...day.timeSlots, { startTime: '09:00', endTime: '17:00' }],
         },
       },
-    });
-    autoSave();
+    };
+    setSchedule(newSchedule);
+    autoSave(newSchedule);
   };
 
   const removeTimeSlot = (dayKey: keyof WeeklySchedule, index: number) => {
     if (!schedule) return;
     const day = schedule.weeklySchedule[dayKey];
-    setSchedule({
+    const newSchedule = {
       ...schedule,
       weeklySchedule: {
         ...schedule.weeklySchedule,
@@ -128,8 +143,9 @@ export const Settings: React.FC = () => {
           timeSlots: day.timeSlots.filter((_, i) => i !== index),
         },
       },
-    });
-    autoSave();
+    };
+    setSchedule(newSchedule);
+    autoSave(newSchedule);
   };
 
   const updateTimeSlot = (
@@ -143,7 +159,7 @@ export const Settings: React.FC = () => {
     const updatedSlots = day.timeSlots.map((slot, i) =>
       i === index ? { ...slot, [field]: value } : slot
     );
-    setSchedule({
+    const newSchedule = {
       ...schedule,
       weeklySchedule: {
         ...schedule.weeklySchedule,
@@ -152,17 +168,31 @@ export const Settings: React.FC = () => {
           timeSlots: updatedSlots,
         },
       },
-    });
-    autoSave();
+    };
+    setSchedule(newSchedule);
+    autoSave(newSchedule);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="mt-3 text-xs text-zinc-500 font-normal">Loading schedule...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (isError && !schedule) {
+    return (
+      <div className="min-h-screen p-8">
+        <EmptyState 
+          type="error"
+          title="Failed to load settings"
+          description="We couldn't retrieve your schedule settings."
+          primaryAction={{ label: 'Retry', onClick: () => refetch() }}
+        />
       </div>
     );
   }
@@ -196,8 +226,9 @@ export const Settings: React.FC = () => {
               <select
                 value={bufferTime}
                 onChange={(e) => {
-                  setBufferTime(parseInt(e.target.value));
-                  autoSave();
+                  const newBuffer = parseInt(e.target.value);
+                  setBufferTime(newBuffer);
+                  autoSave(schedule, newBuffer);
                 }}
                 className="w-full h-9 rounded-lg border border-zinc-300 bg-white px-3 text-xs text-zinc-900 focus:border-zinc-900 focus:ring-zinc-900"
               >
@@ -214,7 +245,6 @@ export const Settings: React.FC = () => {
                 value={bookingWindow}
                 onChange={(e) => {
                   setBookingWindow(parseInt(e.target.value));
-                  autoSave();
                 }}
                 className="w-full h-9 rounded-lg border border-zinc-300 bg-white px-3 text-xs text-zinc-900 focus:border-zinc-900 focus:ring-zinc-900"
               >
@@ -231,7 +261,6 @@ export const Settings: React.FC = () => {
                 value={minimumLeadTime}
                 onChange={(e) => {
                   setMinimumLeadTime(parseInt(e.target.value));
-                  autoSave();
                 }}
                 className="w-full h-9 rounded-lg border border-zinc-300 bg-white px-3 text-xs text-zinc-900 focus:border-zinc-900 focus:ring-zinc-900"
               >

@@ -1,46 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { bookingApi } from '../lib/api';
+import { queryKeys } from '../lib/queryClient';
 import { Button } from '../components/ui/button';
 import { Check, X, CheckCircle, FileText, Loader2, Filter } from 'lucide-react';
+import { EmptyState } from '../components/ui/EmptyState';
+import { TableSkeleton } from '../components/ui/SkeletonLoader';
 import type { Booking } from '../types';
 import { format } from 'date-fns';
+import { safeDate } from '../lib/utils';
+import { useAuth } from '../contexts/AuthContext';
 
 export const Bookings: React.FC = () => {
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [selectedReceipt, setSelectedReceipt] = useState<Booking | null>(null);
   const [processingReceipt, setProcessingReceipt] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadBookings();
-  }, [statusFilter, page]);
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.merchant.bookings({ status: statusFilter !== 'all' ? statusFilter : undefined, page, limit: 20 }),
+    queryFn: () => bookingApi.getBookings({
+      status: statusFilter !== 'all' ? statusFilter : undefined,
+      page,
+      limit: 20,
+    }),
+  });
 
-  const loadBookings = async () => {
-    try {
-      const response = await bookingApi.getBookings({
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        page,
-        limit: 20,
-      });
-      setBookings(response.bookings || []);
-      setTotalPages(response.totalPages || 1);
-    } catch (error) {
-      console.error('Failed to load bookings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const bookings = data?.bookings || [];
+  const totalPages = data?.totalPages || 1;
 
-  const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
-    try {
-      await bookingApi.updateBookingStatus(bookingId, newStatus);
-      loadBookings();
-    } catch (error: any) {
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string, status: string }) => bookingApi.updateBookingStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.bookings() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.dashboard });
+    },
+    onError: (error: any) => {
       alert('Failed to update booking: ' + (error.message || 'Unknown error'));
     }
+  });
+
+  const handleStatusUpdate = (bookingId: string, newStatus: string) => {
+    updateStatusMutation.mutate({ id: bookingId, status: newStatus });
   };
 
   const handleReceiptAction = async (bookingId: string, action: 'approve' | 'reject') => {
@@ -53,7 +56,8 @@ export const Bookings: React.FC = () => {
         await bookingApi.updateBookingStatus(bookingId, 'rejected');
       }
       setSelectedReceipt(null);
-      loadBookings();
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.bookings() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.dashboard });
       alert(`Receipt ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
     } catch (error: any) {
       alert('Failed to process receipt: ' + (error.message || 'Unknown error'));
@@ -61,17 +65,6 @@ export const Bookings: React.FC = () => {
       setProcessingReceipt(null);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-xs text-zinc-500 font-normal">Loading bookings...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
@@ -125,29 +118,44 @@ export const Bookings: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                {bookings.length === 0 ? (
+                {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-16 text-center">
-                      <div className="max-w-xs mx-auto space-y-3">
-                        <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-400">
-                          <FileText className="w-6 h-6" />
-                        </div>
-                        <h3 className="text-sm font-semibold text-zinc-900">No bookings yet</h3>
-                        <p className="text-xs text-zinc-500 font-normal leading-relaxed">
-                          Bookings from your customers will appear here once appointments start coming in.
-                        </p>
-                        <Button
-                          onClick={() => {
-                            const user = JSON.parse(localStorage.getItem('user') || '{}');
-                            const url = `https://nilebooking.co/p/${user.slug || ''}`;
+                    <td colSpan={8} className="p-4">
+                      <TableSkeleton rows={5} columns={8} />
+                    </td>
+                  </tr>
+                ) : isError ? (
+                  <tr>
+                    <td colSpan={8} className="p-0">
+                      <EmptyState 
+                        type="error"
+                        title="Failed to load bookings"
+                        description="We couldn't retrieve your bookings. Please try again."
+                        primaryAction={{ label: 'Retry', onClick: () => refetch() }}
+                      />
+                    </td>
+                  </tr>
+                ) : bookings.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-0">
+                      <EmptyState 
+                        type={statusFilter === 'all' ? 'empty' : 'filter'}
+                        title={statusFilter === 'all' ? 'No bookings yet' : 'No matching bookings'}
+                        description={statusFilter === 'all' 
+                          ? 'Bookings from your customers will appear here once appointments start coming in.' 
+                          : 'Try changing or clearing the selected filters.'}
+                        primaryAction={statusFilter === 'all' ? {
+                          label: 'Copy Booking Link',
+                          onClick: () => {
+                            const url = `https://nilebooking.co/p/${user?.slug || ''}`;
                             navigator.clipboard.writeText(url);
-                            alert('Booking link copied to clipboard: ' + url);
-                          }}
-                          className="mt-2 bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-medium px-4 py-2"
-                        >
-                          Share Your Booking Link
-                        </Button>
-                      </div>
+                            alert('Booking link copied to clipboard!');
+                          }
+                        } : {
+                          label: 'Clear Filters',
+                          onClick: () => setStatusFilter('all')
+                        }}
+                      />
                     </td>
                   </tr>
                 ) : (

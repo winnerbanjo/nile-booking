@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { bookingApi } from '../lib/api';
+import { queryKeys } from '../lib/queryClient';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Users, Phone, Mail, Calendar, DollarSign, Search, MessageCircle, X, Shield, Star, Clock, CheckCircle2, UserPlus } from 'lucide-react';
+import { EmptyState } from '../components/ui/EmptyState';
+import { MetricCardSkeleton, TableSkeleton } from '../components/ui/SkeletonLoader';
 import type { Booking } from '../types';
 import { format, parseISO } from 'date-fns';
+import { safeDate } from '../lib/utils';
 
 interface CustomerSummary {
   id: string;
@@ -20,8 +25,6 @@ interface CustomerSummary {
 }
 
 export const Customers: React.FC = () => {
-  const [customers, setCustomers] = useState<CustomerSummary[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSummary | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -33,64 +36,53 @@ export const Customers: React.FC = () => {
     notes: '',
   });
 
-  useEffect(() => {
-    const cached = localStorage.getItem('nile_crm_cache');
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached);
-        setCustomers(parsed);
-        setLoading(false);
-      } catch (e) {}
-    }
-    loadCustomerData();
-  }, []);
+  const fetchCustomers = async (): Promise<CustomerSummary[]> => {
+    const response = await bookingApi.getBookings({ limit: 100 });
+    const bookingsList = response.bookings || [];
 
-  const loadCustomerData = async () => {
-    try {
-      const response = await bookingApi.getBookings({ limit: 100 });
-      const bookingsList = response.bookings || [];
+    // Group bookings by customer email/phone to create CRM aggregation
+    const customerMap = new Map<string, CustomerSummary>();
 
-      // Group bookings by customer email/phone to create CRM aggregation
-      const customerMap = new Map<string, CustomerSummary>();
+    bookingsList.forEach((booking) => {
+      const key = booking.customer.email.toLowerCase() || booking.customer.phone;
+      const serviceName = typeof booking.service === 'object' ? booking.service.name : 'General Service';
+      const amount = booking.pricing?.totalAmount || 0;
 
-      bookingsList.forEach((booking) => {
-        const key = booking.customer.email.toLowerCase() || booking.customer.phone;
-        const serviceName = typeof booking.service === 'object' ? booking.service.name : 'General Service';
-        const amount = booking.pricing?.totalAmount || 0;
-
-        if (!customerMap.has(key)) {
-          customerMap.set(key, {
-            id: key,
-            name: booking.customer.name,
-            email: booking.customer.email,
-            phone: booking.customer.phone,
-            totalBookings: 1,
-            totalSpent: amount,
-            lastVisit: booking.date,
-            favoriteService: serviceName,
-            bookingsHistory: [booking],
-          });
-        } else {
-          const existing = customerMap.get(key)!;
-          existing.totalBookings += 1;
-          existing.totalSpent += amount;
-          existing.bookingsHistory.push(booking);
-          if (safeDate(booking.date) || new Date() > new Date(existing.lastVisit)) {
-            existing.lastVisit = booking.date;
-            existing.favoriteService = serviceName;
-          }
+      if (!customerMap.has(key)) {
+        customerMap.set(key, {
+          id: key,
+          name: booking.customer.name,
+          email: booking.customer.email,
+          phone: booking.customer.phone,
+          totalBookings: 1,
+          totalSpent: amount,
+          lastVisit: booking.date,
+          favoriteService: serviceName,
+          bookingsHistory: [booking],
+        });
+      } else {
+        const existing = customerMap.get(key)!;
+        existing.totalBookings += 1;
+        existing.totalSpent += amount;
+        existing.bookingsHistory.push(booking);
+        if (safeDate(booking.date) || new Date() > new Date(existing.lastVisit)) {
+          existing.lastVisit = booking.date;
+          existing.favoriteService = serviceName;
         }
-      });
+      }
+    });
 
-      const aggregated = Array.from(customerMap.values());
-      setCustomers(aggregated);
-      localStorage.setItem('nile_crm_cache', JSON.stringify(aggregated));
-    } catch (error) {
-      console.error('Failed to load CRM customer data:', error);
-    } finally {
-      setLoading(false);
-    }
+    return Array.from(customerMap.values());
   };
+
+  const { data: serverCustomers = [], isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.merchant.customers,
+    queryFn: fetchCustomers,
+  });
+
+  // Local state for manually added customers before they book
+  const [localAddedCustomers, setLocalAddedCustomers] = useState<CustomerSummary[]>([]);
+  const customers = [...localAddedCustomers, ...serverCustomers];
 
   const handleAddCustomerSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +103,7 @@ export const Customers: React.FC = () => {
       bookingsHistory: [],
     };
 
-    setCustomers([created, ...customers]);
+    setLocalAddedCustomers([created, ...localAddedCustomers]);
     setShowAddModal(false);
     setNewCustomer({ name: '', email: '', phone: '', notes: '' });
     alert('New customer added to CRM directory!');
@@ -128,16 +120,7 @@ export const Customers: React.FC = () => {
   const repeatClients = customers.filter((c) => c.totalBookings > 1).length;
   const totalLifetimeRevenue = customers.reduce((sum, c) => sum + c.totalSpent, 0);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-xs text-zinc-500 font-normal">Loading Customer CRM...</p>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
@@ -178,50 +161,65 @@ export const Customers: React.FC = () => {
 
         {/* 3 Stripe Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Total Unique Clients</span>
-              <div className="w-7 h-7 rounded bg-zinc-100 flex items-center justify-center text-zinc-600">
-                <Users className="w-4 h-4" />
-              </div>
+          {isLoading ? (
+            Array.from({ length: 3 }).map((_, i) => <MetricCardSkeleton key={i} />)
+          ) : isError ? (
+            <div className="col-span-full">
+              <EmptyState 
+                type="error"
+                title="Metrics Unavailable"
+                description="We couldn't load your customer metrics."
+                primaryAction={{ label: 'Retry', onClick: () => refetch() }}
+              />
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                {totalClients} Clients
+          ) : (
+            <>
+              <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Total Unique Clients</span>
+                  <div className="w-7 h-7 rounded bg-zinc-100 flex items-center justify-center text-zinc-600">
+                    <Users className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                    {totalClients} Clients
+                  </div>
+                  <div className="text-xs text-zinc-500 mt-1 font-normal">Active customer directory</div>
+                </div>
               </div>
-              <div className="text-xs text-zinc-500 mt-1 font-normal">Active customer directory</div>
-            </div>
-          </div>
 
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Repeat Client Rate</span>
-              <div className="w-7 h-7 rounded bg-emerald-50 flex items-center justify-center text-emerald-700">
-                <CheckCircle2 className="w-4 h-4" />
+              <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Repeat Client Rate</span>
+                  <div className="w-7 h-7 rounded bg-emerald-50 flex items-center justify-center text-emerald-700">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                    {totalClients > 0 ? Math.round((repeatClients / totalClients) * 100) : 0}% Repeat
+                  </div>
+                  <div className="text-xs text-zinc-500 mt-1 font-normal">{repeatClients} clients with 2+ bookings</div>
+                </div>
               </div>
-            </div>
-            <div className="mt-3">
-              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                {totalClients > 0 ? Math.round((repeatClients / totalClients) * 100) : 0}% Repeat
-              </div>
-              <div className="text-xs text-zinc-500 mt-1 font-normal">{repeatClients} clients with 2+ bookings</div>
-            </div>
-          </div>
 
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Cumulative Client LTV</span>
-              <div className="w-7 h-7 rounded bg-zinc-100 flex items-center justify-center text-zinc-600">
-                <DollarSign className="w-4 h-4" />
+              <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Cumulative Client LTV</span>
+                  <div className="w-7 h-7 rounded bg-zinc-100 flex items-center justify-center text-zinc-600">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                    ₦{totalLifetimeRevenue.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-zinc-500 mt-1 font-normal">Lifetime revenue from CRM portfolio</div>
+                </div>
               </div>
-            </div>
-            <div className="mt-3">
-              <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                ₦{totalLifetimeRevenue.toLocaleString()}
-              </div>
-              <div className="text-xs text-zinc-500 mt-1 font-normal">Lifetime revenue from CRM portfolio</div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
 
         {/* Customer Directory Table */}
@@ -244,18 +242,32 @@ export const Customers: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 text-zinc-700">
-                {filteredCustomers.length === 0 ? (
+                {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center">
-                      <div className="max-w-xs mx-auto space-y-2">
-                        <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-400 mb-3">
-                          <Users className="w-6 h-6" />
-                        </div>
-                        <h3 className="text-sm font-semibold text-zinc-900">No customers yet</h3>
-                        <p className="text-xs text-zinc-500 font-normal leading-relaxed">
-                          Customer information will automatically appear after someone books with you.
-                        </p>
-                      </div>
+                    <td colSpan={6} className="p-4">
+                      <TableSkeleton rows={4} columns={6} />
+                    </td>
+                  </tr>
+                ) : isError ? (
+                  <tr>
+                    <td colSpan={6} className="p-0">
+                      <EmptyState 
+                        type="error"
+                        title="Failed to load CRM"
+                        description="We couldn't retrieve your customer records."
+                        primaryAction={{ label: 'Retry', onClick: () => refetch() }}
+                      />
+                    </td>
+                  </tr>
+                ) : filteredCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-0">
+                      <EmptyState 
+                        type={searchTerm ? 'search' : 'empty'}
+                        title={searchTerm ? 'No results found' : 'No customers yet'}
+                        description={searchTerm ? `No clients matched "${searchTerm}"` : 'Customer information will automatically appear after someone books with you.'}
+                        primaryAction={searchTerm ? { label: 'Clear Search', onClick: () => setSearchTerm('') } : undefined}
+                      />
                     </td>
                   </tr>
                 ) : (

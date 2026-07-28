@@ -27,6 +27,8 @@ import { NileLogo } from '../ui/NileLogo';
 import { getStorefrontUrl } from '../../lib/subdomain';
 
 import { Star, Tag, ShoppingBag } from 'lucide-react';
+import { serviceApi, bookingApi, dashboardApi, categoryApi } from '../../lib/api';
+import { queryClient, queryKeys } from '../../lib/queryClient';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -98,11 +100,23 @@ export const DashboardLayout: React.FC = () => {
           <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
+              const handleMouseEnter = () => {
+                if (item.href === '/dashboard/services') {
+                  queryClient.prefetchQuery({ queryKey: queryKeys.merchant.services(), queryFn: () => serviceApi.getServices() });
+                  queryClient.prefetchQuery({ queryKey: queryKeys.merchant.categories, queryFn: () => categoryApi.getCategories() });
+                } else if (item.href === '/dashboard/bookings') {
+                  queryClient.prefetchQuery({ queryKey: queryKeys.merchant.bookings(), queryFn: () => bookingApi.getBookings() });
+                } else if (item.href === '/dashboard') {
+                  queryClient.prefetchQuery({ queryKey: queryKeys.merchant.dashboard, queryFn: () => dashboardApi.getSummary() });
+                }
+              };
               return (
                 <Link
                   key={item.name}
                   to={item.href}
                   onClick={() => setSidebarOpen(false)}
+                  onMouseEnter={handleMouseEnter}
+                  onFocus={handleMouseEnter}
                   className={cn(
                     'flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-colors',
                     isActive

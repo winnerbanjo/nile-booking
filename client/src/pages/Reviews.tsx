@@ -1,5 +1,6 @@
 import React from 'react';
 import { Star, MessageSquare } from 'lucide-react';
+import { EmptyState } from '../components/ui/EmptyState';
 
 export const Reviews: React.FC = () => {
   const reviews: any[] = [];
@@ -17,13 +18,11 @@ export const Reviews: React.FC = () => {
       </div>
 
       {reviews.length === 0 ? (
-        <div className="bg-white border border-zinc-200/80 rounded-xl p-12 text-center space-y-3 shadow-sm">
-          <MessageSquare className="w-10 h-10 text-zinc-300 mx-auto" />
-          <h3 className="text-sm font-semibold text-zinc-900">No reviews yet</h3>
-          <p className="text-xs text-zinc-500 max-w-sm mx-auto font-normal">
-            Customer reviews will appear here after completed appointments.
-          </p>
-        </div>
+        <EmptyState
+          type="empty"
+          title="No reviews yet"
+          description="Customer reviews will appear here after completed appointments."
+        />
       ) : (
         <div className="bg-white border border-zinc-200/80 rounded-xl p-6 shadow-sm space-y-4">
           <div className="divide-y divide-zinc-100">

@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../lib/queryClient';
 import { staffApi, serviceApi } from '../lib/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { UserCheck, UserPlus, Trash2, Key, Shield, CheckCircle2, Phone, Mail, X, Scissors } from 'lucide-react';
 import type { Service } from '../types';
+import { EmptyState } from '../components/ui/EmptyState';
+import { MetricCardSkeleton } from '../components/ui/SkeletonLoader';
 
 interface StaffMember {
   _id: string;
@@ -18,9 +22,7 @@ interface StaffMember {
 }
 
 export const Staff: React.FC = () => {
-  const [staffList, setStaffList] = useState<StaffMember[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
 
   const [newStaff, setNewStaff] = useState({
@@ -32,44 +34,25 @@ export const Staff: React.FC = () => {
     assignedServices: [] as string[],
   });
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const { data: staffData = [], isLoading: isStaffLoading, isError: isStaffError, refetch: refetchStaff } = useQuery({
+    queryKey: ['staff'],
+    queryFn: staffApi.getStaff,
+  });
 
-  const loadData = async () => {
-    try {
-      const [staffData, serviceData] = await Promise.all([
-        staffApi.getStaff(),
-        serviceApi.getServices(),
-      ]);
-      setStaffList(staffData || []);
-      setServices(serviceData || []);
-    } catch (error) {
-      console.error('Failed to load staff data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: servicesData = [], isLoading: isServicesLoading } = useQuery({
+    queryKey: queryKeys.merchant.services,
+    queryFn: serviceApi.getServices,
+  });
 
-  const handleToggleService = (serviceName: string) => {
-    const current = newStaff.assignedServices;
-    if (current.includes(serviceName)) {
-      setNewStaff({ ...newStaff, assignedServices: current.filter((s) => s !== serviceName) });
-    } else {
-      setNewStaff({ ...newStaff, assignedServices: [...current, serviceName] });
-    }
-  };
+  const staffList = staffData || [];
+  const services = servicesData || [];
+  const isLoading = isStaffLoading || isServicesLoading;
+  const isError = isStaffError;
 
-  const handleAddStaffSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newStaff.name || !newStaff.email || !newStaff.password) {
-      alert('Please provide staff name, login email, and login password.');
-      return;
-    }
-
-    try {
-      const created = await staffApi.createStaff(newStaff);
-      setStaffList([created, ...staffList]);
+  const createMutation = useMutation({
+    mutationFn: (data: any) => staffApi.createStaff(data),
+    onSuccess: (created: any) => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
       setShowAddModal(false);
       setNewStaff({
         name: '',
@@ -80,31 +63,46 @@ export const Staff: React.FC = () => {
         assignedServices: [],
       });
       alert(`Staff account for ${created.name} created! They can log in with: ${created.email}`);
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       alert('Failed to create staff member: ' + (error.message || 'Unknown error'));
     }
-  };
+  });
 
-  const handleDeleteStaff = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to remove ${name}?`)) return;
-    try {
-      await staffApi.deleteStaff(id);
-      setStaffList(staffList.filter((s) => s._id !== id));
-    } catch (error: any) {
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => staffApi.deleteStaff(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+    },
+    onError: (error: any) => {
       alert('Failed to delete staff member: ' + (error.message || 'Unknown error'));
+    }
+  });
+
+  const handleToggleService = (serviceName: string) => {
+    const current = newStaff.assignedServices;
+    if (current.includes(serviceName)) {
+      setNewStaff({ ...newStaff, assignedServices: current.filter((s) => s !== serviceName) });
+    } else {
+      setNewStaff({ ...newStaff, assignedServices: [...current, serviceName] });
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-xs text-zinc-500 font-normal">Loading Staff Directory...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleAddStaffSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStaff.name || !newStaff.email || !newStaff.password) {
+      alert('Please provide staff name, login email, and login password.');
+      return;
+    }
+    createMutation.mutate(newStaff);
+  };
+
+  const handleDeleteStaff = (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to remove ${name}?`)) return;
+    deleteMutation.mutate(id);
+  };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
@@ -131,23 +129,27 @@ export const Staff: React.FC = () => {
         </div>
 
         {/* Staff Grid Cards */}
-        {staffList.length === 0 ? (
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-12 text-center max-w-md mx-auto space-y-3 shadow-sm">
-            <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-400">
-              <UserPlus className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-semibold text-zinc-900">Build your team</h3>
-            <p className="text-xs text-zinc-500 font-normal leading-relaxed">
-              Invite staff members so customers can book with the right person.
-            </p>
-            <Button
-              onClick={() => setShowAddModal(true)}
-              className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-medium px-4 py-2"
-            >
-              <UserPlus className="w-3.5 h-3.5 mr-1.5" />
-              Add Staff Member
-            </Button>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, i) => <MetricCardSkeleton key={i} />)}
           </div>
+        ) : isError ? (
+          <EmptyState 
+            type="error"
+            title="Failed to load staff"
+            description="We couldn't retrieve your staff directory."
+            primaryAction={{ label: 'Retry', onClick: () => refetchStaff() }}
+          />
+        ) : staffList.length === 0 ? (
+          <EmptyState 
+            type="empty"
+            title="Build your team"
+            description="Invite staff members so customers can book with the right person."
+            primaryAction={{
+              label: 'Add Staff Member',
+              onClick: () => setShowAddModal(true)
+            }}
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {staffList.map((staff) => (

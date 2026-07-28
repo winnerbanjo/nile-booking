@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../lib/queryClient';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../lib/api';
 import { getStorefrontUrl } from '../lib/subdomain';
@@ -37,8 +39,8 @@ const PRESET_BANNERS = [
 ];
 
 export const Profile: React.FC = () => {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -115,18 +117,25 @@ export const Profile: React.FC = () => {
     }
   };
 
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      await authApi.updateProfile(formData);
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => authApi.updateProfile(data),
+    onSuccess: (updatedUser) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+      // update local storage if necessary, but useAuth will refetch if we use it
+      if (updatedUser) {
+        localStorage.setItem('nile_user', JSON.stringify(updatedUser));
+      }
       setShowToast(true);
       setTimeout(() => setShowToast(false), 2500);
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       console.error('Failed to update profile:', error);
       alert('Failed to update profile: ' + (error.message || 'Unknown error'));
-    } finally {
-      setLoading(false);
     }
+  });
+
+  const handleSave = () => {
+    updateMutation.mutate(formData);
   };
 
   return (
@@ -447,13 +456,20 @@ export const Profile: React.FC = () => {
           </div>
 
           <div className="pt-4 border-t border-zinc-200/80 flex justify-end">
-            <Button
-              onClick={handleSave}
-              disabled={loading}
-              className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg px-6 h-9 text-xs font-medium shadow-sm"
-            >
-              {loading ? 'Saving Profile...' : 'Save All Branding & Socials'}
-            </Button>
+              <Button
+                onClick={handleSave}
+                disabled={updateMutation.isPending}
+                className="w-full sm:w-auto bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg px-8 py-2 text-sm font-medium shadow-sm transition-all relative overflow-hidden"
+              >
+                {updateMutation.isPending ? (
+                  <span className="flex items-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Saving Changes...
+                  </span>
+                ) : (
+                  'Save All Changes'
+                )}
+              </Button>
           </div>
         </div>
 

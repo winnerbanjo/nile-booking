@@ -1,45 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Filter, Download, MoreHorizontal, Store, Star, MapPin, Loader2 } from 'lucide-react';
 import { ActionModal } from '../../components/admin/ActionModal';
 import { adminApi } from '../../lib/api';
 
 export const Providers: React.FC = () => {
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
-  const [providers, setProviders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
 
-  useEffect(() => {
-    fetchProviders();
-  }, []);
+  const { data: providers = [], isLoading: loading } = useQuery({
+    queryKey: ['adminProviders'],
+    queryFn: () => adminApi.getProviders().then(data => data || []),
+  });
 
-  const fetchProviders = async () => {
-    try {
-      setLoading(true);
-      const data = await adminApi.getProviders();
-      setProviders(data || []);
-    } catch (error) {
-      console.error('Failed to fetch providers:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpdateStatus = async (providerId: string, currentStatus: string) => {
-    try {
-      setUpdating(true);
-      const newStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
-      await adminApi.updateProviderStatus(providerId, newStatus);
-      alert(`Provider status changed to ${newStatus}`);
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => adminApi.updateProviderStatus(id, status),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['adminProviders'] });
+      alert(`Provider status changed to ${variables.status}`);
       setSelectedProvider(null);
-      fetchProviders(); // Refresh list
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error('Failed to update provider status:', error);
       alert('Failed to update status');
-    } finally {
-      setUpdating(false);
     }
+  });
+
+  const handleUpdateStatus = (providerId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
+    updateStatusMutation.mutate({ id: providerId, status: newStatus });
   };
 
   const filteredProviders = providers.filter(p => 
@@ -199,9 +189,9 @@ export const Providers: React.FC = () => {
           { label: 'View Website', variant: 'primary', onClick: () => alert('Opening website...') },
           { label: 'Send Payout Report', variant: 'secondary', onClick: () => alert('Report sent.') },
           { 
-            label: updating ? 'Updating...' : (selectedProvider?.status === 'Active' ? 'Suspend Provider' : 'Activate Provider'), 
+            label: updateStatusMutation.isPending ? 'Updating...' : (selectedProvider?.status === 'Active' ? 'Suspend Provider' : 'Activate Provider'), 
             variant: 'danger', 
-            onClick: () => selectedProvider && !updating && handleUpdateStatus(selectedProvider._id, selectedProvider.status) 
+            onClick: () => selectedProvider && !updateStatusMutation.isPending && handleUpdateStatus(selectedProvider._id, selectedProvider.status) 
           },
         ]}
       />

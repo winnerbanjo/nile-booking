@@ -1,61 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceApi } from '../lib/api';
+import { queryKeys } from '../lib/queryClient';
 import { Button } from '../components/ui/button';
 import { Plus, Edit, Trash2, Clock, DollarSign, Tag } from 'lucide-react';
 import { ServiceForm } from '../components/services/ServiceForm';
+import { EmptyState } from '../components/ui/EmptyState';
+import { CardListSkeleton } from '../components/ui/SkeletonLoader';
 import type { Service } from '../types';
 
 export const Services: React.FC = () => {
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
 
-  const sampleServices: Service[] = [
-    {
-      _id: 'sample-1',
-      name: 'Skin Fade',
-      description: 'Precision skin fade haircut with detailed edging and hot towel finish.',
-      price: 15000,
-      duration: 0.75,
-      category: 'haircut',
-      provider: 'sample-provider',
-    },
-    {
-      _id: 'sample-2',
-      name: 'Beard Trim & Shape',
-      description: 'Professional beard trimming, shaping, and nourishing oil treatment.',
-      price: 8000,
-      duration: 0.5,
-      category: 'beard',
-      provider: 'sample-provider',
-    },
-    {
-      _id: 'sample-3',
-      name: 'Full Grooming Package',
-      description: 'Complete haircut, beard grooming, facial massage, and styling.',
-      price: 25000,
-      duration: 1.25,
-      category: 'package',
-      provider: 'sample-provider',
-    },
-  ];
 
-  useEffect(() => {
-    loadServices();
-  }, []);
+  const { data: services = [], isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.merchant.services(),
+    queryFn: () => serviceApi.getServices(),
+  });
 
-  const loadServices = async () => {
-    try {
-      const data = await serviceApi.getServices();
-      setServices(data || []);
-    } catch (error) {
-      console.error('Failed to load services:', error);
-      setServices([]);
-    } finally {
-      setLoading(false);
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => serviceApi.deleteService(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.services() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.dashboard });
+    },
+    onError: (error: any) => {
+      alert('Failed to delete service: ' + (error.message || 'Unknown error'));
     }
-  };
+  });
 
   const handleCreate = () => {
     setEditingService(null);
@@ -67,32 +41,15 @@ export const Services: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!confirm('Are you sure you want to delete this service?')) return;
-    try {
-      await serviceApi.deleteService(id);
-      loadServices();
-    } catch (error: any) {
-      alert('Failed to delete service: ' + (error.message || 'Unknown error'));
-    }
+    deleteMutation.mutate(id);
   };
 
   const handleFormClose = () => {
     setShowForm(false);
     setEditingService(null);
-    loadServices();
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-3 text-xs text-zinc-500 font-normal">Loading services...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
@@ -118,20 +75,28 @@ export const Services: React.FC = () => {
         </div>
 
         {/* Services Cards Grid */}
-        {services.length === 0 ? (
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-12 text-center max-w-md mx-auto space-y-3 shadow-sm">
-            <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-400">
-              <Plus className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-semibold text-zinc-900">You're ready to add your first service</h3>
-            <p className="text-xs text-zinc-500 font-normal leading-relaxed">
-              Create services so customers can start booking appointments online.
-            </p>
-            <Button onClick={handleCreate} className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg text-xs font-medium px-4 py-2">
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add Service
-            </Button>
+        {isLoading ? (
+          <div className="py-6">
+            <CardListSkeleton count={6} />
           </div>
+        ) : isError ? (
+          <EmptyState 
+            type="error"
+            title="Failed to load services"
+            description="We couldn't retrieve your services. Please check your connection and try again."
+            primaryAction={{ label: 'Retry', onClick: () => refetch() }}
+          />
+        ) : services.length === 0 ? (
+          <EmptyState 
+            type="empty"
+            title="Add your first service"
+            description="Create the services customers can book, including the price, duration, category and available staff."
+            primaryAction={{ 
+              label: 'Add Service', 
+              onClick: handleCreate,
+              icon: <Plus className="mr-1.5 h-3.5 w-3.5" />
+            }}
+          />
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {services.map((service) => (

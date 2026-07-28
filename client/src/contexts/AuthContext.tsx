@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authApi } from '../lib/api';
+import { queryClient } from '../lib/queryClient';
 import type { User } from '../types';
 
 interface AuthContextType {
@@ -103,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem('nile_user');
     localStorage.removeItem('nile_dashboard_bookings');
     localStorage.removeItem('nile_crm_cache');
+    queryClient.clear();
     setUser(null);
   };
 

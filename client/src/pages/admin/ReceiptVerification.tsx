@@ -1,56 +1,46 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Filter, CheckCircle, XCircle, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { adminApi } from '../../lib/api';
 import type { Booking } from '../../types';
 
 export const ReceiptVerification: React.FC = () => {
-  const [pendingBookings, setPendingBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [verifying, setVerifying] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchPendingVerifications();
-  }, []);
+  const { data = [], isLoading: loading } = useQuery({
+    queryKey: ['adminVerifications'],
+    queryFn: () => adminApi.getPendingVerifications().then(res => res.bookings || []),
+  });
+  
+  const pendingBookings = data;
 
-  const fetchPendingVerifications = async () => {
-    try {
-      setLoading(true);
-      const response = await adminApi.getPendingVerifications();
-      setPendingBookings(response.bookings || []);
-    } catch (error) {
-      console.error('Failed to fetch pending verifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleApprove = async (bookingId: string) => {
-    try {
-      setVerifying(bookingId);
-      await adminApi.verifyReceipt(bookingId, 'approve');
-      setPendingBookings(prev => prev.filter(b => b._id !== bookingId));
-      alert('Receipt verified! Booking confirmed.');
-    } catch (error) {
+  const verifyMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'approve' | 'decline' }) => adminApi.verifyReceipt(id, action),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['adminVerifications'] });
+      if (variables.action === 'approve') {
+        alert('Receipt verified! Booking confirmed.');
+      } else {
+        alert('Receipt declined.');
+      }
+    },
+    onError: (error: any, variables) => {
       console.error('Failed to verify receipt:', error);
-      alert('Failed to verify receipt. Please try again.');
-    } finally {
-      setVerifying(null);
+      if (variables.action === 'approve') {
+        alert('Failed to verify receipt. Please try again.');
+      } else {
+        alert('Failed to decline receipt.');
+      }
     }
+  });
+
+  const handleApprove = (bookingId: string) => {
+    verifyMutation.mutate({ id: bookingId, action: 'approve' });
   };
 
-  const handleDecline = async (bookingId: string) => {
-    try {
-      setVerifying(bookingId);
-      await adminApi.verifyReceipt(bookingId, 'decline');
-      setPendingBookings(prev => prev.filter(b => b._id !== bookingId));
-      alert('Receipt declined.');
-    } catch (error) {
-      console.error('Failed to decline receipt:', error);
-      alert('Failed to decline receipt.');
-    } finally {
-      setVerifying(null);
-    }
+  const handleDecline = (bookingId: string) => {
+    verifyMutation.mutate({ id: bookingId, action: 'decline' });
   };
 
   if (loading) {
@@ -151,24 +141,24 @@ export const ReceiptVerification: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
-                <button
-                  onClick={() => handleDecline(booking._id!)}
-                  disabled={verifying === booking._id}
-                  className="flex-1 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-600 font-bold hover:bg-red-100 transition-colors disabled:opacity-50 flex justify-center items-center gap-2 text-sm"
-                >
-                  <XCircle className="w-4 h-4" />
-                  Decline
-                </button>
-                <button
-                  onClick={() => handleApprove(booking._id!)}
-                  disabled={verifying === booking._id}
-                  className="flex-1 py-2.5 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 flex justify-center items-center gap-2 text-sm"
-                >
-                  {verifying === booking._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                  Approve
-                </button>
-              </div>
+                <div className="flex gap-3 pt-4 border-t border-gray-100">
+                  <button
+                    onClick={() => handleDecline(booking._id!)}
+                    disabled={verifyMutation.isPending}
+                    className="flex-1 px-4 py-2 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Decline
+                  </button>
+                  <button
+                    onClick={() => handleApprove(booking._id!)}
+                    disabled={verifyMutation.isPending}
+                    className="flex-1 px-4 py-2 bg-emerald-600 text-white hover:bg-emerald-700 rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Approve
+                  </button>
+                </div>
             </div>
           ))
         )}

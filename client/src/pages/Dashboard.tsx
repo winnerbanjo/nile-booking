@@ -24,6 +24,10 @@ import { dashboardApi, authApi } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { getStorefrontUrl } from '../lib/subdomain';
 import type { Booking } from '../types';
+import { queryKeys } from '../lib/queryClient';
+import { EmptyState } from '../components/ui/EmptyState';
+import { MetricCardSkeleton, TableSkeleton } from '../components/ui/SkeletonLoader';
+import { safeDate } from '../lib/utils';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -42,10 +46,9 @@ export const Dashboard: React.FC = () => {
   };
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['dashboardSummary', user?._id],
+    queryKey: queryKeys.merchant.dashboard,
     queryFn: () => dashboardApi.getSummary(),
     enabled: !!user?._id,
-    staleTime: 1000 * 30, // 30 seconds
   });
 
   const metrics = data?.metrics || {
@@ -168,98 +171,95 @@ export const Dashboard: React.FC = () => {
 
         {/* Metric Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          
-          {/* Net Revenue */}
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm hover:border-zinc-300 transition-colors">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Gross Volume</span>
-              <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
-                <DollarSign className="w-4 h-4 text-zinc-600" />
-              </div>
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, i) => <MetricCardSkeleton key={i} />)
+          ) : isError ? (
+            <div className="col-span-full">
+              <EmptyState 
+                type="error"
+                title="Metrics Unavailable"
+                description="We couldn't load your dashboard statistics."
+                primaryAction={{ label: 'Retry', onClick: () => refetch() }}
+              />
             </div>
-            <div className="mt-3">
-              {isLoading ? (
-                <div className="h-8 w-24 bg-zinc-100 animate-pulse rounded"></div>
-              ) : (
-                <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                  ₦{metrics.totalRevenue.toLocaleString()}
+          ) : (
+            <>
+              {/* Net Revenue */}
+              <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm hover:border-zinc-300 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Gross Volume</span>
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
+                    <DollarSign className="w-4 h-4 text-zinc-600" />
+                  </div>
                 </div>
-              )}
-              <div className="flex items-center gap-1.5 mt-1 text-xs">
-                <span className="inline-flex items-center text-emerald-600 font-medium">
-                  <TrendingUp className="w-3 h-3 mr-0.5" />
-                  Verified Payouts
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Total Bookings */}
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm hover:border-zinc-300 transition-colors">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Total Bookings</span>
-              <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
-                <BookOpen className="w-4 h-4 text-zinc-600" />
-              </div>
-            </div>
-            <div className="mt-3">
-              {isLoading ? (
-                <div className="h-8 w-16 bg-zinc-100 animate-pulse rounded"></div>
-              ) : (
-                <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                  {metrics.totalBookings}
+                <div className="mt-3">
+                  <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                    ₦{metrics.totalRevenue.toLocaleString()}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1 text-xs">
+                    <span className="inline-flex items-center text-emerald-600 font-medium">
+                      <TrendingUp className="w-3 h-3 mr-0.5" />
+                      Verified Payouts
+                    </span>
+                  </div>
                 </div>
-              )}
-              <div className="text-xs text-zinc-500 mt-1">
-                {metrics.confirmedBookings} confirmed • {metrics.pendingBookings} pending
               </div>
-            </div>
-          </div>
 
-          {/* Deposit Escrow */}
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm hover:border-zinc-300 transition-colors">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Deposit Escrow</span>
-              <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4 text-zinc-600" />
-              </div>
-            </div>
-            <div className="mt-3">
-              {isLoading ? (
-                <div className="h-8 w-24 bg-zinc-100 animate-pulse rounded"></div>
-              ) : (
-                <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                  ₦{metrics.totalDepositEscrow.toLocaleString()}
+              {/* Total Bookings */}
+              <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm hover:border-zinc-300 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Total Bookings</span>
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
+                    <BookOpen className="w-4 h-4 text-zinc-600" />
+                  </div>
                 </div>
-              )}
-              <div className="text-xs text-zinc-500 mt-1">
-                Rolling 2-day payouts
-              </div>
-            </div>
-          </div>
-
-          {/* Active Services */}
-          <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm hover:border-zinc-300 transition-colors">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Active Services</span>
-              <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
-                <Package className="w-4 h-4 text-zinc-600" />
-              </div>
-            </div>
-            <div className="mt-3">
-              {isLoading ? (
-                <div className="h-8 w-16 bg-zinc-100 animate-pulse rounded"></div>
-              ) : (
-                <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                  {metrics.activeServices} Offered
+                <div className="mt-3">
+                  <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                    {metrics.totalBookings}
+                  </div>
+                  <div className="text-xs text-zinc-500 mt-1">
+                    {metrics.confirmedBookings} confirmed • {metrics.pendingBookings} pending
+                  </div>
                 </div>
-              )}
-              <div className="text-xs text-emerald-600 font-medium mt-1">
-                Online & available
               </div>
-            </div>
-          </div>
 
+              {/* Deposit Escrow */}
+              <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm hover:border-zinc-300 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Deposit Escrow</span>
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
+                    <ShieldCheck className="w-4 h-4 text-zinc-600" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                    ₦{metrics.totalDepositEscrow.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-zinc-500 mt-1">
+                    Rolling 2-day payouts
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Services */}
+              <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm hover:border-zinc-300 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Active Services</span>
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center">
+                    <Package className="w-4 h-4 text-zinc-600" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
+                    {metrics.activeServices} Offered
+                  </div>
+                  <div className="text-xs text-emerald-600 font-medium mt-1">
+                    Online & available
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* 2-Column Content Layout */}
@@ -295,15 +295,22 @@ export const Dashboard: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-zinc-100 text-zinc-700">
                     {isLoading ? (
-                      Array.from({ length: 3 }).map((_, i) => (
-                        <tr key={i} className="animate-pulse">
-                          <td className="px-6 py-4"><div className="h-4 w-28 bg-zinc-100 rounded"></div></td>
-                          <td className="px-6 py-4"><div className="h-4 w-24 bg-zinc-100 rounded"></div></td>
-                          <td className="px-6 py-4"><div className="h-4 w-20 bg-zinc-100 rounded"></div></td>
-                          <td className="px-6 py-4"><div className="h-4 w-16 bg-zinc-100 rounded"></div></td>
-                          <td className="px-6 py-4"><div className="h-4 w-16 bg-zinc-100 rounded"></div></td>
-                        </tr>
-                      ))
+                      <tr>
+                        <td colSpan={5} className="p-4">
+                          <TableSkeleton rows={3} columns={5} />
+                        </td>
+                      </tr>
+                    ) : isError ? (
+                      <tr>
+                        <td colSpan={5}>
+                          <EmptyState 
+                            type="error"
+                            title="Failed to load bookings"
+                            description="We couldn't retrieve your recent bookings. Please try again."
+                            primaryAction={{ label: 'Try Again', onClick: () => refetch() }}
+                          />
+                        </td>
+                      </tr>
                     ) : recentBookings.length > 0 ? (
                       recentBookings.map((booking) => {
                         const serviceName = typeof booking.service === 'object' ? booking.service?.name : 'Service';
@@ -334,23 +341,24 @@ export const Dashboard: React.FC = () => {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center">
-                          <p className="text-sm font-medium text-zinc-900 mb-1">No bookings yet</p>
-                          <p className="text-xs text-zinc-500 max-w-sm mx-auto mb-4">
-                            Share your website link with clients to start receiving appointments!
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const url = `https://nilebooking.co/p/${user?.slug || ''}`;
-                              navigator.clipboard.writeText(url);
-                              alert('Shop link copied to clipboard!');
+                        <td colSpan={5} className="p-0">
+                          <EmptyState 
+                            type="empty"
+                            title="No bookings yet"
+                            description="New customer bookings will appear here. Share your booking website so customers can schedule an appointment."
+                            primaryAction={{ 
+                              label: 'Copy Booking Link', 
+                              onClick: () => {
+                                const url = `https://nilebooking.co/p/${user?.slug || ''}`;
+                                navigator.clipboard.writeText(url);
+                                alert('Shop link copied to clipboard!');
+                              }
                             }}
-                            className="bg-white border-zinc-300 text-zinc-800 hover:bg-zinc-50 text-xs rounded-lg"
-                          >
-                            Copy My Shop Link
-                          </Button>
+                            secondaryAction={{
+                              label: 'Preview Website',
+                              onClick: () => window.open(getStorefrontUrl(user?.slug), '_blank')
+                            }}
+                          />
                         </td>
                       </tr>
                     )}
@@ -378,6 +386,13 @@ export const Dashboard: React.FC = () => {
                     <div className="h-16 bg-zinc-100 animate-pulse rounded-lg"></div>
                     <div className="h-16 bg-zinc-100 animate-pulse rounded-lg"></div>
                   </div>
+                ) : isError ? (
+                  <EmptyState 
+                    type="error"
+                    title="Unavailable"
+                    description="Could not load your schedule."
+                    primaryAction={{ label: 'Retry', onClick: () => refetch() }}
+                  />
                 ) : upcomingAppointments.length === 0 ? (
                   <div className="py-8 text-center space-y-1">
                     <Calendar className="w-8 h-8 text-zinc-300 mx-auto" />

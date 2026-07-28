@@ -4,6 +4,9 @@ import { categoryApi } from '../../lib/api';
 import { Plus, Edit2, Trash2, GripVertical, Save, X, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
+import { queryKeys } from '../../lib/queryClient';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { TableSkeleton } from '../../components/ui/SkeletonLoader';
 
 export const Categories = () => {
   const queryClient = useQueryClient();
@@ -18,8 +21,8 @@ export const Categories = () => {
   const [deleteAction, setDeleteAction] = useState<'delete' | 'move' | 'uncategorize'>('delete');
   const [targetCatId, setTargetCatId] = useState<string>('');
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['categories'],
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: queryKeys.merchant.categories,
     queryFn: categoryApi.getCategories,
   });
 
@@ -28,7 +31,7 @@ export const Categories = () => {
   const createMutation = useMutation({
     mutationFn: categoryApi.createCategory,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.categories });
       setIsCreating(false);
       setNewCatName('');
     },
@@ -38,7 +41,7 @@ export const Categories = () => {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => categoryApi.updateCategory(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.categories });
       setEditingId(null);
     },
     onError: (err: any) => alert(err.message),
@@ -47,7 +50,7 @@ export const Categories = () => {
   const deleteMutation = useMutation({
     mutationFn: ({ id, actionData }: { id: string; actionData?: any }) => categoryApi.deleteCategory(id, actionData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchant.categories });
       setDeleteCatId(null);
     },
     onError: (err: any) => alert(err.message),
@@ -55,7 +58,7 @@ export const Categories = () => {
 
   const reorderMutation = useMutation({
     mutationFn: categoryApi.reorderCategories,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.merchant.categories }),
     onError: (err: any) => alert(err.message),
   });
 
@@ -109,9 +112,7 @@ export const Categories = () => {
     reorderMutation.mutate(payload);
   };
 
-  if (isError) {
-    return <div className="p-6 text-red-500">Failed to load categories. Please try again.</div>;
-  }
+
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -141,13 +142,30 @@ export const Categories = () => {
             <tbody className="divide-y divide-gray-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading categories...</td>
+                  <td colSpan={5} className="p-4">
+                    <TableSkeleton rows={4} columns={5} />
+                  </td>
+                </tr>
+              ) : isError ? (
+                <tr>
+                  <td colSpan={5} className="p-0">
+                    <EmptyState 
+                      type="error"
+                      title="Failed to load categories"
+                      description="We couldn't retrieve your service categories."
+                      primaryAction={{ label: 'Retry', onClick: () => refetch() }}
+                    />
+                  </td>
                 </tr>
               ) : categories.length === 0 && !isCreating ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                    <p className="text-sm font-semibold text-gray-900">Organise your services into categories</p>
-                    <p className="text-xs text-gray-500 mt-1">Create categories such as Bridal Makeup, Lash Refills or Consultations so customers can find the right service faster.</p>
+                  <td colSpan={5} className="p-0">
+                    <EmptyState 
+                      type="empty"
+                      title="Organise your services"
+                      description="Create categories such as Bridal Makeup, Lash Refills or Consultations so customers can find the right service faster."
+                      primaryAction={{ label: 'Create Category', onClick: () => setIsCreating(true), icon: <Plus className="w-4 h-4 mr-2" /> }}
+                    />
                   </td>
                 </tr>
               ) : (

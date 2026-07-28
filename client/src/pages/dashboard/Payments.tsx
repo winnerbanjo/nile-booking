@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../lib/queryClient';
 import { bookingApi, paymentApi } from '../../lib/api';
 import { Button } from '../../components/ui/button';
 import { DollarSign, TrendingUp, Clock, CheckCircle, Copy, CreditCard, Shield, ArrowUpRight, ArrowDownRight } from 'lucide-react';
@@ -6,6 +8,8 @@ import type { BookingStats, Booking } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { safeDate } from '../../lib/utils';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { MetricCardSkeleton, TableSkeleton } from '../../components/ui/SkeletonLoader';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -40,9 +44,7 @@ const floatAnimation = {
 const glassCardClass = "bg-white/40 backdrop-blur-xl border border-white/40 rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)]";
 
 export const Payments: React.FC = () => {
-  const [stats, setStats] = useState<BookingStats | null>(null);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedTransactionForRefund, setSelectedTransactionForRefund] = useState<any>(null);
@@ -50,35 +52,46 @@ export const Payments: React.FC = () => {
   const [refundReason, setRefundReason] = useState<string>('');
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const { data: statsData, isLoading: isStatsLoading, isError: isStatsError, refetch: refetchStats } = useQuery({
+    queryKey: queryKeys.merchant.dashboard, // or a specific stats key if it existed, but we'll use a new one
+    queryFn: bookingApi.getBookingStats,
+  });
 
-  const loadData = async () => {
-    try {
-      const [statsData, transactionsData] = await Promise.all([
-        bookingApi.getBookingStats(),
-        paymentApi.getTransactions({ limit: 50 }),
-      ]);
-      setStats(statsData);
-      setTransactions(transactionsData.transactions);
-    } catch (error) {
-      console.error('Failed to load financial data:', error);
-      // Use mock data on error
-      setStats({
-        totalBookings: 0,
-        confirmedBookings: 0,
-        completedBookings: 0,
-        pendingBookings: 0,
-        totalRevenue: 0,
-        pendingPayouts: 0,
-        successRate: 0,
-      });
-      setTransactions([]);
-    } finally {
-      setLoading(false);
-    }
+  const { data: txData, isLoading: isTxLoading, isError: isTxError, refetch: refetchTx } = useQuery({
+    queryKey: ['merchant', 'transactions'],
+    queryFn: () => paymentApi.getTransactions({ limit: 50 }),
+  });
+
+  const stats = statsData || {
+    totalBookings: 0,
+    confirmedBookings: 0,
+    completedBookings: 0,
+    pendingBookings: 0,
+    totalRevenue: 0,
+    pendingPayouts: 0,
+    successRate: 0,
   };
+  const transactions = txData?.transactions || [];
+  const isLoading = isStatsLoading || isTxLoading;
+  const isError = isStatsError || isTxError;
+
+  const verifyMutation = useMutation({
+    mutationFn: (id: string) => paymentApi.verifyManualTransaction(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'transactions'] });
+    },
+    onError: () => alert('Failed to verify receipt')
+  });
+
+  const refundMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string, data: any }) => paymentApi.processRefund(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchant', 'transactions'] });
+      setShowRefundModal(false);
+      setSelectedTransactionForRefund(null);
+    },
+    onError: () => alert('Failed to process refund')
+  });
 
   const handleCopyAccountNumber = () => {
     navigator.clipboard.writeText('8123843076');
@@ -86,14 +99,8 @@ export const Payments: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleVerifyReceipt = async (transactionId: string) => {
-    try {
-      await paymentApi.verifyManualTransaction(transactionId);
-      loadData();
-    } catch (error) {
-      console.error('Failed to verify receipt', error);
-      alert('Failed to verify receipt');
-    }
+  const handleVerifyReceipt = (transactionId: string) => {
+    verifyMutation.mutate(transactionId);
   };
 
   const openRefundModal = (transaction: any) => {
@@ -103,20 +110,12 @@ export const Payments: React.FC = () => {
     setShowRefundModal(true);
   };
 
-  const handleProcessRefund = async () => {
+  const handleProcessRefund = () => {
     if (!selectedTransactionForRefund) return;
-    try {
-      await paymentApi.processRefund(selectedTransactionForRefund._id, {
-        amount: refundAmount,
-        reason: refundReason,
-      });
-      setShowRefundModal(false);
-      setSelectedTransactionForRefund(null);
-      loadData();
-    } catch (error) {
-      console.error('Failed to process refund', error);
-      alert('Failed to process refund');
-    }
+    refundMutation.mutate({
+      id: selectedTransactionForRefund._id,
+      data: { amount: refundAmount, reason: refundReason }
+    });
   };
 
   const getStatusBadge = (transaction: any, bookingPaymentStatus: string) => {
@@ -141,16 +140,7 @@ export const Payments: React.FC = () => {
     return { label: 'Pending', color: 'bg-gray-500 text-white' };
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-[#F5F5F7]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-light">Loading financial data...</p>
-        </div>
-      </div>
-    );
-  }
+
 
   if (!stats) {
     return (
@@ -363,18 +353,31 @@ export const Payments: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {transactions.length === 0 ? (
+                {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="py-12 text-center">
-                      <div className="max-w-xs mx-auto space-y-2">
-                        <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center mx-auto text-zinc-400 mb-2">
-                          <CreditCard className="w-5 h-5 text-zinc-400" />
-                        </div>
-                        <h3 className="text-sm font-semibold text-zinc-900">No transactions yet</h3>
-                        <p className="text-xs text-zinc-500 font-normal leading-relaxed">
-                          Payments and receipts will appear here after your first booking.
-                        </p>
-                      </div>
+                    <td colSpan={5} className="p-4">
+                      <TableSkeleton rows={4} columns={5} />
+                    </td>
+                  </tr>
+                ) : isError ? (
+                  <tr>
+                    <td colSpan={5} className="p-0">
+                      <EmptyState 
+                        type="error"
+                        title="Failed to load transactions"
+                        description="We couldn't retrieve your payment records."
+                        primaryAction={{ label: 'Retry', onClick: () => refetchTx() }}
+                      />
+                    </td>
+                  </tr>
+                ) : transactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-0">
+                      <EmptyState 
+                        type="empty"
+                        title="No transactions yet"
+                        description="Payments and receipts will appear here after your first booking."
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -457,10 +460,21 @@ export const Payments: React.FC = () => {
 
           {/* Mobile: Card View */}
           <div className="md:hidden space-y-3">
-            {transactions.length === 0 ? (
-              <div className="py-8 text-center text-gray-500 font-light">
-                No transactions found.
-              </div>
+            {isLoading ? (
+              <div className="p-4"><MetricCardSkeleton /></div>
+            ) : isError ? (
+              <EmptyState 
+                type="error"
+                title="Failed to load transactions"
+                description="We couldn't retrieve your payment records."
+                primaryAction={{ label: 'Retry', onClick: () => refetchTx() }}
+              />
+            ) : transactions.length === 0 ? (
+              <EmptyState 
+                type="empty"
+                title="No transactions yet"
+                description="Payments and receipts will appear here after your first booking."
+              />
             ) : (
               transactions.map((transaction, index) => {
                 const booking = transaction.booking || {};
