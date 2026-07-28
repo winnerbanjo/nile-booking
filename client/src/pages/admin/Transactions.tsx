@@ -2,22 +2,33 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, ArrowRightLeft } from 'lucide-react';
 import { adminApi } from '../../lib/api';
-import { formatDateSafe } from '../../lib/utils';
+import { formatDateSafe, normaliseApiResponse } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
+import { AdminLocalErrorState } from '../../components/admin/AdminLocalErrorState';
 
 export const Transactions: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch, error } = useQuery({
     queryKey: ['adminTransactions', page, searchTerm],
     queryFn: () => adminApi.getTransactions({ page, limit: 25, search: searchTerm }),
     staleTime: 1000 * 30,
   });
 
-  const transactions = data?.transactions || [];
-  const total = data?.total || 0;
-  const totalPages = data?.totalPages || 1;
+  if (isError) {
+    return (
+      <AdminLocalErrorState
+        title="Failed to load transactions"
+        message={(error as any)?.message || 'Transaction ledger could not be loaded.'}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  const normalised = normaliseApiResponse(data, 'transactions');
+  const transactions = normalised.data;
+  const { total, totalPages } = normalised.pagination;
 
   return (
     <div className="w-full space-y-6">
@@ -42,9 +53,11 @@ export const Transactions: React.FC = () => {
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
-        <div className="text-xs text-gray-500 font-medium">
-          Showing {transactions.length} of {total} total transactions
-        </div>
+        {!isLoading && (
+          <div className="text-xs text-gray-500 font-medium">
+            Showing {transactions.length} of {total} total transactions
+          </div>
+        )}
       </div>
 
       {/* Transactions Table */}
@@ -62,14 +75,7 @@ export const Transactions: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {isError ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-red-500">
-                    <p className="text-sm font-semibold text-red-700">Failed to load transactions</p>
-                    <p className="text-xs text-red-500 mt-0.5">Please try again later.</p>
-                  </td>
-                </tr>
-              ) : isLoading ? (
+              {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-100 rounded"></div></td>
@@ -89,26 +95,24 @@ export const Transactions: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                transactions.map((txn) => {
-                  const providerName = (txn.provider as any)?.businessName || (txn.provider as any)?.email || 'Merchant';
+                transactions.map((txn: any) => {
+                  const providerName = (txn?.provider as any)?.businessName || (txn?.provider as any)?.email || 'Merchant';
                   return (
-                    <tr key={txn._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-mono text-xs font-bold text-gray-900">{txn.transactionReference}</td>
+                    <tr key={txn?._id || Math.random()} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-gray-900">{txn?.transactionReference}</td>
                       <td className="px-6 py-4 font-medium text-gray-900">{providerName}</td>
-                      <td className="px-6 py-4 text-xs capitalize text-gray-600">{txn.paymentGateway}</td>
+                      <td className="px-6 py-4 text-xs capitalize text-gray-600">{txn?.paymentGateway}</td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
-                        ₦{(txn.amount || 0).toLocaleString()}
+                        ₦{(txn?.amount || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500">
-                        {formatDateSafe(txn.createdAt)}
+                        {formatDateSafe(txn?.createdAt)}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
-                          txn.status === 'successful' || txn.status === 'completed'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-amber-100 text-amber-800'
+                          txn?.status === 'successful' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-800'
                         }`}>
-                          {txn.status.toUpperCase()}
+                          {txn?.status?.toUpperCase() || 'UNKNOWN'}
                         </span>
                       </td>
                     </tr>
@@ -120,7 +124,7 @@ export const Transactions: React.FC = () => {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!isLoading && totalPages > 1 && (
           <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
             <Button
               variant="outline"

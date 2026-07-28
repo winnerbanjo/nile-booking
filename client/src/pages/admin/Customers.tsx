@@ -2,22 +2,33 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Users } from 'lucide-react';
 import { adminApi } from '../../lib/api';
-import { formatDateSafe } from '../../lib/utils';
+import { formatDateSafe, normaliseApiResponse } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
+import { AdminLocalErrorState } from '../../components/admin/AdminLocalErrorState';
 
 export const Customers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch, error } = useQuery({
     queryKey: ['adminCustomers', page, searchTerm],
     queryFn: () => adminApi.getCustomers({ page, limit: 25, search: searchTerm }),
     staleTime: 1000 * 30,
   });
 
-  const customers = data?.customers || [];
-  const total = data?.total || 0;
-  const totalPages = data?.totalPages || 1;
+  if (isError) {
+    return (
+      <AdminLocalErrorState
+        title="Failed to load customers"
+        message={(error as any)?.message || 'The customer directory could not be loaded.'}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  const normalised = normaliseApiResponse(data, 'customers');
+  const customers = normalised.data;
+  const { total, totalPages } = normalised.pagination;
 
   return (
     <div className="w-full space-y-6">
@@ -42,9 +53,11 @@ export const Customers: React.FC = () => {
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
-        <div className="text-xs text-gray-500 font-medium">
-          Showing {customers.length} of {total} registered customers
-        </div>
+        {!isLoading && (
+          <div className="text-xs text-gray-500 font-medium">
+            Showing {customers.length} of {total} registered customers
+          </div>
+        )}
       </div>
 
       {/* Customers Table */}
@@ -61,14 +74,7 @@ export const Customers: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {isError ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-red-500">
-                    <p className="text-sm font-semibold text-red-700">Failed to load customers</p>
-                    <p className="text-xs text-red-500 mt-0.5">Please try again later.</p>
-                  </td>
-                </tr>
-              ) : isLoading ? (
+              {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-4 w-28 bg-gray-100 rounded"></div></td>
@@ -87,8 +93,8 @@ export const Customers: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                customers.map((c) => (
-                  <tr key={c._id || Math.random()} className="hover:bg-gray-50">
+                customers.map((c: any) => (
+                  <tr key={c?._id || Math.random()} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-900">{c?.name || 'Unknown'}</td>
                     <td className="px-6 py-4 text-xs font-mono text-gray-600">{c?.email || 'No email'}</td>
                     <td className="px-6 py-4 text-xs text-gray-600">{c?.phone || 'N/A'}</td>
@@ -110,7 +116,7 @@ export const Customers: React.FC = () => {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!isLoading && totalPages > 1 && (
           <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
             <Button
               variant="outline"

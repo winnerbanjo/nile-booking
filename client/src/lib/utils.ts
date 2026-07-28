@@ -24,3 +24,38 @@ export const formatDateSafe = (value: unknown, options?: Intl.DateTimeFormatOpti
   if (!date) return 'Unknown';
   return date.toLocaleDateString('en-US', options || { month: 'short', day: 'numeric', year: 'numeric' });
 };
+
+export const normaliseApiResponse = (response: unknown, listKey?: string) => {
+  const payload = response as any;
+
+  let dataList: any[] = [];
+  if (Array.isArray(payload)) {
+    dataList = payload;
+  } else if (payload && Array.isArray(payload.data)) {
+    dataList = payload.data;
+  } else if (payload && listKey && Array.isArray(payload[listKey])) {
+    dataList = payload[listKey];
+  } else if (payload && typeof payload === 'object') {
+    // If there's only one array key, use it
+    const arrayKeys = Object.values(payload).filter(Array.isArray);
+    if (arrayKeys.length === 1) {
+      dataList = arrayKeys[0] as any[];
+    }
+  }
+
+  const total = Number.isFinite(Number(payload?.pagination?.total))
+    ? Number(payload.pagination.total)
+    : Number.isFinite(Number(payload?.total))
+      ? Number(payload.total)
+      : dataList.length;
+
+  return {
+    data: dataList,
+    pagination: {
+      page: Number(payload?.pagination?.page) || Number(payload?.page) || 1,
+      limit: Number(payload?.pagination?.limit) || Number(payload?.limit) || 20,
+      total,
+      totalPages: Number(payload?.pagination?.totalPages) || Number(payload?.totalPages) || 1
+    }
+  };
+};

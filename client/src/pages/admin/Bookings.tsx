@@ -2,22 +2,33 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, CalendarDays } from 'lucide-react';
 import { adminApi } from '../../lib/api';
-import { formatDateSafe } from '../../lib/utils';
+import { formatDateSafe, normaliseApiResponse } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
+import { AdminLocalErrorState } from '../../components/admin/AdminLocalErrorState';
 
 export const Bookings: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch, error } = useQuery({
     queryKey: ['adminBookings', page, searchTerm],
     queryFn: () => adminApi.getBookings({ page, limit: 25, search: searchTerm }),
     staleTime: 1000 * 15,
   });
 
-  const bookings = data?.bookings || [];
-  const total = data?.total || 0;
-  const totalPages = data?.totalPages || 1;
+  if (isError) {
+    return (
+      <AdminLocalErrorState
+        title="Failed to load bookings"
+        message={(error as any)?.message || 'Ecosystem bookings could not be loaded.'}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  const normalised = normaliseApiResponse(data, 'bookings');
+  const bookings = normalised.data;
+  const { total, totalPages } = normalised.pagination;
 
   return (
     <div className="w-full space-y-6">
@@ -42,9 +53,11 @@ export const Bookings: React.FC = () => {
             className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
-        <div className="text-xs text-gray-500 font-medium">
-          Showing {bookings.length} of {total} total bookings
-        </div>
+        {!isLoading && (
+          <div className="text-xs text-gray-500 font-medium">
+            Showing {bookings.length} of {total} total bookings
+          </div>
+        )}
       </div>
 
       {/* Bookings Table */}
@@ -63,14 +76,7 @@ export const Bookings: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {isError ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-red-500">
-                    <p className="text-sm font-semibold text-red-700">Failed to load bookings</p>
-                    <p className="text-xs text-red-500 mt-0.5">Please try again later.</p>
-                  </td>
-                </tr>
-              ) : isLoading ? (
+              {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-100 rounded"></div></td>
@@ -91,26 +97,26 @@ export const Bookings: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                bookings.map((booking) => {
-                  const providerName = (booking.provider as any)?.businessName || (booking.provider as any)?.name || 'Provider';
-                  const serviceName = (booking.service as any)?.name || 'Service';
+                bookings.map((booking: any) => {
+                  const providerName = (booking?.provider as any)?.businessName || (booking?.provider as any)?.name || 'Provider';
+                  const serviceName = (booking?.service as any)?.name || 'Service';
                   return (
-                    <tr key={booking._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 font-mono text-xs font-bold text-gray-900">{booking.bookingNumber}</td>
+                    <tr key={booking?._id || Math.random()} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 font-mono text-xs font-bold text-gray-900">{booking?.bookingNumber}</td>
                       <td className="px-6 py-4 font-medium text-gray-900">{providerName}</td>
-                      <td className="px-6 py-4 text-gray-700">{booking.customer?.name}</td>
+                      <td className="px-6 py-4 text-gray-700">{booking?.customer?.name}</td>
                       <td className="px-6 py-4 text-gray-700">{serviceName}</td>
                       <td className="px-6 py-4 text-xs text-gray-500">
-                        {formatDateSafe(booking.date)}
+                        {formatDateSafe(booking?.date)}
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
-                        ₦{(booking.pricing?.totalAmount || 0).toLocaleString()}
+                        ₦{(booking?.pricing?.totalAmount || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
-                          booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                          booking?.status === 'confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}>
-                          {booking.status.toUpperCase()}
+                          {booking?.status?.toUpperCase() || 'UNKNOWN'}
                         </span>
                       </td>
                     </tr>
@@ -122,7 +128,7 @@ export const Bookings: React.FC = () => {
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!isLoading && totalPages > 1 && (
           <div className="px-6 py-3 border-t border-gray-200 flex items-center justify-between">
             <Button
               variant="outline"

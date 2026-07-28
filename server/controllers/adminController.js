@@ -125,7 +125,10 @@ export const getProviders = async (req, res) => {
       status: p.isActive ? 'Active' : 'Suspended'
     }));
 
-    res.json(enrichedProviders);
+    res.json({
+      data: enrichedProviders || [],
+      pagination: { page: 1, limit: enrichedProviders.length, total: enrichedProviders.length, totalPages: 1 },
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching providers', error: error.message });
   }
@@ -189,10 +192,8 @@ export const getAdminBookings = async (req, res) => {
     ]);
 
     res.json({
-      bookings: bookings || [],
-      total,
-      page: pageNum,
-      totalPages: Math.ceil(total / limitNum) || 1,
+      data: bookings || [],
+      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) || 1 },
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching admin bookings', error: error.message });
@@ -229,10 +230,8 @@ export const getAdminCustomers = async (req, res) => {
     ]);
 
     res.json({
-      customers: customers || [],
-      total,
-      page: pageNum,
-      totalPages: Math.ceil(total / limitNum) || 1,
+      data: customers || [],
+      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) || 1 },
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching admin customers', error: error.message });
@@ -271,12 +270,166 @@ export const getAdminTransactions = async (req, res) => {
     ]);
 
     res.json({
-      transactions: transactions || [],
-      total,
-      page: pageNum,
-      totalPages: Math.ceil(total / limitNum) || 1,
+      data: transactions || [],
+      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) || 1 },
     });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching admin transactions', error: error.message });
+  }
+};
+
+// @desc    Get all payouts (Admin)
+// @route   GET /api/admin/payouts
+// @access  Admin only
+export const getAdminPayouts = async (req, res) => {
+  try {
+    const { page = 1, limit = 25, search = '', status = '' } = req.query;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const query = { type: 'payout' };
+    if (status) query.status = status;
+    if (search) {
+      query.$or = [
+        { transactionReference: { $regex: search, $options: 'i' } },
+        { customerEmail: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const [payouts, total] = await Promise.all([
+      Transaction.find(query)
+        .populate('provider', 'businessName email name')
+        .populate('booking', 'bookingNumber pricing')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Transaction.countDocuments(query),
+    ]);
+
+    res.json({
+      data: payouts.map(p => ({
+        ...p,
+        providerName: p.provider?.businessName || p.provider?.name || p.provider?.email || 'Unknown provider',
+      })),
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum) || 1,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching payouts', error: error.message });
+  }
+};
+
+// @desc    Get all refunds (Admin)
+// @route   GET /api/admin/refunds
+// @access  Admin only
+export const getAdminRefunds = async (req, res) => {
+  try {
+    const { page = 1, limit = 25, search = '' } = req.query;
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    const query = { type: 'refund' };
+    if (search) {
+      query.$or = [
+        { transactionReference: { $regex: search, $options: 'i' } },
+        { customerEmail: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const [refunds, total] = await Promise.all([
+      Transaction.find(query)
+        .populate('provider', 'businessName email name')
+        .populate('booking', 'bookingNumber pricing status customer')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Transaction.countDocuments(query),
+    ]);
+
+    res.json({
+      data: refunds.map(r => ({
+        ...r,
+        providerName: r.provider?.businessName || r.provider?.name || r.provider?.email || 'Unknown provider',
+        bookingNumber: r.booking?.bookingNumber || 'N/A',
+      })),
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum) || 1,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching refunds', error: error.message });
+  }
+};
+
+// @desc    Get admin platform settings
+// @route   GET /api/admin/settings
+// @access  Admin only
+export const getAdminSettings = async (req, res) => {
+  try {
+    // Settings are platform-level configuration. In this implementation they are
+    // stored as environment/config values. Future versions may use a Settings model.
+    res.json({
+      subscriptionFee: Number(process.env.SUBSCRIPTION_FEE) || 5000,
+      payoutDelayDays: Number(process.env.PAYOUT_DELAY_DAYS) || 3,
+      highValueThreshold: Number(process.env.HIGH_VALUE_THRESHOLD) || 500000,
+      maxRefundWithoutAdmin: Number(process.env.MAX_REFUND_WITHOUT_ADMIN) || 50000,
+      environment: process.env.NODE_ENV || 'development',
+      version: process.env.npm_package_version || '1.0.0',
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching settings', error: error.message });
+  }
+};
+
+// @desc    Get disputes and risk data (Admin)
+// @route   GET /api/admin/risk
+// @access  Admin only
+export const getAdminRisk = async (req, res) => {
+  try {
+    const [disputed, highRisk, totalProviders] = await Promise.all([
+      Booking.countDocuments({ status: 'disputed' }),
+      User.countDocuments({ role: 'provider', isActive: false }),
+      User.countDocuments({ role: 'provider' }),
+    ]);
+
+    const recentDisputes = await Booking.find({ status: 'disputed' })
+      .populate('provider', 'businessName name email')
+      .populate('customer', 'name email')
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .lean();
+
+    res.json({
+      data: recentDisputes.map(d => ({
+        ...d,
+        providerName: d.provider?.businessName || d.provider?.name || d.provider?.email || 'Unknown',
+        customerName: d.customer?.name || d.customer?.email || 'Unknown',
+      })),
+      summary: {
+        openDisputes: disputed,
+        highRiskProviders: highRisk,
+        underInvestigation: 0,
+        totalProviders,
+      },
+      pagination: {
+        page: 1,
+        limit: 20,
+        total: disputed,
+        totalPages: Math.ceil(disputed / 20) || 1,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching risk data', error: error.message });
   }
 };

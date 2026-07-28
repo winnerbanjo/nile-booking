@@ -2,18 +2,31 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Filter, CheckCircle, XCircle, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { adminApi } from '../../lib/api';
+import { normaliseApiResponse } from '../../lib/utils';
 import type { Booking } from '../../types';
+import { AdminLocalErrorState } from '../../components/admin/AdminLocalErrorState';
 
 export const ReceiptVerification: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data = [], isLoading: loading } = useQuery({
+  const { data, isLoading: loading, isError, error, refetch } = useQuery({
     queryKey: ['adminVerifications'],
-    queryFn: () => adminApi.getPendingVerifications().then(res => res.bookings || []),
+    queryFn: () => adminApi.getPendingVerifications(),
   });
-  
-  const pendingBookings = data;
+
+  if (isError) {
+    return (
+      <AdminLocalErrorState
+        title="Failed to load pending verifications"
+        message={(error as any)?.message || 'Receipt verification queue could not be loaded.'}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  const normalised = normaliseApiResponse(data, 'bookings');
+  const pendingBookings = normalised.data;
 
   const verifyMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'approve' | 'decline' }) => adminApi.verifyReceipt(id, action),
@@ -52,9 +65,9 @@ export const ReceiptVerification: React.FC = () => {
     );
   }
 
-  const filteredBookings = pendingBookings.filter(b => 
-    b.bookingNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredBookings = pendingBookings.filter((b: any) => 
+    b?.bookingNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    b?.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (

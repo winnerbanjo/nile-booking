@@ -439,7 +439,7 @@ export const dashboardApi = {
 export const adminApi = {
   getAdminStats,
   getPendingVerifications: async () => {
-    return request<{ bookings: Booking[] }>('/admin/verifications');
+    return request<{ bookings: any[]; data: any[]; pagination: any }>('/admin/verifications');
   },
   verifyReceipt: async (bookingId: string, action: 'approve' | 'reject') => {
     return request<{ message: string; booking: Booking }>(`/admin/verifications/${bookingId}/verify`, {
@@ -451,15 +451,29 @@ export const adminApi = {
   updateProviderStatus,
   getBookings: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
     const query = new URLSearchParams(params as any).toString();
-    return request<{ bookings: Booking[]; total: number; page: number; totalPages: number }>(`/admin/bookings${query ? `?${query}` : ''}`);
+    return request<{ data: any[]; pagination: any }>(`/admin/bookings${query ? `?${query}` : ''}`);
   },
   getCustomers: async (params?: { page?: number; limit?: number; search?: string }) => {
     const query = new URLSearchParams(params as any).toString();
-    return request<{ customers: User[]; total: number; page: number; totalPages: number }>(`/admin/customers${query ? `?${query}` : ''}`);
+    return request<{ data: any[]; pagination: any }>(`/admin/customers${query ? `?${query}` : ''}`);
   },
   getTransactions: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
     const query = new URLSearchParams(params as any).toString();
-    return request<{ transactions: any[]; total: number; page: number; totalPages: number }>(`/admin/transactions${query ? `?${query}` : ''}`);
+    return request<{ data: any[]; pagination: any }>(`/admin/transactions${query ? `?${query}` : ''}`);
+  },
+  getPayouts: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return request<{ data: any[]; pagination: any }>(`/admin/payouts${query ? `?${query}` : ''}`);
+  },
+  getRefunds: async (params?: { page?: number; limit?: number; search?: string }) => {
+    const query = new URLSearchParams(params as any).toString();
+    return request<{ data: any[]; pagination: any }>(`/admin/refunds${query ? `?${query}` : ''}`);
+  },
+  getSettings: async () => {
+    return request<Record<string, any>>('/admin/settings');
+  },
+  getRisk: async () => {
+    return request<{ data: any[]; summary: any; pagination: any }>('/admin/risk');
   },
 };
 

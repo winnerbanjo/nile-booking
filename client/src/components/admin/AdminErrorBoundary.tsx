@@ -27,6 +27,8 @@ export class AdminErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const deploymentVersion = import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA || 'unknown';
     
+    const environment = import.meta.env.MODE || 'staging';
+    
     // Log to console
     console.error(`[AdminPageCrash-${this.state.errorId}] Unhandled Runtime Error:`);
     console.error(`Message: ${error.message}`);
@@ -44,7 +46,9 @@ export class AdminErrorBoundary extends Component<Props, State> {
         route: window.location.pathname + window.location.search,
         userId: this.props.user?._id,
         userRole: this.props.user?.role,
-        deploymentVersion,
+        deploymentCommit: deploymentVersion,
+        apiRequests: [], // Runtime boundary cannot reliably intercept all network requests without a global monkeypatch
+        environment,
         browser: navigator.userAgent,
         timestamp: new Date().toISOString()
       })
@@ -63,18 +67,36 @@ export class AdminErrorBoundary extends Component<Props, State> {
           <div className="mb-6 px-3 py-1.5 bg-red-100/50 rounded text-xs font-mono text-red-800 border border-red-200">
             Error Ref: {this.state.errorId}
           </div>
-          <button
-            onClick={() => {
-              if (this.state.retryCount > 1) {
-                window.location.reload();
-              } else {
-                this.setState(prev => ({ hasError: false, errorId: '', retryCount: prev.retryCount + 1 }));
-              }
-            }}
-            className="px-6 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors"
-          >
-            Try Again
-          </button>
+          {this.state.retryCount > 1 ? (
+            <div className="flex flex-col gap-3 w-full max-w-xs mx-auto">
+              <p className="text-sm font-semibold text-red-800 mb-2">The issue is still occurring.</p>
+              <button
+                onClick={() => this.setState(prev => ({ hasError: false, errorId: '', retryCount: prev.retryCount + 1 }))}
+                className="w-full px-6 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors"
+              >
+                Retry request
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full px-6 py-2 bg-white border border-red-200 text-red-700 hover:bg-red-50 rounded-lg text-sm font-semibold transition-colors"
+              >
+                Reload page
+              </button>
+              <a
+                href="/admin/dashboard"
+                className="w-full px-6 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg text-sm font-semibold transition-colors inline-block text-center"
+              >
+                Return to admin dashboard
+              </a>
+            </div>
+          ) : (
+            <button
+              onClick={() => this.setState(prev => ({ hasError: false, errorId: '', retryCount: prev.retryCount + 1 }))}
+              className="px-6 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-semibold transition-colors"
+            >
+              Try Again
+            </button>
+          )}
         </div>
       );
     }

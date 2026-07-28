@@ -3,16 +3,31 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Filter, Download, MoreHorizontal, Store, Star, MapPin, Loader2 } from 'lucide-react';
 import { ActionModal } from '../../components/admin/ActionModal';
 import { adminApi } from '../../lib/api';
+import { normaliseApiResponse } from '../../lib/utils';
+import { AdminLocalErrorState } from '../../components/admin/AdminLocalErrorState';
 
 export const Providers: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
 
-  const { data: providers = [], isLoading: loading } = useQuery({
+  const { data, isLoading: loading, isError, error, refetch } = useQuery({
     queryKey: ['adminProviders'],
-    queryFn: () => adminApi.getProviders().then(data => data || []),
+    queryFn: () => adminApi.getProviders(),
   });
+
+  if (isError) {
+    return (
+      <AdminLocalErrorState
+        title="Failed to load providers"
+        message={(error as any)?.message || 'Service provider directory could not be loaded.'}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  const normalised = normaliseApiResponse(data, 'providers');
+  const providers = normalised.data;
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => adminApi.updateProviderStatus(id, status),
@@ -32,10 +47,10 @@ export const Providers: React.FC = () => {
     updateStatusMutation.mutate({ id: providerId, status: newStatus });
   };
 
-  const filteredProviders = providers.filter(p => 
-    p.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.city?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProviders = providers.filter((p: any) => 
+    p?.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p?.city?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -53,20 +68,22 @@ export const Providers: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-zinc-950 rounded-xl p-5 shadow-sm text-white">
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Total Providers</p>
-          <p className="text-3xl font-black tracking-tighter">{providers.length}</p>
+      {!loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-zinc-950 rounded-xl p-5 shadow-sm text-white">
+            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Total Providers</p>
+            <p className="text-3xl font-black tracking-tighter">{providers.length}</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Active Profiles</p>
+            <p className="text-3xl font-black tracking-tighter text-emerald-600">{providers.filter((p: any) => p?.status === 'Active').length}</p>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Pending Verification</p>
+            <p className="text-3xl font-black tracking-tighter text-amber-600">{providers.filter((p: any) => !p?.isVerified).length}</p>
+          </div>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Active Profiles</p>
-          <p className="text-3xl font-black tracking-tighter text-emerald-600">{providers.filter(p => p.status === 'Active').length}</p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Pending Verification</p>
-          <p className="text-3xl font-black tracking-tighter text-amber-600">{providers.filter(p => !p.isVerified).length}</p>
-        </div>
-      </div>
+      )}
 
       <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -111,10 +128,12 @@ export const Providers: React.FC = () => {
               ) : filteredProviders.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                    No providers found.
+                    <Store className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-sm font-semibold text-gray-900">No providers found.</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Registered providers will appear here.</p>
                   </td>
                 </tr>
-              ) : filteredProviders.map((provider) => (
+              ) : filteredProviders.map((provider: any) => (
                 <tr key={provider?._id || Math.random()} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">

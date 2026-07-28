@@ -8,11 +8,19 @@ import {
   getAdminBookings,
   getAdminCustomers,
   getAdminTransactions,
+  getAdminPayouts,
+  getAdminRefunds,
+  getAdminSettings,
+  getAdminRisk,
 } from '../controllers/adminController.js';
+import { protect, adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Admin stats route
+// Apply auth middleware to all admin routes
+router.use(protect, adminOnly);
+
+// Dashboard / Stats
 router.get('/stats', getAdminStats);
 
 // Receipt verification routes
@@ -27,5 +35,9 @@ router.put('/providers/:providerId/status', updateProviderStatus);
 router.get('/bookings', getAdminBookings);
 router.get('/customers', getAdminCustomers);
 router.get('/transactions', getAdminTransactions);
+router.get('/payouts', getAdminPayouts);
+router.get('/refunds', getAdminRefunds);
+router.get('/settings', getAdminSettings);
+router.get('/risk', getAdminRisk);
 
 export default router;

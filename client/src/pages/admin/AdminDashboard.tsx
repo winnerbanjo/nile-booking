@@ -1,19 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
-  DollarSign, TrendingUp, ShieldAlert, Clock, CheckCircle2, 
-  Users, User, Activity, ArrowUpRight, CreditCard
+  DollarSign, TrendingUp, Clock, CheckCircle2, 
+  ArrowUpRight
 } from 'lucide-react';
 import { adminApi } from '../../lib/api';
 import { formatDateSafe } from '../../lib/utils';
+import { AdminLocalErrorState } from '../../components/admin/AdminLocalErrorState';
 
 export const AdminDashboard: React.FC = () => {
-  const { data: statsData, isLoading, isError } = useQuery({
+  const { data: statsData, isLoading, isError, refetch, error } = useQuery({
     queryKey: ['adminStats'],
     queryFn: () => adminApi.getAdminStats(),
     staleTime: 1000 * 30, // 30s
   });
+
+  if (isError) {
+    return (
+      <AdminLocalErrorState
+        title="Failed to load platform statistics"
+        message={(error as any)?.message || 'Dashboard statistics could not be loaded.'}
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   const kpiData = {
     ecosystemGMV: statsData?.gmv || 0,
@@ -24,7 +35,7 @@ export const AdminDashboard: React.FC = () => {
     activeProviders: statsData?.activeProviders || 0,
     totalCustomers: statsData?.totalCustomers || 0,
     totalBookings: statsData?.totalBookings || 0,
-    recentProviders: statsData?.recentProviders || [],
+    recentProviders: Array.isArray(statsData?.recentProviders) ? statsData.recentProviders : [],
   };
 
   const formatMoney = (amount: number) => {
@@ -42,14 +53,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {isError ? (
-        <div className="bg-red-50 border border-red-100 rounded-xl p-6 text-center">
-          <p className="text-red-700 font-medium">Failed to load platform statistics.</p>
-          <p className="text-xs text-red-500 mt-1">Check your connection or try refreshing the page.</p>
-        </div>
-      ) : (
-        <>
-          {/* KPI Grid - Row 1 (Financials) */}
+      {/* KPI Grid - Row 1 (Financials) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
@@ -178,8 +182,8 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        </>
-      )}
+            </div>
+          </div>
     </div>
   );
 };
