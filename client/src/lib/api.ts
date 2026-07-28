@@ -19,7 +19,7 @@ const API_BASE_URL = configuredApiBaseUrl
   ? configuredApiBaseUrl.replace(/\/+$/, '')
   : isLocalhost
     ? '/api'
-    : 'https://nile-booking-api.onrender.com/api';
+    : 'https://api.nilebooking.co/api';
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
