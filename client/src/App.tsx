@@ -16,36 +16,52 @@ import { PublicProvider } from './pages/PublicProvider';
 import { Checkout } from './pages/Checkout';
 
 // Lazy-loaded Merchant Sub-routes
-const Services = lazy(() => import('./pages/Services').then((m) => ({ default: m.Services })));
-const Categories = lazy(() => import('./pages/dashboard/Categories').then((m) => ({ default: m.Categories })));
-const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
-const Bookings = lazy(() => import('./pages/Bookings').then((m) => ({ default: m.Bookings })));
-const Financial = lazy(() => import('./pages/Financial').then((m) => ({ default: m.Financial })));
-const Payments = lazy(() => import('./pages/dashboard/Payments').then((m) => ({ default: m.Payments })));
+export const servicesImport = () => import('./pages/Services').then((m) => ({ default: m.Services }));
+const Services = lazy(servicesImport);
+export const categoriesImport = () => import('./pages/dashboard/Categories').then((m) => ({ default: m.Categories }));
+const Categories = lazy(categoriesImport);
+export const settingsImport = () => import('./pages/Settings').then((m) => ({ default: m.Settings }));
+const Settings = lazy(settingsImport);
+export const bookingsImport = () => import('./pages/Bookings').then((m) => ({ default: m.Bookings }));
+const Bookings = lazy(bookingsImport);
+export const financialImport = () => import('./pages/Financial').then((m) => ({ default: m.Financial }));
+const Financial = lazy(financialImport);
+export const paymentsImport = () => import('./pages/dashboard/Payments').then((m) => ({ default: m.Payments }));
+const Payments = lazy(paymentsImport);
+export const customersImport = () => import('./pages/Customers').then((m) => ({ default: m.Customers }));
+const Customers = lazy(customersImport);
+export const staffImport = () => import('./pages/Staff').then((m) => ({ default: m.Staff }));
+const Staff = lazy(staffImport);
+export const invoicesImport = () => import('./pages/Invoices').then((m) => ({ default: m.Invoices }));
+const Invoices = lazy(invoicesImport);
+
 const CustomDomains = lazy(() => import('./pages/CustomDomains').then((m) => ({ default: m.CustomDomains })));
 const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })));
 const Marketing = lazy(() => import('./pages/Marketing').then((m) => ({ default: m.Marketing })));
 const Pages = lazy(() => import('./pages/Pages').then((m) => ({ default: m.Pages })));
-const Customers = lazy(() => import('./pages/Customers').then((m) => ({ default: m.Customers })));
-const Staff = lazy(() => import('./pages/Staff').then((m) => ({ default: m.Staff })));
-const Invoices = lazy(() => import('./pages/Invoices').then((m) => ({ default: m.Invoices })));
 const Calendar = lazy(() => import('./pages/Calendar').then((m) => ({ default: m.Calendar })));
 const Sales = lazy(() => import('./pages/Sales').then((m) => ({ default: m.Sales })));
 const Reviews = lazy(() => import('./pages/Reviews').then((m) => ({ default: m.Reviews })));
 const Discounts = lazy(() => import('./pages/Discounts').then((m) => ({ default: m.Discounts })));
 
 // Lazy-loaded Admin Routes
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+export const adminDashboardImport = () => import('./pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard }));
+const AdminDashboard = lazy(adminDashboardImport);
+export const adminProvidersImport = () => import('./pages/admin/Providers').then((m) => ({ default: m.Providers }));
+const Providers = lazy(adminProvidersImport);
+export const adminBookingsImport = () => import('./pages/admin/Bookings').then((m) => ({ default: m.Bookings }));
+const AdminBookings = lazy(adminBookingsImport);
+export const adminTransactionsImport = () => import('./pages/admin/Transactions').then((m) => ({ default: m.Transactions }));
+const Transactions = lazy(adminTransactionsImport);
+
 const AdminLogin = lazy(() => import('./pages/admin/AdminLogin').then((m) => ({ default: m.AdminLogin })));
 const ReceiptVerification = lazy(() => import('./pages/admin/ReceiptVerification').then((m) => ({ default: m.ReceiptVerification })));
-const Providers = lazy(() => import('./pages/admin/Providers').then((m) => ({ default: m.Providers })));
-const AdminBookings = lazy(() => import('./pages/admin/Bookings').then((m) => ({ default: m.Bookings })));
 const AdminCustomers = lazy(() => import('./pages/admin/Customers').then((m) => ({ default: m.Customers })));
-const Transactions = lazy(() => import('./pages/admin/Transactions').then((m) => ({ default: m.Transactions })));
 const Risk = lazy(() => import('./pages/admin/Risk').then((m) => ({ default: m.Risk })));
 const Payouts = lazy(() => import('./pages/admin/Payouts').then((m) => ({ default: m.Payouts })));
 const Refunds = lazy(() => import('./pages/admin/Refunds').then((m) => ({ default: m.Refunds })));
 const AdminSettings = lazy(() => import('./pages/admin/Settings').then((m) => ({ default: m.Settings })));
+
 
 // Lazy-loaded Marketing & Legal Routes
 const Navbar = lazy(() => import('./components/marketing/Navbar').then((m) => ({ default: m.Navbar })));
@@ -94,7 +110,6 @@ const PageLoader = () => (
   <div className="min-h-screen bg-white flex items-center justify-center">
     <div className="text-center">
       <div className="w-10 h-10 border-3 border-[#22c55e] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-      <p className="text-xs text-zinc-500 font-normal">Loading page...</p>
     </div>
   </div>
 );

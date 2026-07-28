@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -20,6 +20,12 @@ import {
   Receipt,
   UserCircle
 } from 'lucide-react';
+import {
+  adminDashboardImport,
+  adminProvidersImport,
+  adminBookingsImport,
+  adminTransactionsImport
+} from '../../App';
 import { AdminErrorBoundary } from './AdminErrorBoundary';
 
 interface AdminLayoutProps {
@@ -109,6 +115,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     <Link
                       key={item.name}
                       to={item.href}
+                      onMouseEnter={() => {
+                        if (item.href === '/admin/dashboard') adminDashboardImport();
+                        if (item.href === '/admin/providers') adminProvidersImport();
+                        if (item.href === '/admin/bookings') adminBookingsImport();
+                        if (item.href === '/admin/transactions') adminTransactionsImport();
+                      }}
+                      onFocus={() => {
+                        if (item.href === '/admin/dashboard') adminDashboardImport();
+                        if (item.href === '/admin/providers') adminProvidersImport();
+                        if (item.href === '/admin/bookings') adminBookingsImport();
+                        if (item.href === '/admin/transactions') adminTransactionsImport();
+                      }}
                       className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                         isActive
                           ? 'bg-emerald-500/10 text-emerald-400'
@@ -243,7 +261,19 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         {/* Page Content */}
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)]">
           <AdminErrorBoundary>
-            {children}
+            <Suspense fallback={
+              <div className="w-full animate-pulse">
+                <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="h-28 bg-gray-200 rounded-xl"></div>
+                  <div className="h-28 bg-gray-200 rounded-xl"></div>
+                  <div className="h-28 bg-gray-200 rounded-xl"></div>
+                </div>
+                <div className="h-96 bg-gray-200 rounded-xl"></div>
+              </div>
+            }>
+              {children}
+            </Suspense>
           </AdminErrorBoundary>
         </div>
 

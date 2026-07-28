@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -29,6 +29,17 @@ import { getStorefrontUrl } from '../../lib/subdomain';
 import { Star, Tag, ShoppingBag } from 'lucide-react';
 import { serviceApi, bookingApi, dashboardApi, categoryApi } from '../../lib/api';
 import { queryClient, queryKeys } from '../../lib/queryClient';
+import { 
+  servicesImport, 
+  categoriesImport, 
+  settingsImport, 
+  bookingsImport, 
+  financialImport, 
+  paymentsImport, 
+  customersImport, 
+  staffImport, 
+  invoicesImport 
+} from '../../App';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -101,6 +112,34 @@ export const DashboardLayout: React.FC = () => {
             {navigation.map((item) => {
               const isActive = location.pathname === item.href;
               const handleMouseEnter = () => {
+                // Component Chunk Prefetching
+                switch (item.href) {
+                  case '/dashboard/services':
+                    servicesImport();
+                    break;
+                  case '/dashboard/bookings':
+                    bookingsImport();
+                    break;
+                  case '/dashboard/customers':
+                    customersImport();
+                    break;
+                  case '/dashboard/staff':
+                    staffImport();
+                    break;
+                  case '/dashboard/invoices':
+                    invoicesImport();
+                    break;
+                  case '/dashboard/financial':
+                    financialImport();
+                    break;
+                  case '/dashboard/settings':
+                    settingsImport();
+                    break;
+                  default:
+                    break;
+                }
+
+                // Data Prefetching
                 if (item.href === '/dashboard/services') {
                   queryClient.prefetchQuery({ queryKey: queryKeys.merchant.services(), queryFn: () => serviceApi.getServices() });
                   queryClient.prefetchQuery({ queryKey: queryKeys.merchant.categories, queryFn: () => categoryApi.getCategories() });
@@ -209,7 +248,19 @@ export const DashboardLayout: React.FC = () => {
 
         {/* Page Content Outlet */}
         <main className="p-0">
-          <Outlet />
+          <Suspense fallback={
+            <div className="p-8 w-full animate-pulse">
+              <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="h-32 bg-gray-200 rounded-xl"></div>
+                <div className="h-32 bg-gray-200 rounded-xl"></div>
+                <div className="h-32 bg-gray-200 rounded-xl"></div>
+              </div>
+              <div className="h-96 bg-gray-200 rounded-xl"></div>
+            </div>
+          }>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>
