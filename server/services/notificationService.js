@@ -11,6 +11,9 @@ import Service from '../models/Service.js';
 export const sendMailtrapApiEmail = async ({ toEmail, toName, subject, htmlContent, category = 'Integration Test' }) => {
   const token = process.env.MAILTRAP_TOKEN;
   if (!token) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('MAILTRAP_TOKEN is required in production.');
+    }
     console.log(`[MAILTRAP MOCK EMAIL] To: ${toEmail} | Subject: ${subject}`);
     return { success: true, mock: true };
   }
