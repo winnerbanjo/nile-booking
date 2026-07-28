@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Users } from 'lucide-react';
 import { adminApi } from '../../lib/api';
+import { formatDateSafe } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
 
 export const Customers: React.FC = () => {
@@ -92,7 +93,7 @@ export const Customers: React.FC = () => {
                     <td className="px-6 py-4 text-xs font-mono text-gray-600">{c?.email || 'No email'}</td>
                     <td className="px-6 py-4 text-xs text-gray-600">{c?.phone || 'N/A'}</td>
                     <td className="px-6 py-4 text-xs text-gray-500">
-                      {c?.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
+                      {formatDateSafe(c?.createdAt)}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${

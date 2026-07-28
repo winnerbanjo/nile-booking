@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, CalendarDays } from 'lucide-react';
 import { adminApi } from '../../lib/api';
+import { formatDateSafe } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
 
 export const Bookings: React.FC = () => {
@@ -100,7 +101,7 @@ export const Bookings: React.FC = () => {
                       <td className="px-6 py-4 text-gray-700">{booking.customer?.name}</td>
                       <td className="px-6 py-4 text-gray-700">{serviceName}</td>
                       <td className="px-6 py-4 text-xs text-gray-500">
-                        {booking.date ? new Date(booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
+                        {formatDateSafe(booking.date)}
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
                         ₦{(booking.pricing?.totalAmount || 0).toLocaleString()}

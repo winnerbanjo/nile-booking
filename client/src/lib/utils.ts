@@ -18,3 +18,9 @@ export const safeDate = (value: unknown): Date | null => {
   const date = new Date(value as string | number);
   return Number.isNaN(date.getTime()) ? null : date;
 };
+
+export const formatDateSafe = (value: unknown, options?: Intl.DateTimeFormatOptions): string => {
+  const date = safeDate(value);
+  if (!date) return 'Unknown';
+  return date.toLocaleDateString('en-US', options || { month: 'short', day: 'numeric', year: 'numeric' });
+};

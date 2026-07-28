@@ -6,6 +6,7 @@ import {
   Users, User, Activity, ArrowUpRight, CreditCard
 } from 'lucide-react';
 import { adminApi } from '../../lib/api';
+import { formatDateSafe } from '../../lib/utils';
 
 export const AdminDashboard: React.FC = () => {
   const { data: statsData, isLoading, isError } = useQuery({
@@ -144,7 +145,7 @@ export const AdminDashboard: React.FC = () => {
                             <td className="px-6 py-4 font-medium text-gray-900">{p.businessName || p.name}</td>
                             <td className="px-6 py-4 text-xs font-mono text-gray-600">{p.email}</td>
                             <td className="px-6 py-4 text-xs text-gray-500">
-                              {p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
+                              {formatDateSafe(p.createdAt)}
                             </td>
                           </tr>
                         ))

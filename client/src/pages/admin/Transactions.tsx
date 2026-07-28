@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, ArrowRightLeft } from 'lucide-react';
 import { adminApi } from '../../lib/api';
+import { formatDateSafe } from '../../lib/utils';
 import { Button } from '../../components/ui/button';
 
 export const Transactions: React.FC = () => {
@@ -99,7 +100,7 @@ export const Transactions: React.FC = () => {
                         ₦{(txn.amount || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500">
-                        {txn.createdAt ? new Date(txn.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
+                        {formatDateSafe(txn.createdAt)}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
