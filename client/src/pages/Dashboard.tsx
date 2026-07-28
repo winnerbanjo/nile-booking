@@ -315,7 +315,7 @@ export const Dashboard: React.FC = () => {
                             </td>
                             <td className="px-6 py-3.5 font-normal">{serviceName}</td>
                             <td className="px-6 py-3.5 text-zinc-500 font-normal">
-                              {new Date(booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {booking.timeSlot?.startTime || '10:00'}
+                              {safeDate(booking.date) || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {booking.timeSlot?.startTime || '10:00'}
                             </td>
                             <td className="px-6 py-3.5 font-medium text-zinc-900">
                               ₦{(booking.pricing?.totalAmount || booking.pricing?.servicePrice || 0).toLocaleString()}

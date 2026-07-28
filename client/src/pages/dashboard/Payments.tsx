@@ -5,6 +5,7 @@ import { DollarSign, TrendingUp, Clock, CheckCircle, Copy, CreditCard, Shield, A
 import type { BookingStats, Booking } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
+import { safeDate } from '../../lib/utils';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -401,7 +402,7 @@ export const Payments: React.FC = () => {
                             {customerName}
                           </p>
                           <p className="text-xs text-gray-500 font-light">
-                            {format(new Date(transaction.createdAt), 'MMM d, yyyy')}
+                            {format(safeDate(transaction.createdAt) || new Date(), 'MMM d, yyyy')}
                           </p>
                         </td>
                         <td className="py-4 px-4">
@@ -492,7 +493,7 @@ export const Payments: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-white/30">
                       <div className="text-xs text-gray-500 font-light flex flex-col gap-2">
-                        {format(new Date(transaction.createdAt), 'MMM d')}
+                            {format(safeDate(transaction.createdAt) || new Date(), 'MMM d, yyyy')}
                         {booking.paymentStatus === 'awaiting_verification' && (
                           <Button
                             onClick={() => handleVerifyReceipt(transaction._id)}

@@ -75,7 +75,7 @@ export const Customers: React.FC = () => {
           existing.totalBookings += 1;
           existing.totalSpent += amount;
           existing.bookingsHistory.push(booking);
-          if (new Date(booking.date) > new Date(existing.lastVisit)) {
+          if (safeDate(booking.date) || new Date() > new Date(existing.lastVisit)) {
             existing.lastVisit = booking.date;
             existing.favoriteService = serviceName;
           }

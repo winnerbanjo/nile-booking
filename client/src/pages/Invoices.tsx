@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
+import { safeDate } from '../lib/utils';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { FileSpreadsheet, Plus, Printer, Download, CheckCircle2, Building2, X, FileText, Send } from 'lucide-react';
@@ -274,9 +275,11 @@ export const Invoices: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-zinc-400 uppercase font-medium text-[10px]">Invoice Date</p>
-                  <p className="font-semibold text-zinc-900 mt-1">{format(new Date(selectedInvoice.createdAt), 'MMM d, yyyy')}</p>
-                  <p className="text-zinc-400 uppercase font-medium text-[10px] mt-2">Due Date</p>
-                  <p className="font-semibold text-zinc-900">{format(new Date(selectedInvoice.dueDate), 'MMM d, yyyy')}</p>
+                  <p className="font-semibold text-zinc-900 mt-1">{format(safeDate(selectedInvoice.createdAt) || new Date(), 'MMM d, yyyy')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-zinc-500">Due Date</p>
+                  <p className="font-semibold text-zinc-900">{format(safeDate(selectedInvoice.dueDate) || new Date(), 'MMM d, yyyy')}</p>
                 </div>
               </div>
 

@@ -166,7 +166,7 @@ export const Bookings: React.FC = () => {
                           {service ? service.name : 'Service'}
                         </td>
                         <td className="px-6 py-4 text-zinc-500 font-normal">
-                          {format(new Date(booking.date), 'MMM d, yyyy')}
+                          {format(safeDate(booking.date) || new Date(), 'MMM d, yyyy')}
                           <div className="text-[11px] text-zinc-400">{booking.timeSlot?.startTime} - {booking.timeSlot?.endTime}</div>
                         </td>
                         <td className="px-6 py-4 font-semibold text-zinc-900">
