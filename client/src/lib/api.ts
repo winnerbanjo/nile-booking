@@ -223,6 +223,40 @@ export const scheduleApi = {
   },
 };
 
+// Category API
+export const categoryApi = {
+  getCategories: async () => {
+    return await request<{ success: boolean; data: any[]; count: number }>('/service-categories');
+  },
+  createCategory: async (data: { name: string; description?: string; isActive?: boolean }) => {
+    return await request<{ success: boolean; data: any; message: string }>('/service-categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  getCategory: async (id: string) => {
+    return await request<{ success: boolean; data: any }>(`/service-categories/${id}`);
+  },
+  updateCategory: async (id: string, data: any) => {
+    return await request<{ success: boolean; data: any; message: string }>(`/service-categories/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+  deleteCategory: async (id: string, actionData?: { action: 'delete' | 'move' | 'uncategorize'; targetCategoryId?: string }) => {
+    return await request<{ success: boolean; message: string }>(`/service-categories/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify(actionData || {}),
+    });
+  },
+  reorderCategories: async (categories: { id: string; sortOrder: number }[]) => {
+    return await request<{ success: boolean; message: string }>('/service-categories/reorder', {
+      method: 'PATCH',
+      body: JSON.stringify({ categories }),
+    });
+  },
+};
+
 // Service API
 export const serviceApi = {
   getServices: async () => {

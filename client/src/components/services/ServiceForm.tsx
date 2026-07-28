@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { serviceApi } from '../../lib/api';
+import { serviceApi, categoryApi } from '../../lib/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Plus, X } from 'lucide-react';
 import type { Service } from '../../types';
 
 const serviceSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   description: z.string().min(1, 'Description is required'),
-  category: z.enum(['cruise', 'hotel', 'tour', 'restaurant', 'transportation', 'other']),
+  categoryId: z.string().nullable().optional(),
+  category: z.string().optional(),
   price: z.number().min(0, 'Price must be positive'),
   duration: z.number().min(0.5, 'Duration must be at least 0.5 hours'),
   capacity: z.number().min(1).optional().default(1),
@@ -26,6 +29,16 @@ interface ServiceFormProps {
 }
 
 export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onClose }) => {
+  const queryClient = useQueryClient();
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+
+  const { data: catData, isLoading: catLoading, isError: catError } = useQuery({
+    queryKey: ['categories'],
+    queryFn: categoryApi.getCategories,
+  });
+  const categories = catData?.data || [];
+
   const {
     register,
     handleSubmit,
@@ -38,16 +51,39 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onClose }) =>
       ? {
           name: service.name,
           description: service.description,
-          category: service.category,
+          categoryId: service.categoryId || null,
+          category: service.category || 'other',
           price: service.price,
           duration: service.duration,
           capacity: service.capacity,
         }
       : {
+          categoryId: null,
           category: 'other',
           capacity: 1,
         },
   });
+
+  const categoryIdValue = watch('categoryId');
+
+  const createCatMutation = useMutation({
+    mutationFn: categoryApi.createCategory,
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      if (res?.data?._id) {
+        setValue('categoryId', res.data._id);
+      }
+      setIsCreatingCategory(false);
+      setNewCatName('');
+    },
+    onError: (err: any) => alert(err.message),
+  });
+
+  const handleCreateCategory = () => {
+    if (newCatName.trim()) {
+      createCatMutation.mutate({ name: newCatName });
+    }
+  };
 
   const onSubmit = async (data: ServiceFormData) => {
     try {
@@ -94,23 +130,44 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onClose }) =>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="category">Category</Label>
-              <select
-                id="category"
-                {...register('category')}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              >
-                <option value="cruise">Cruise</option>
-                <option value="hotel">Hotel</option>
-                <option value="tour">Tour</option>
-                <option value="restaurant">Restaurant</option>
-                <option value="transportation">Transportation</option>
-                <option value="other">Other</option>
-              </select>
-              {errors.category && (
-                <p className="text-sm text-red-600">{errors.category.message}</p>
+              <Label htmlFor="categoryId">Category</Label>
+              {isCreatingCategory ? (
+                <div className="flex gap-2 items-center">
+                  <Input
+                    autoFocus
+                    placeholder="New category name"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    className="h-10 text-sm flex-1"
+                  />
+                  <Button type="button" size="sm" onClick={handleCreateCategory} disabled={createCatMutation.isPending} className="h-10">Save</Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setIsCreatingCategory(false)} className="h-10 px-2"><X className="w-4 h-4" /></Button>
+                </div>
+              ) : (
+                <select
+                  id="categoryId"
+                  value={categoryIdValue || ''}
+                  onChange={(e) => {
+                    if (e.target.value === 'CREATE_NEW') {
+                      setIsCreatingCategory(true);
+                    } else {
+                      setValue('categoryId', e.target.value || null);
+                    }
+                  }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <option value="">No category</option>
+                  {categories.map((cat: any) => (
+                    <option key={cat._id} value={cat._id}>{cat.name}</option>
+                  ))}
+                  <option value="CREATE_NEW" className="text-blue-600 font-semibold">+ Create New Category</option>
+                </select>
+              )}
+              {catLoading && <p className="text-xs text-gray-500">Loading categories...</p>}
+              {categories.length === 0 && !catLoading && !isCreatingCategory && (
+                <p className="text-xs text-gray-500">You have not created any categories yet. Create one or save without.</p>
               )}
             </div>
 
@@ -162,7 +219,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({ service, onClose }) =>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting || createCatMutation.isPending}>
               {isSubmitting ? 'Saving...' : service ? 'Update' : 'Create'}
             </Button>
           </div>

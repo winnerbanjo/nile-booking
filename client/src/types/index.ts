@@ -60,7 +60,9 @@ export interface Service {
   provider: string;
   name: string;
   description: string;
-  category: string;
+  category?: string;
+  categoryId?: string | null;
+  categoryNameSnapshot?: string;
   price: number;
   duration: number;
   capacity?: number;
@@ -157,6 +159,7 @@ export interface Provider {
 export interface ProviderWithServices {
   provider: Provider;
   services: Service[];
+  categories?: any[];
 }
 
 // Booking Types

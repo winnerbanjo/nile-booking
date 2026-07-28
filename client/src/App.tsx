@@ -17,6 +17,7 @@ import { Checkout } from './pages/Checkout';
 
 // Lazy-loaded Merchant Sub-routes
 const Services = lazy(() => import('./pages/Services').then((m) => ({ default: m.Services })));
+const Categories = lazy(() => import('./pages/dashboard/Categories').then((m) => ({ default: m.Categories })));
 const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
 const Bookings = lazy(() => import('./pages/Bookings').then((m) => ({ default: m.Bookings })));
 const Financial = lazy(() => import('./pages/Financial').then((m) => ({ default: m.Financial })));
@@ -116,6 +117,24 @@ class AppErrorBoundaryInner extends Component<
     return { hasError: true, error, errorId: Math.random().toString(36).substring(2, 9).toUpperCase() };
   }
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    const errorMsg = error.message || '';
+    const isChunkError = 
+      errorMsg.includes('ChunkLoadError') || 
+      errorMsg.includes('Loading chunk failed') || 
+      errorMsg.includes('Failed to fetch dynamically imported module') ||
+      errorMsg.includes('Importing a module script failed');
+
+    const deploymentVersion = import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA || 'unknown';
+    const reloadKey = `chunk_reload_${deploymentVersion}`;
+
+    if (isChunkError) {
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, 'true');
+        window.location.reload();
+        return;
+      }
+    }
+
     // Log the error carefully without sensitive data
     console.error(`[AppCrash-${this.state.errorId}] Unhandled Runtime Error:`);
     console.error(`Message: ${error.message}`);
@@ -125,6 +144,25 @@ class AppErrorBoundaryInner extends Component<
     if (this.props.user) {
       console.error(`User Role: ${this.props.user.role}, ID: ${this.props.user._id}`);
     }
+
+    // Fire and forget to backend
+    fetch('/api/system/frontend-errors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        referenceId: this.state.errorId,
+        message: error.message,
+        stack: error.stack ? error.stack.substring(0, 1000) : '',
+        componentStack: errorInfo.componentStack ? errorInfo.componentStack.substring(0, 1000) : '',
+        route: `${this.props.location?.pathname || ''}${this.props.location?.search || ''}`,
+        userId: this.props.user?._id,
+        userRole: this.props.user?.role,
+        deploymentVersion,
+        browser: navigator.userAgent,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        timestamp: new Date().toISOString()
+      })
+    }).catch(() => { /* Ignore failure */ });
   }
   render() {
     if (this.state.hasError) {
@@ -295,6 +333,7 @@ function MainApp() {
               <Route index element={<Dashboard />} />
               <Route path="calendar" element={<Calendar />} />
               <Route path="services" element={<Services />} />
+              <Route path="services/categories" element={<Categories />} />
               <Route path="bookings" element={<Bookings />} />
               <Route path="customers" element={<Customers />} />
               <Route path="staff" element={<Staff />} />

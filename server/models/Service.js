@@ -22,6 +22,17 @@ const serviceSchema = new mongoose.Schema(
       trim: true,
       default: 'other',
     },
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ServiceCategory',
+      default: null,
+      index: true,
+    },
+    categoryNameSnapshot: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     price: {
       type: Number,
       required: [true, 'Please provide a price'],

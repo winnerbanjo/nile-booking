@@ -477,53 +477,104 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               )}
             </div>
           ) : (
-            <div className="space-y-3">
-              {data.services.map((service) => {
-                const isSelected = selectedService?._id === service._id;
-              return (
-                <div
-                  key={service._id}
-                  onClick={() => handleServiceSelect(service)}
-                  className={`bg-white border rounded-xl p-4 sm:p-5 cursor-pointer transition-all hover:border-zinc-300 shadow-sm flex items-center justify-between gap-4 ${
-                    isSelected ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200/80'
-                  }`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="text-base font-semibold text-zinc-900 tracking-tight truncate">
-                        {service.name}
-                      </h3>
-                    </div>
-                    <p className="text-xs text-zinc-500 line-clamp-2 mb-3 font-normal">
-                      {service.description}
-                    </p>
-                    <div className="flex items-center gap-4 text-xs">
-                      <span className="font-bold text-zinc-900 text-sm">
-                        ₦{service.price.toLocaleString()}
-                      </span>
-                      <span className="text-zinc-500 flex items-center gap-1 font-normal">
-                        <Clock className="w-3.5 h-3.5" />
-                        {service.duration} {service.duration === 1 ? 'hr' : 'hrs'}
-                      </span>
-                    </div>
-                  </div>
+            <div className="space-y-8">
+              {(() => {
+                // Determine groups
+                const categoryGroups = new Map<string, { category: any, services: Service[] }>();
+                const otherServices: Service[] = [];
 
-                  <div className="flex-shrink-0 flex items-center">
-                    <Button
-                      size="sm"
-                      className={`rounded-lg h-9 px-4 text-xs font-medium transition-colors ${
-                        isSelected
-                          ? 'bg-zinc-900 text-white'
-                          : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200'
-                      }`}
-                    >
-                      Select & Book
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                data.services.forEach(service => {
+                  const catId = service.categoryId;
+                  if (catId && data.categories) {
+                    const cat = data.categories.find(c => c._id === catId);
+                    if (cat) {
+                      if (!categoryGroups.has(cat._id)) {
+                        categoryGroups.set(cat._id, { category: cat, services: [] });
+                      }
+                      categoryGroups.get(cat._id)!.services.push(service);
+                      return;
+                    }
+                  }
+                  
+                  // Transitional backward compatibility
+                  const fallbackCatName = service.categoryNameSnapshot || service.category;
+                  const isUncategorized = !fallbackCatName || ['other', 'others', 'uncategorised', 'uncategorized', 'none', 'n/a'].includes(fallbackCatName.toLowerCase());
+                  
+                  if (isUncategorized) {
+                    otherServices.push(service);
+                  } else {
+                    const tempId = `temp_${fallbackCatName.toLowerCase()}`;
+                    if (!categoryGroups.has(tempId)) {
+                      categoryGroups.set(tempId, { category: { _id: tempId, name: fallbackCatName, sortOrder: 999 }, services: [] });
+                    }
+                    categoryGroups.get(tempId)!.services.push(service);
+                  }
+                });
+
+                const sortedGroups = Array.from(categoryGroups.values()).sort((a, b) => (a.category.sortOrder || 0) - (b.category.sortOrder || 0));
+
+                if (otherServices.length > 0) {
+                  sortedGroups.push({ category: { _id: 'other', name: 'Other Services', sortOrder: 9999 }, services: otherServices });
+                }
+
+                return sortedGroups.map(group => {
+                  if (group.services.length === 0) return null;
+                  
+                  return (
+                    <div key={group.category._id} className="space-y-3">
+                      <h3 className="text-lg font-bold text-zinc-900 border-b border-zinc-100 pb-2">{group.category.name}</h3>
+                      <div className="space-y-3">
+                        {group.services.map(service => {
+                          const isSelected = selectedService?._id === service._id;
+                          return (
+                            <div
+                              key={service._id}
+                              onClick={() => handleServiceSelect(service)}
+                              className={`bg-white border rounded-xl p-4 sm:p-5 cursor-pointer transition-all hover:border-zinc-300 shadow-sm flex items-center justify-between gap-4 ${
+                                isSelected ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200/80'
+                              }`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-1">
+                                  <h4 className="text-base font-semibold text-zinc-900 tracking-tight truncate">
+                                    {service.name}
+                                  </h4>
+                                </div>
+                                <p className="text-xs text-zinc-500 line-clamp-2 mb-3 font-normal">
+                                  {service.description}
+                                </p>
+                                <div className="flex items-center gap-4 text-xs">
+                                  <span className="font-bold text-zinc-900 text-sm">
+                                    ₦{service.price.toLocaleString()}
+                                  </span>
+                                  <span className="text-zinc-500 flex items-center gap-1 font-normal">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    {service.duration} {service.duration === 1 ? 'hr' : 'hrs'}
+                                  </span>
+                                </div>
+                              </div>
+            
+                              <div className="flex-shrink-0 flex items-center">
+                                <Button
+                                  size="sm"
+                                  className={`rounded-lg h-9 px-4 text-xs font-medium transition-colors ${
+                                    isSelected
+                                      ? 'bg-zinc-900 text-white'
+                                      : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200'
+                                  }`}
+                                >
+                                  Select & Book
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
           )}
 
         </main>
