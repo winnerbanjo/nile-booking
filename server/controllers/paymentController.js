@@ -416,7 +416,7 @@ export const processRefund = async (req, res) => {
     transaction.refundedBy = req.user._id;
     transaction.refundedAt = new Date();
     
-    transaction.refundStatus = 'refunded';
+    transaction.refundStatus = newRefundAmount < transaction.amount ? 'refund_pending' : 'refunded';
     await transaction.save();
 
     res.json({ message: 'Refund recorded successfully', transaction });
