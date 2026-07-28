@@ -20,6 +20,7 @@ import {
   Receipt,
   UserCircle
 } from 'lucide-react';
+import { AdminErrorBoundary } from './AdminErrorBoundary';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -240,8 +241,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 p-4 md:p-8 w-full max-w-7xl mx-auto">
-          {children}
+        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto min-h-[calc(100vh-64px)]">
+          <AdminErrorBoundary>
+            {children}
+          </AdminErrorBoundary>
         </div>
 
       </main>

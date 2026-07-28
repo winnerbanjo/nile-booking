@@ -8,7 +8,7 @@ export const Transactions: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['adminTransactions', page, searchTerm],
     queryFn: () => adminApi.getTransactions({ page, limit: 25, search: searchTerm }),
     staleTime: 1000 * 30,
@@ -61,7 +61,14 @@ export const Transactions: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
+              {isError ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-red-500">
+                    <p className="text-sm font-semibold text-red-700">Failed to load transactions</p>
+                    <p className="text-xs text-red-500 mt-0.5">Please try again later.</p>
+                  </td>
+                </tr>
+              ) : isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-4 w-24 bg-gray-100 rounded"></div></td>
@@ -92,7 +99,7 @@ export const Transactions: React.FC = () => {
                         ₦{(txn.amount || 0).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-500">
-                        {new Date(txn.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {txn.createdAt ? new Date(txn.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${

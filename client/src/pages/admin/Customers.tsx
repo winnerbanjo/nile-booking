@@ -8,7 +8,7 @@ export const Customers: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['adminCustomers', page, searchTerm],
     queryFn: () => adminApi.getCustomers({ page, limit: 25, search: searchTerm }),
     staleTime: 1000 * 30,
@@ -60,7 +60,14 @@ export const Customers: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
+              {isError ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-red-500">
+                    <p className="text-sm font-semibold text-red-700">Failed to load customers</p>
+                    <p className="text-xs text-red-500 mt-0.5">Please try again later.</p>
+                  </td>
+                </tr>
+              ) : isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-4 w-28 bg-gray-100 rounded"></div></td>
@@ -80,18 +87,18 @@ export const Customers: React.FC = () => {
                 </tr>
               ) : (
                 customers.map((c) => (
-                  <tr key={c._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium text-gray-900">{c.name}</td>
-                    <td className="px-6 py-4 text-xs font-mono text-gray-600">{c.email}</td>
-                    <td className="px-6 py-4 text-xs text-gray-600">{c.phone || 'N/A'}</td>
+                  <tr key={c._id || Math.random()} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium text-gray-900">{c?.name || 'Unknown'}</td>
+                    <td className="px-6 py-4 text-xs font-mono text-gray-600">{c?.email || 'No email'}</td>
+                    <td className="px-6 py-4 text-xs text-gray-600">{c?.phone || 'N/A'}</td>
                     <td className="px-6 py-4 text-xs text-gray-500">
-                      {new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {c?.createdAt ? new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
-                        c.isVerified ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-700'
+                        c?.isVerified ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-700'
                       }`}>
-                        {c.isVerified ? 'Verified' : 'Unverified'}
+                        {c?.isVerified ? 'Verified' : 'Unverified'}
                       </span>
                     </td>
                   </tr>

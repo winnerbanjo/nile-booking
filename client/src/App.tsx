@@ -98,39 +98,100 @@ const PageLoader = () => (
   </div>
 );
 
-class AppErrorBoundary extends Component<
-  { children: ReactNode },
-  { hasError: boolean }
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  location: any;
+  user: any;
+}
+
+class AppErrorBoundaryInner extends Component<
+  ErrorBoundaryProps,
+  { hasError: boolean; error: Error | null; errorInfo: ErrorInfo | null; errorId: string }
 > {
-  constructor(props: { children: ReactNode }) {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, error: null, errorInfo: null, errorId: '' };
   }
-  static getDerivedStateFromError(_: Error) {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error, errorId: Math.random().toString(36).substring(2, 9).toUpperCase() };
   }
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('App Error:', error, errorInfo);
+    // Log the error carefully without sensitive data
+    console.error(`[AppCrash-${this.state.errorId}] Unhandled Runtime Error:`);
+    console.error(`Message: ${error.message}`);
+    console.error(`Stack: ${error.stack}`);
+    console.error(`Component Stack: ${errorInfo.componentStack}`);
+    console.error(`Current Route: ${this.props.location?.pathname}${this.props.location?.search}`);
+    if (this.props.user) {
+      console.error(`User Role: ${this.props.user.role}, ID: ${this.props.user._id}`);
+    }
   }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-white flex items-center justify-center">
-          <div className="text-center p-8">
-            <h1 className="text-2xl font-bold text-zinc-900 mb-2">Something went wrong</h1>
-            <p className="text-zinc-500 mb-6">Please refresh the page to try again.</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700"
-            >
-              Refresh Page
-            </button>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-gray-100 text-center space-y-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-2">
+              <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h1>
+              <p className="text-sm text-gray-500">We encountered an unexpected error while loading this page.</p>
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs font-mono text-gray-500 border border-gray-100">
+                Error Ref: {this.state.errorId}
+              </div>
+            </div>
+            
+            <div className="flex flex-col gap-3 pt-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors"
+              >
+                Try Again
+              </button>
+              <a
+                href="/dashboard"
+                className="w-full px-6 py-2.5 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors inline-block"
+              >
+                Return to Dashboard
+              </a>
+              {this.props.user && (
+                <button
+                  onClick={() => {
+                    localStorage.clear();
+                    window.location.href = '/login';
+                  }}
+                  className="w-full px-6 py-2.5 text-gray-500 rounded-xl text-sm font-medium hover:text-red-600 transition-colors"
+                >
+                  Log Out
+                </button>
+              )}
+            </div>
           </div>
         </div>
       );
     }
     return this.props.children;
   }
+}
+
+function AppErrorBoundary({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  
+  // Custom hook usage for location since useLocation is inside router
+  // We need to conditionally use it if router context exists, but since we are inside BrowserRouter, we can just use window.location as fallback or use a hook inside another wrapper if needed.
+  // Actually, useLocation() will work because we are in BrowserRouter in main.tsx
+  let location: any = {};
+  try {
+    const reactRouterDom = require('react-router-dom');
+    location = reactRouterDom.useLocation();
+  } catch (e) {
+    location = { pathname: window.location.pathname, search: window.location.search };
+  }
+
+  return <AppErrorBoundaryInner user={user} location={location}>{children}</AppErrorBoundaryInner>;
 }
 
 function StorefrontApp({ slug }: { slug: string }) {

@@ -8,7 +8,7 @@ export const Bookings: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['adminBookings', page, searchTerm],
     queryFn: () => adminApi.getBookings({ page, limit: 25, search: searchTerm }),
     staleTime: 1000 * 15,
@@ -62,7 +62,14 @@ export const Bookings: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {isLoading ? (
+              {isError ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-red-500">
+                    <p className="text-sm font-semibold text-red-700">Failed to load bookings</p>
+                    <p className="text-xs text-red-500 mt-0.5">Please try again later.</p>
+                  </td>
+                </tr>
+              ) : isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="px-6 py-4"><div className="h-4 w-20 bg-gray-100 rounded"></div></td>
@@ -93,7 +100,7 @@ export const Bookings: React.FC = () => {
                       <td className="px-6 py-4 text-gray-700">{booking.customer?.name}</td>
                       <td className="px-6 py-4 text-gray-700">{serviceName}</td>
                       <td className="px-6 py-4 text-xs text-gray-500">
-                        {new Date(booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {booking.date ? new Date(booking.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown'}
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
                         ₦{(booking.pricing?.totalAmount || 0).toLocaleString()}

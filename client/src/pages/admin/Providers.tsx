@@ -125,39 +125,39 @@ export const Providers: React.FC = () => {
                   </td>
                 </tr>
               ) : filteredProviders.map((provider) => (
-                <tr key={provider._id} className="hover:bg-gray-50 transition-colors">
+                <tr key={provider?._id || Math.random()} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500">
                         <Store className="w-5 h-5" />
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900">{provider.businessName || provider.name}</p>
-                        <p className="text-xs text-gray-500">{provider.email}</p>
+                        <p className="font-bold text-gray-900">{provider?.businessName || provider?.name || 'Unknown Business'}</p>
+                        <p className="text-xs text-gray-500">{provider?.email || 'No email'}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1.5 text-gray-900">
                       <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium">{provider.city || 'Not specified'}</span>
+                      <span className="font-medium">{provider?.city || 'Not specified'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <p className="font-bold text-gray-900 flex items-center gap-1">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      {provider.rating}
+                      {provider?.rating || 0}
                     </p>
-                    <p className="text-xs text-gray-500">{provider.totalBookings} bookings</p>
+                    <p className="text-xs text-gray-500">{provider?.totalBookings || 0} bookings</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="font-bold text-emerald-600">₦{(provider.totalRevenue || 0).toLocaleString()}</p>
+                    <p className="font-bold text-emerald-600">₦{(provider?.totalRevenue || 0).toLocaleString()}</p>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold ${
-                      provider.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                      provider?.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                     }`}>
-                      {provider.status}
+                      {provider?.status || 'Unknown'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
