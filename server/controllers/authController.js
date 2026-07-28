@@ -2,7 +2,7 @@ import User from '../models/User.js';
 import Schedule from '../models/Schedule.js';
 import jwt from 'jsonwebtoken';
 import { getMockMode, mockUsers } from '../utils/mockMode.js';
-import { sendMailtrapApiEmail } from '../services/notificationService.js';
+import { sendEmail } from '../utils/email.js';
 import { uploadImage } from '../services/cloudinaryService.js';
 
 // Generate JWT token
@@ -86,12 +86,10 @@ export const register = async (req, res) => {
       };
       mockUsers.set(cleanEmail, mockUser);
 
-      await sendMailtrapApiEmail({
-        toEmail: cleanEmail,
-        toName: name,
+      await sendEmail({
+        to: cleanEmail,
         subject: `Your Nile Booking Verification Code: ${otpCode}`,
-        htmlContent: `<h2>Verification Code</h2><p>Your 6-digit OTP code to verify your Nile Booking merchant account is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
-        category: 'OTP Verification',
+        html: `<h2>Verification Code</h2><p>Your 6-digit OTP code to verify your Nile Booking merchant account is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
       });
 
       console.log(`\n\n=== 🔐 [AUTH] OTP GENERATED (MOCK MODE) ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==============================\n\n`);
@@ -151,19 +149,17 @@ export const register = async (req, res) => {
       ],
     });
 
-    const emailResult = await sendMailtrapApiEmail({
-      toEmail: user.email,
-      toName: user.name,
+    const emailResult = await sendEmail({
+      to: user.email,
       subject: `Your Nile Booking Verification Code: ${otpCode}`,
-      htmlContent: `<h2>Verification Code</h2><p>Your 6-digit OTP code to verify your Nile Booking merchant account is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
-      category: 'OTP Verification',
+      html: `<h2>Verification Code</h2><p>Your 6-digit OTP code to verify your Nile Booking merchant account is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
     });
 
     console.log(`\n\n=== 🔐 [AUTH] OTP GENERATED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==============================\n\n`);
 
-    if (!emailResult.success) {
-      console.error('Mailtrap rejected the email:', emailResult.error);
-      return res.status(500).json({ message: 'Failed to send OTP email. Mailtrap may have blocked it. Please check terminal logs for the OTP.' });
+    if (!emailResult) {
+      console.error('Email provider rejected the email');
+      return res.status(500).json({ message: 'Failed to send OTP email. Please check terminal logs for the OTP.' });
     }
 
     res.status(201).json({
@@ -200,12 +196,10 @@ export const verifyOtp = async (req, res) => {
       mockUser.isVerified = true;
       mockUser.otpCode = null;
 
-      await sendMailtrapApiEmail({
-        toEmail: cleanEmail,
-        toName: mockUser.name,
+      await sendEmail({
+        to: cleanEmail,
         subject: `🎉 Congratulations! Your Nile Website is Live: nilebooking.co/p/${mockUser.slug}`,
-        htmlContent: `<h1>Congratulations ${mockUser.name}!</h1><p>Your signup is complete and your professional website is live at:</p><h3 style="color:#22c55e;"><a href="https://nilebooking.co/p/${mockUser.slug}">https://nilebooking.co/p/${mockUser.slug}</a></h3><p>Log in to your dashboard anytime to manage your bookings and services.</p>`,
-        category: 'Welcome Onboarding',
+        html: `<h1>Congratulations ${mockUser.name}!</h1><p>Your signup is complete and your professional website is live at:</p><h3 style="color:#22c55e;"><a href="https://nilebooking.co/p/${mockUser.slug}">https://nilebooking.co/p/${mockUser.slug}</a></h3><p>Log in to your dashboard anytime to manage your bookings and services.</p>`,
       });
 
       return res.json({
@@ -230,12 +224,10 @@ export const verifyOtp = async (req, res) => {
     user.otpExpires = null;
     await user.save();
 
-    await sendMailtrapApiEmail({
-      toEmail: user.email,
-      toName: user.name,
+    await sendEmail({
+      to: user.email,
       subject: `🎉 Congratulations! Your Nile Website is Live: nilebooking.co/p/${user.slug}`,
-      htmlContent: `<h1>Congratulations ${user.name}!</h1><p>Your signup is complete and your professional website is live at:</p><h3 style="color:#22c55e;"><a href="https://nilebooking.co/p/${user.slug}">https://nilebooking.co/p/${user.slug}</a></h3><p>Log in to your dashboard anytime to manage your bookings and services.</p>`,
-      category: 'Welcome Onboarding',
+      html: `<h1>Congratulations ${user.name}!</h1><p>Your signup is complete and your professional website is live at:</p><h3 style="color:#22c55e;"><a href="https://nilebooking.co/p/${user.slug}">https://nilebooking.co/p/${user.slug}</a></h3><p>Log in to your dashboard anytime to manage your bookings and services.</p>`,
     });
 
     res.json({
@@ -266,12 +258,10 @@ export const resendOtp = async (req, res) => {
     if (getMockMode()) {
       const mockUser = mockUsers.get(cleanEmail);
       if (mockUser) mockUser.otpCode = otpCode;
-      await sendMailtrapApiEmail({
-        toEmail: cleanEmail,
-        toName: mockUser?.name || 'Merchant',
+      await sendEmail({
+        to: cleanEmail,
         subject: `Your New Nile Verification Code: ${otpCode}`,
-        htmlContent: `<h2>New Verification Code</h2><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1>`,
-        category: 'OTP Verification',
+        html: `<h2>New Verification Code</h2><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1>`,
       });
 
       console.log(`\n\n=== 🔐 [AUTH] NEW OTP REQUESTED (MOCK MODE) ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==================================\n\n`);
@@ -285,19 +275,17 @@ export const resendOtp = async (req, res) => {
     user.otpExpires = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
 
-    const emailResult = await sendMailtrapApiEmail({
-      toEmail: cleanEmail,
-      toName: user.name,
+    const emailResult = await sendEmail({
+      to: cleanEmail,
       subject: `Your New Nile Verification Code: ${otpCode}`,
-      htmlContent: `<h2>New Verification Code</h2><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1>`,
-      category: 'OTP Verification',
+      html: `<h2>New Verification Code</h2><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1>`,
     });
 
     console.log(`\n\n=== 🔐 [AUTH] NEW OTP REQUESTED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n==================================\n\n`);
 
-    if (!emailResult.success) {
-      console.error('Mailtrap rejected the email:', emailResult.error);
-      return res.status(500).json({ message: 'Failed to send OTP email. Mailtrap may have blocked it. Please check terminal logs for the OTP.' });
+    if (!emailResult) {
+      console.error('Email provider rejected the email');
+      return res.status(500).json({ message: 'Failed to send OTP email. Please check terminal logs for the OTP.' });
     }
 
     res.json({ message: 'New OTP sent successfully' });
@@ -415,19 +403,17 @@ export const forgotPassword = async (req, res) => {
     // but in a real app you might want to silently ignore. Here we just proceed to send it.
 
     // Dispatch reset email via Mailtrap API
-    const emailResult = await sendMailtrapApiEmail({
-      toEmail: cleanEmail,
-      toName: cleanEmail,
-      subject: `Reset Your Nile Password: ${otpCode}`,
-      htmlContent: `<h2>Password Reset Requested</h2><p>Your 6-digit OTP code to reset your Nile Booking account password is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
-      category: 'Password Reset',
+    const emailResult = await sendEmail({
+      to: cleanEmail,
+      subject: `Your New Nile Booking OTP: ${otpCode}`,
+      html: `<h2>Verification Code</h2><p>Your new 6-digit OTP code to verify your Nile Booking account is:</p><h1 style="font-size:32px;letter-spacing:6px;color:#22c55e;">${otpCode}</h1><p>This code expires in 15 minutes.</p>`,
     });
 
     console.log(`\n\n=== 🔐 [AUTH] PASSWORD RESET OTP GENERATED ===\nEmail: ${cleanEmail}\nOTP Code: ${otpCode}\n=============================================\n\n`);
 
-    if (!emailResult.success) {
-      console.error('Mailtrap rejected the email:', emailResult.error);
-      return res.status(500).json({ message: 'Failed to send OTP email. Mailtrap may have blocked it. Please check terminal logs for the OTP.' });
+    if (!emailResult) {
+      console.error('Email provider rejected the email');
+      return res.status(500).json({ message: 'Failed to send OTP email. Please check terminal logs for the OTP.' });
     }
 
     res.json({ message: 'Password reset OTP code sent to your email.' });
@@ -482,12 +468,10 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ message: 'Invalid or expired OTP code' });
     }
 
-    await sendMailtrapApiEmail({
-      toEmail: cleanEmail,
-      toName: userName,
+    await sendEmail({
+      to: cleanEmail,
       subject: `Security Alert: Your Nile Password Has Been Reset`,
-      htmlContent: `<h2>Password Reset Successful</h2><p>Hello ${userName}, your Nile Booking password was updated successfully.</p>`,
-      category: 'Security Alert',
+      html: `<h2>Password Reset Successful</h2><p>Hello ${userName}, your Nile Booking password was updated successfully.</p>`,
     });
 
     res.json({ message: 'Password reset successful. You can now log in with your new password.' });
