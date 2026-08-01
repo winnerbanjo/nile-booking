@@ -44,7 +44,14 @@ export const Customers: React.FC = () => {
     const acc: CustomerSummary[] = [];
 
     bookingsList.forEach((booking) => {
-      const existingCustomer = acc.find(c => c.email === booking.customer?.email);
+      const email = booking.customer?.email || '';
+      const phone = booking.customer?.phone || '';
+      const name = booking.customer?.name || 'Unknown Customer';
+      if (!email && !phone && name === 'Unknown Customer') return;
+
+      const existingCustomer = acc.find(c => 
+        (email && c.email === email) || (phone && c.phone === phone)
+      );
       const serviceName = typeof booking.service === 'object' && booking.service ? booking.service.name : 'General Service';
       const amount = booking.pricing?.totalAmount || 0;
 
@@ -52,35 +59,26 @@ export const Customers: React.FC = () => {
         existingCustomer.totalBookings += 1;
         existingCustomer.totalSpent += amount;
         existingCustomer.bookingsHistory.push(booking);
-        if (safeDate(booking.date) || new Date(booking.date) > new Date(existingCustomer.lastVisit)) {
+        if (safeDate(booking.date) && (!existingCustomer.lastVisit || new Date(booking.date) > new Date(existingCustomer.lastVisit))) {
           existingCustomer.lastVisit = booking.date;
           existingCustomer.favoriteService = serviceName;
         }
       } else {
         acc.push({
           id: booking.customer?._id || booking._id || `cust_${Date.now()}_${Math.random()}`,
-          name: booking.customer?.name || 'Unknown Customer',
-          email: booking.customer?.email || 'N/A',
-          phone: booking.customer?.phone || 'N/A',
+          name,
+          email: email || 'N/A',
+          phone: phone || 'N/A',
           totalBookings: 1,
           totalSpent: amount,
           lastVisit: booking.date,
           favoriteService: serviceName,
           bookingsHistory: [booking],
         });
-      } else {
-        const existing = customerMap.get(key)!;
-        existing.totalBookings += 1;
-        existing.totalSpent += amount;
-        existing.bookingsHistory.push(booking);
-        if (safeDate(booking.date) || new Date() > new Date(existing.lastVisit)) {
-          existing.lastVisit = booking.date;
-          existing.favoriteService = serviceName;
-        }
       }
     });
 
-    return Array.from(customerMap.values());
+    return acc;
   };
 
   const { data: serverCustomers = [], isLoading, isError, refetch } = useQuery({

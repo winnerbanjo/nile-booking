@@ -30,9 +30,7 @@ export const Settings: React.FC = () => {
   const [bookingWindow, setBookingWindow] = useState(30);
   const [minimumLeadTime, setMinimumLeadTime] = useState(2);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+
 
   const updateMutation = useMutation({
     mutationFn: (data: { weeklySchedule?: WeeklySchedule; bufferTime?: number }) => scheduleApi.updateSchedule(data),

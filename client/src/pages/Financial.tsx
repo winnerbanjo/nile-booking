@@ -32,6 +32,23 @@ export const Financial: React.FC = () => {
     queryFn: authApi.getMe,
   });
 
+  React.useEffect(() => {
+    if (user?.bankAccount) {
+      setBankAccount({
+        bankCode: user.bankAccount.bankName || '',
+        accountNumber: user.bankAccount.accountNumber || '',
+        accountName: user.bankAccount.accountName || '',
+      });
+    }
+    if (user?.paymentMethods) {
+      setPaymentMethods({
+        cash: user.paymentMethods.cash !== false,
+        card: !!user.paymentMethods.card,
+        transfer: user.paymentMethods.transfer !== false,
+      });
+    }
+  }, [user]);
+
   const { data: bankData } = useQuery({
     queryKey: ['banks'],
     queryFn: paymentApi.getBanks,
