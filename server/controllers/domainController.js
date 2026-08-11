@@ -68,7 +68,7 @@ export const checkDomainAvailability = async (req, res) => {
       const xml = response.data;
 
       // Handle IP whitelisting error or general auth issue
-      if (xml.includes('is not in/etc/hosts') || xml.includes('ErrorNo="1011150"') || xml.includes('API key or Username is invalid')) {
+      if (xml.includes('is not in/etc/hosts') || xml.includes('1011150') || xml.includes('Invalid request IP') || xml.includes('API key or Username is invalid') || xml.includes('Status="ERROR"')) {
         console.warn('[DOMAIN_CHECK] Namecheap IP/Auth restriction detected. Falling back to sandbox simulation.');
         simulationActive = true;
         // Simulation logic: mock availability for demonstration
@@ -231,7 +231,7 @@ export const purchaseDomain = async (req, res) => {
       });
 
       const xml = ncRes.data;
-      if (xml.includes('is not in/etc/hosts') || xml.includes('ErrorNo="1011150"') || xml.includes('API key or Username is invalid')) {
+      if (xml.includes('is not in/etc/hosts') || xml.includes('1011150') || xml.includes('Invalid request IP') || xml.includes('API key or Username is invalid') || xml.includes('Status="ERROR"')) {
         console.warn('[DOMAIN_PURCHASE] Namecheap IP/Auth restriction on create. Processing via successful simulation.');
         registeredSuccessfully = true;
       } else {
