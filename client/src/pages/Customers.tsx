@@ -12,6 +12,21 @@ import type { Booking } from '../types';
 import { format, parseISO } from 'date-fns';
 import { safeDate } from '../lib/utils';
 
+const formatDateSafe = (dateStr?: string) => {
+  try {
+    if (!dateStr) return 'N/A';
+    const parsed = parseISO(dateStr);
+    if (isNaN(parsed.getTime())) {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return 'N/A';
+      return format(d, 'MMM d, yyyy');
+    }
+    return format(parsed, 'MMM d, yyyy');
+  } catch (e) {
+    return 'N/A';
+  }
+};
+
 interface CustomerSummary {
   id: string;
   name: string;
@@ -300,7 +315,7 @@ export const Customers: React.FC = () => {
                         ₦{customer.totalSpent.toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-zinc-500 font-normal">
-                        {format(parseISO(customer.lastVisit), 'MMM d, yyyy')}
+                        {formatDateSafe(customer.lastVisit)}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -450,7 +465,7 @@ export const Customers: React.FC = () => {
                       <div key={b._id} className="p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-lg text-xs flex justify-between items-center">
                         <div>
                           <div className="font-semibold text-zinc-900">{b.bookingNumber}</div>
-                          <div className="text-zinc-500">{format(parseISO(b.date), 'MMM d, yyyy')} • {b.timeSlot?.startTime}</div>
+                          <div className="text-zinc-500">{formatDateSafe(b.date)} • {b.timeSlot?.startTime}</div>
                         </div>
                         <div className="font-bold text-zinc-900">
                           ₦{(b.pricing?.totalAmount || 0).toLocaleString()}
