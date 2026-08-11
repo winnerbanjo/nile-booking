@@ -59,17 +59,43 @@ export const CustomDomains: React.FC = () => {
 
   // Load Paystack script dynamically
   const loadPaystack = () => {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve, reject) => {
       if ((window as any).PaystackPop) {
-        resolve(true);
+        resolve();
+        return;
+      }
+      const existing = document.querySelector('script[src*="paystack"]');
+      if (existing) {
+        // Script already added, wait a moment and check
+        setTimeout(() => {
+          if ((window as any).PaystackPop) resolve();
+          else reject(new Error('Paystack script loaded but PaystackPop not found'));
+        }, 1500);
         return;
       }
       const script = document.createElement('script');
       script.src = 'https://js.paystack.co/v1/inline.js';
       script.async = true;
-      script.onload = () => resolve(true);
+      script.onload = () => {
+        setTimeout(() => {
+          if ((window as any).PaystackPop) resolve();
+          else reject(new Error('PaystackPop not initialized after script load'));
+        }, 300);
+      };
+      script.onerror = () => reject(new Error('Failed to load Paystack script. Check internet connection.'));
       document.body.appendChild(script);
     });
+  };
+
+  // Format phone number for Namecheap (requires +CountryCode.Number format)
+  const formatPhone = (phone: string, country: string) => {
+    const digits = phone.replace(/\D/g, '');
+    if (phone.startsWith('+') && phone.includes('.')) return phone; // Already formatted
+    if (country === 'NG') {
+      const local = digits.startsWith('234') ? digits.slice(3) : digits.startsWith('0') ? digits.slice(1) : digits;
+      return `+234.${local}`;
+    }
+    return phone.startsWith('+') ? phone.replace('+', '+').replace(' ', '.') : `+${digits}`;
   };
 
   const handleCheckDomain = async () => {
@@ -114,21 +140,37 @@ export const CustomDomains: React.FC = () => {
     setPaying(true);
     setPaymentStatus('Initializing Paystack Secure Checkout...');
     setErrorMsg(null);
+
+    // Auto-format phone for Namecheap before submitting
+    const formattedPhone = formatPhone(contactInfo.phone, contactInfo.country);
+    const finalContactInfo = { ...contactInfo, phone: formattedPhone };
+
     try {
       await loadPaystack();
+
+      if (!(window as any).PaystackPop) {
+        throw new Error('Paystack gateway not ready. Please refresh and try again.');
+      }
+
       const handler = (window as any).PaystackPop.setup({
         key: 'pk_live_8a8770480c060bf0555068a2799f96aecbdda177',
-        email: contactInfo.email || user?.email || 'merchant@nile.ng',
+        email: finalContactInfo.email || user?.email || 'merchant@nile.ng',
         amount: purchaseDomainPrice * 100, // Dynamic NGN price in kobo
         currency: 'NGN',
+        ref: `nile_dom_${Date.now()}`,
+        metadata: {
+          custom_fields: [
+            { display_name: 'Domain', variable_name: 'domain', value: purchaseDomainName },
+          ],
+        },
         callback: async (response: any) => {
           const reference = response.reference;
-          setPaymentStatus('Registering domain on Namecheap...');
+          setPaymentStatus('Payment confirmed! Registering domain on Namecheap...');
           try {
             const result = await domainApi.purchase({
               domain: purchaseDomainName,
               reference,
-              contactInfo,
+              contactInfo: finalContactInfo,
             });
             if (result.success) {
               if (result.user) {
@@ -151,14 +193,15 @@ export const CustomDomains: React.FC = () => {
         onClose: () => {
           setPaying(false);
           setPaymentStatus('');
-          setErrorMsg('Payment cancelled by user.');
+          setErrorMsg('Payment window closed. No charge was made.');
         }
       });
       handler.openIframe();
     } catch (e: any) {
+      console.error('[PAYSTACK_INIT_ERROR]', e);
       setPaying(false);
       setPaymentStatus('');
-      setErrorMsg('Failed to initialize payment gateway.');
+      setErrorMsg(e?.message || 'Failed to initialize payment gateway. Please try again.');
     }
   };
 
