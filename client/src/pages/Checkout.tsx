@@ -9,6 +9,49 @@ import { Check, ChevronRight, ArrowLeft, CreditCard, Wallet, Clock, Camera, Uplo
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Service } from '../types';
 
+const BANK_NAMES: Record<string, string> = {
+  '044': 'Access Bank',
+  '063': 'Diamond Bank',
+  '050': 'Ecobank',
+  '084': 'Enterprise Bank',
+  '070': 'Fidelity Bank',
+  '011': 'First Bank',
+  '214': 'FCMB',
+  '058': 'GTBank',
+  '030': 'Heritage Bank',
+  '082': 'Keystone Bank',
+  '014': 'Mainstreet Bank',
+  '076': 'Skye Bank',
+  '039': 'Stanbic IBTC',
+  '068': 'Standard Chartered',
+  '232': 'Sterling Bank',
+  '032': 'Union Bank',
+  '033': 'UBA',
+  '215': 'Unity Bank',
+  '035': 'Wema Bank',
+  '057': 'Zenith Bank',
+  '100': 'Suntrust Bank',
+  '301': 'Jaiz Bank',
+  '070007': 'OPay',
+  '090267': 'Kuda Bank',
+  '100004': 'Opay',
+  '999992': 'Kuda',
+  '50211': 'Kuda Bank',
+  '50515': 'Moniepoint',
+  '120001': '9payment Service Bank',
+  '100022': 'GoMoney',
+  '100011': 'Kredi Money',
+  '090551': 'FairMoney',
+  '090405': 'OPay',
+  '090110': 'VFD Microfinance Bank',
+  '090328': 'Palmpay',
+};
+
+const getBankName = (code?: string) => {
+  if (!code) return 'Bank Transfer';
+  return BANK_NAMES[code] || code;
+};
+
 interface CheckoutData {
   customer: {
     name: string;
@@ -146,10 +189,11 @@ export const Checkout: React.FC = () => {
   const pricing = calculatePricing();
 
   // Bank Transfer Details
+  const provider = typeof service === 'object' && service ? (service as any).provider : null;
   const bankDetails = {
-    bankName: 'Providus Bank',
-    accountName: 'Nile Technologies Inc',
-    accountNumber: '8123843076',
+    bankName: getBankName(provider?.bankAccount?.bankName) || 'Providus Bank',
+    accountName: provider?.bankAccount?.accountName || provider?.businessName || 'Nile Technologies Inc',
+    accountNumber: provider?.bankAccount?.accountNumber || '8123843076',
     amount: pricing.totalAmount || pricing.servicePrice,
   };
 

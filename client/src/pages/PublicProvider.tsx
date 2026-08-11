@@ -12,6 +12,49 @@ import { Star, Clock, MapPin, CheckCircle2, X, Calendar as CalendarIcon, Chevron
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const DEFAULT_HEADER_BANNER = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&h=600&fit=crop';
 
+const BANK_NAMES: Record<string, string> = {
+  '044': 'Access Bank',
+  '063': 'Diamond Bank',
+  '050': 'Ecobank',
+  '084': 'Enterprise Bank',
+  '070': 'Fidelity Bank',
+  '011': 'First Bank',
+  '214': 'FCMB',
+  '058': 'GTBank',
+  '030': 'Heritage Bank',
+  '082': 'Keystone Bank',
+  '014': 'Mainstreet Bank',
+  '076': 'Skye Bank',
+  '039': 'Stanbic IBTC',
+  '068': 'Standard Chartered',
+  '232': 'Sterling Bank',
+  '032': 'Union Bank',
+  '033': 'UBA',
+  '215': 'Unity Bank',
+  '035': 'Wema Bank',
+  '057': 'Zenith Bank',
+  '100': 'Suntrust Bank',
+  '301': 'Jaiz Bank',
+  '070007': 'OPay',
+  '090267': 'Kuda Bank',
+  '100004': 'Opay',
+  '999992': 'Kuda',
+  '50211': 'Kuda Bank',
+  '50515': 'Moniepoint',
+  '120001': '9payment Service Bank',
+  '100022': 'GoMoney',
+  '100011': 'Kredi Money',
+  '090551': 'FairMoney',
+  '090405': 'OPay',
+  '090110': 'VFD Microfinance Bank',
+  '090328': 'Palmpay',
+};
+
+const getBankName = (code?: string) => {
+  if (!code) return 'Bank Transfer';
+  return BANK_NAMES[code] || code;
+};
+
 interface PublicProviderProps {
   slug?: string | null;
 }
@@ -833,9 +876,9 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                   <span className="text-[10px] bg-zinc-800 px-2 py-0.5 rounded text-emerald-400">Bank Transfer</span>
                 </div>
                 <div className="pt-1">
-                  <p className="text-sm font-bold text-white">{data?.provider?.bankAccount?.bankName || 'Nile Technologies Inc'}</p>
+                  <p className="text-sm font-bold text-white">{getBankName(data?.provider?.bankAccount?.bankName)}</p>
                   <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">{data?.provider?.bankAccount?.accountNumber || '8123843076'}</p>
-                  <p className="text-xs text-zinc-300">{data?.provider?.bankAccount?.accountName || data?.provider?.businessName}</p>
+                  <p className="text-xs text-zinc-300">{data?.provider?.bankAccount?.accountName || data?.provider?.businessName || 'Nile Technologies Inc'}</p>
                 </div>
               </div>
             )}

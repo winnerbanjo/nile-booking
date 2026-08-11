@@ -265,6 +265,8 @@ export const getServicesBySlug = async (req, res) => {
         address: provider.address,
         socialHandles: provider.socialHandles,
         policies: provider.policies,
+        bankAccount: provider.bankAccount,
+        paymentMethods: provider.paymentMethods || { cash: true, transfer: true, card: false },
         gallery: provider.gallery || [],
         testimonials: provider.testimonials || [],
       },
