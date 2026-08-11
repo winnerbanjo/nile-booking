@@ -80,7 +80,7 @@ export const Financial: React.FC = () => {
 
 
 
-  const availableBalance = (stats?.totalRevenue || 1250000) - (stats?.pendingPayouts || 450000);
+  const availableBalance = (stats?.totalRevenue || 0) - (stats?.pendingPayouts || 0);
 
   return (
     <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
@@ -131,7 +131,7 @@ export const Financial: React.FC = () => {
             </div>
             <div className="mt-3">
               <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                ₦{(stats?.pendingPayouts || 450000).toLocaleString()}
+                ₦{(stats?.pendingPayouts || 0).toLocaleString()}
               </div>
               <div className="text-xs text-zinc-500 mt-1 font-normal">Awaiting appointment completion</div>
             </div>
@@ -146,7 +146,7 @@ export const Financial: React.FC = () => {
             </div>
             <div className="mt-3">
               <div className="text-2xl font-semibold text-zinc-900 tracking-tight">
-                ₦{(stats?.totalRevenue || 1250000).toLocaleString()}
+                ₦{(stats?.totalRevenue || 0).toLocaleString()}
               </div>
               <div className="text-xs text-zinc-500 mt-1 font-normal">Total processed transaction volume</div>
             </div>

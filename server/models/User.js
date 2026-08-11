@@ -35,6 +35,13 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    customDomain: {
+      type: String,
+      unique: true,
+      sparse: true,
+      lowercase: true,
+      trim: true,
+    },
     businessName: {
       type: String,
       trim: true,

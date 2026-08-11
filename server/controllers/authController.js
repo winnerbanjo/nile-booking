@@ -595,12 +595,40 @@ export const updateProfile = async (req, res) => {
       bankAccount,
       socialHandles,
       paymentMethods,
+      slug,
+      customDomain,
     } = req.body;
 
     if (name) user.name = name;
     if (businessName) {
       user.businessName = businessName;
-      user.slug = businessName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      // Only set slug on creation, or if not manually set yet
+      if (!user.slug && !slug) {
+        user.slug = businessName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      }
+    }
+    if (slug) {
+      const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      if (cleanSlug.length < 3) {
+        return res.status(400).json({ message: 'Subdomain must be at least 3 characters' });
+      }
+      const existingUser = await User.findOne({ slug: cleanSlug, _id: { $ne: req.user._id } });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Subdomain is already taken' });
+      }
+      user.slug = cleanSlug;
+    }
+    if (customDomain !== undefined) {
+      if (customDomain) {
+        const cleanDomain = customDomain.toLowerCase().trim();
+        const existingUser = await User.findOne({ customDomain: cleanDomain, _id: { $ne: req.user._id } });
+        if (existingUser) {
+          return res.status(400).json({ message: 'Custom domain is already mapped by another store' });
+        }
+        user.customDomain = cleanDomain;
+      } else {
+        user.customDomain = undefined;
+      }
     }
     if (phone) user.phone = phone;
     if (bio) user.bio = bio;

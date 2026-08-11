@@ -192,6 +192,13 @@ export const authApi = {
     bio?: string;
     location?: string;
     profileImage?: string;
+    logo?: string;
+    headerImage?: string;
+    socialHandles?: any;
+    paymentMethods?: any;
+    bankAccount?: any;
+    slug?: string;
+    customDomain?: string;
   }) => {
     return request<User>('/auth/profile', {
       method: 'PUT',
