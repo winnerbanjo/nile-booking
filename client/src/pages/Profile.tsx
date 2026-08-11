@@ -89,6 +89,21 @@ export const Profile: React.FC = () => {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
 
+  const [formData, setFormData] = useState({
+    businessName: '',
+    bio: '',
+    location: '',
+    logo: '',
+    profileImage: '',
+    headerImage: '',
+    socialHandles: {
+      instagram: '',
+      whatsapp: '',
+      twitter: '',
+      facebook: '',
+    },
+  });
+
   useEffect(() => {
     if (formData.location) {
       const allPresets = Object.values(NIGERIA_LOCATIONS).flat();
@@ -109,21 +124,6 @@ export const Profile: React.FC = () => {
       reader.readAsDataURL(file);
     }
   };
-
-  const [formData, setFormData] = useState({
-    businessName: '',
-    bio: '',
-    location: '',
-    logo: '',
-    profileImage: '',
-    headerImage: '',
-    socialHandles: {
-      instagram: '',
-      whatsapp: '',
-      twitter: '',
-      facebook: '',
-    },
-  });
 
   useEffect(() => {
     if (user) {
