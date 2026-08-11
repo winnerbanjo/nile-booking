@@ -17,6 +17,7 @@ import staffRoutes from './routes/staffRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import systemRoutes from './routes/systemRoutes.js';
+import domainRoutes from './routes/domainRoutes.js';
 
 const app = express();
 
@@ -92,6 +93,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/service-categories', categoryRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/domains', domainRoutes);
 
 // Global 404 Handler
 app.use((req, res) => {

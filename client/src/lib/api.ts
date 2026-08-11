@@ -525,4 +525,41 @@ export const staffApi = {
   },
 };
 
+export const domainApi = {
+  checkAvailability: async (domain: string) => {
+    return request<{
+      domain: string;
+      available: boolean;
+      priceNGN: number;
+      description: string;
+      simulation: boolean;
+    }>(`/domains/check?domain=${encodeURIComponent(domain)}`);
+  },
+  purchase: async (data: {
+    domain: string;
+    reference: string;
+    contactInfo: {
+      firstName: string;
+      lastName: string;
+      address: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+      phone: string;
+      email: string;
+    };
+  }) => {
+    return request<{
+      success: boolean;
+      message: string;
+      user: any;
+    }>('/domains/purchase', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
 export { ApiError };
+
