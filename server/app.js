@@ -4,6 +4,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import { connectDB } from './config/db.js';
+import { getMockMode } from './utils/mockMode.js';
 
 // Import Routes
 import authRoutes from './routes/authRoutes.js';
@@ -59,10 +60,11 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Database Connection Middleware for Serverless & Long-running instances
 app.use(async (req, res, next) => {
   try {
-    await connectDB();
+    if (!getMockMode()) {
+      await connectDB();
+    }
     next();
   } catch (error) {
     console.error('❌ Database connection middleware error:', error.message);

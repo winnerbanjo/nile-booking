@@ -678,3 +678,56 @@ export const updateOnboarding = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+// @desc    Admin portal login with master key
+// @route   POST /api/auth/admin-login
+// @access  Public
+export const adminLogin = async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ message: 'Master key is required' });
+    }
+
+    const masterKey = process.env.ADMIN_MASTER_KEY || 'alphaadmin2026';
+    if (password !== masterKey) {
+      return res.status(401).json({ message: 'Invalid master key' });
+    }
+
+    if (getMockMode()) {
+      return res.json({
+        _id: 'mock_user_admin_id_456',
+        name: 'Nile Administrator',
+        email: 'admin@nilebooking.co',
+        role: 'admin',
+        token: generateToken('mock_user_admin_id_456'),
+      });
+    }
+
+    // Find or create the permanent system admin user (not in demoEmails list so it won't be purged)
+    const adminEmail = 'admin@nilebooking.co';
+    let user = await User.findOne({ email: adminEmail });
+    if (!user) {
+      user = await User.create({
+        name: 'Nile Administrator',
+        email: adminEmail,
+        password: crypto.randomBytes(16).toString('hex'), // random password since they login with master key
+        role: 'admin',
+        businessName: 'Nile Booking Platform',
+        slug: 'admin',
+        phone: '+2348000000000',
+        isVerified: true,
+      });
+    }
+
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      token: generateToken(user._id),
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error during admin login', error: error.message });
+  }
+};

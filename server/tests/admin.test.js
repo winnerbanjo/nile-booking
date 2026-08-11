@@ -202,4 +202,35 @@ describe('Master Admin Security and Stability Tests', () => {
       expect(res.statusCode).toBe(404);
     });
   });
+
+  // ===========================================================================
+  // PART 4: Admin Login Endpoint Tests
+  // ===========================================================================
+  describe('Admin Login: POST /api/auth/admin-login', () => {
+    it('should return 400 when master key is missing', async () => {
+      const res = await request(app)
+        .post('/api/auth/admin-login')
+        .send({});
+      expect(res.statusCode).toBe(400);
+      expect(res.body.message).toBe('Master key is required');
+    });
+
+    it('should return 401 when master key is invalid', async () => {
+      const res = await request(app)
+        .post('/api/auth/admin-login')
+        .send({ password: 'wrong-master-key' });
+      expect(res.statusCode).toBe(401);
+      expect(res.body.message).toBe('Invalid master key');
+    });
+
+    it('should return 200 and a token when master key is correct', async () => {
+      const res = await request(app)
+        .post('/api/auth/admin-login')
+        .send({ password: 'alphaadmin2026' });
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toHaveProperty('token');
+      expect(res.body.role).toBe('admin');
+      expect(res.body.email).toBe('admin@nilebooking.co');
+    });
+  });
 });

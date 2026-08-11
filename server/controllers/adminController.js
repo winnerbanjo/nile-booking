@@ -2,12 +2,24 @@ import Booking from '../models/Booking.js';
 import User from '../models/User.js';
 import Service from '../models/Service.js';
 import Transaction from '../models/Transaction.js';
+import { getMockMode } from '../utils/mockMode.js';
 
 // @desc    Get admin statistics
 // @route   GET /api/admin/stats
 // @access  Admin only
 export const getAdminStats = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        gmv: 1500000,
+        nileRevenue: 150000,
+        pendingTransfers: 2,
+        activeProviders: 3,
+        totalCustomers: 10,
+        totalBookings: 25,
+        recentProviders: [],
+      });
+    }
     const [gmvResult, pendingTransfers, activeProviders, totalCustomers, totalBookings, recentProviders] = await Promise.all([
       Booking.aggregate([
         {
@@ -63,6 +75,9 @@ export const getAdminStats = async (req, res) => {
 // @access  Admin only
 export const getPendingVerifications = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({ bookings: [] });
+    }
     const bookings = await Booking.find({
       paymentStatus: 'pending_verification',
       receiptImage: { $ne: null },
@@ -84,6 +99,9 @@ export const getPendingVerifications = async (req, res) => {
 // @access  Admin only
 export const verifyReceipt = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
     const { bookingId } = req.params;
     const { action } = req.body;
 
@@ -115,6 +133,12 @@ export const verifyReceipt = async (req, res) => {
 // @access  Admin only
 export const getProviders = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        data: [],
+        pagination: { page: 1, limit: 10, total: 0, totalPages: 1 }
+      });
+    }
     const providers = await User.find({ role: 'provider' })
       .select('name businessName email phone address location isVerified isActive createdAt')
       .lean();
@@ -139,6 +163,9 @@ export const getProviders = async (req, res) => {
 // @access  Admin only
 export const updateProviderStatus = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.status(404).json({ message: 'Provider not found' });
+    }
     const { providerId } = req.params;
     const { status } = req.body;
     
@@ -165,6 +192,12 @@ export const updateProviderStatus = async (req, res) => {
 // @access  Admin only
 export const getAdminBookings = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        data: [],
+        pagination: { page: 1, limit: 25, total: 0, totalPages: 1 }
+      });
+    }
     const { page = 1, limit = 25, search = '', status = '' } = req.query;
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -205,6 +238,12 @@ export const getAdminBookings = async (req, res) => {
 // @access  Admin only
 export const getAdminCustomers = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        data: [],
+        pagination: { page: 1, limit: 25, total: 0, totalPages: 1 }
+      });
+    }
     const { page = 1, limit = 25, search = '' } = req.query;
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -243,6 +282,12 @@ export const getAdminCustomers = async (req, res) => {
 // @access  Admin only
 export const getAdminTransactions = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        data: [],
+        pagination: { page: 1, limit: 25, total: 0, totalPages: 1 }
+      });
+    }
     const { page = 1, limit = 25, search = '', status = '' } = req.query;
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -283,6 +328,12 @@ export const getAdminTransactions = async (req, res) => {
 // @access  Admin only
 export const getAdminPayouts = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        data: [],
+        pagination: { page: 1, limit: 25, total: 0, totalPages: 1 }
+      });
+    }
     const { page = 1, limit = 25, search = '', status = '' } = req.query;
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -330,6 +381,12 @@ export const getAdminPayouts = async (req, res) => {
 // @access  Admin only
 export const getAdminRefunds = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        data: [],
+        pagination: { page: 1, limit: 25, total: 0, totalPages: 1 }
+      });
+    }
     const { page = 1, limit = 25, search = '' } = req.query;
     const pageNum = parseInt(page, 10);
     const limitNum = parseInt(limit, 10);
@@ -377,6 +434,16 @@ export const getAdminRefunds = async (req, res) => {
 // @access  Admin only
 export const getAdminSettings = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        subscriptionFee: Number(process.env.SUBSCRIPTION_FEE) || 5000,
+        payoutDelayDays: Number(process.env.PAYOUT_DELAY_DAYS) || 3,
+        highValueThreshold: Number(process.env.HIGH_VALUE_THRESHOLD) || 500000,
+        maxRefundWithoutAdmin: Number(process.env.MAX_REFUND_WITHOUT_ADMIN) || 50000,
+        environment: process.env.NODE_ENV || 'development',
+        version: process.env.npm_package_version || '1.0.0',
+      });
+    }
     // Settings are platform-level configuration. In this implementation they are
     // stored as environment/config values. Future versions may use a Settings model.
     res.json({
@@ -397,6 +464,18 @@ export const getAdminSettings = async (req, res) => {
 // @access  Admin only
 export const getAdminRisk = async (req, res) => {
   try {
+    if (getMockMode()) {
+      return res.json({
+        data: [],
+        summary: {
+          openDisputes: 0,
+          highRiskProviders: 0,
+          underInvestigation: 0,
+          totalProviders: 3,
+        },
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 1 }
+      });
+    }
     const [disputed, highRisk, totalProviders] = await Promise.all([
       Booking.countDocuments({ status: 'disputed' }),
       User.countDocuments({ role: 'provider', isActive: false }),

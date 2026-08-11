@@ -166,6 +166,23 @@ export const authApi = {
     return response;
   },
 
+  adminLogin: async (password: string) => {
+    const response = await request<{
+      _id: string;
+      name: string;
+      email: string;
+      role: string;
+      token: string;
+    }>('/auth/admin-login', {
+      method: 'POST',
+      body: JSON.stringify({ password }),
+    });
+    if (response.token) {
+      localStorage.setItem('token', response.token);
+    }
+    return response;
+  },
+
   getMe: async () => {
     return request<User>('/auth/me');
   },
