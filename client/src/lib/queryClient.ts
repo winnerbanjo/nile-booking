@@ -1,6 +1,9 @@
 import { QueryClient } from '@tanstack/react-query';
 
 export const queryKeys = {
+  auth: {
+    me: ['auth', 'me'],
+  },
   merchant: {
     profile: ['merchant', 'profile'],
     dashboard: ['merchant', 'dashboard'],
