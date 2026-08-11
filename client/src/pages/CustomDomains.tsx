@@ -145,6 +145,11 @@ export const CustomDomains: React.FC = () => {
     const formattedPhone = formatPhone(contactInfo.phone, contactInfo.country);
     const finalContactInfo = { ...contactInfo, phone: formattedPhone };
 
+    // Capture these outside the callback so they don't go stale
+    const domainToPurchase = purchaseDomainName;
+    const priceKobo = purchaseDomainPrice * 100;
+    const payerEmail = finalContactInfo.email || user?.email || 'merchant@nile.ng';
+
     try {
       await loadPaystack();
 
@@ -152,45 +157,46 @@ export const CustomDomains: React.FC = () => {
         throw new Error('Paystack gateway not ready. Please refresh and try again.');
       }
 
+      // Paystack inline v1 REQUIRES a plain non-async function for callback
       const handler = (window as any).PaystackPop.setup({
         key: 'pk_live_8a8770480c060bf0555068a2799f96aecbdda177',
-        email: finalContactInfo.email || user?.email || 'merchant@nile.ng',
-        amount: purchaseDomainPrice * 100, // Dynamic NGN price in kobo
+        email: payerEmail,
+        amount: priceKobo,
         currency: 'NGN',
-        ref: `nile_dom_${Date.now()}`,
+        reference: `nile_dom_${Date.now()}`,
         metadata: {
           custom_fields: [
-            { display_name: 'Domain', variable_name: 'domain', value: purchaseDomainName },
+            { display_name: 'Domain', variable_name: 'domain', value: domainToPurchase },
           ],
         },
-        callback: async (response: any) => {
-          const reference = response.reference;
-          setPaymentStatus('Payment confirmed! Registering domain on Namecheap...');
-          try {
-            const result = await domainApi.purchase({
-              domain: purchaseDomainName,
-              reference,
-              contactInfo: finalContactInfo,
-            });
+        callback: function(response: any) {
+          const reference = response.reference || response.trxref;
+          setPaymentStatus('Payment confirmed! Registering domain...');
+          domainApi.purchase({
+            domain: domainToPurchase,
+            reference,
+            contactInfo: finalContactInfo,
+          }).then(function(result) {
             if (result.success) {
               if (result.user) {
                 localStorage.setItem('nile_user', JSON.stringify(result.user));
               }
               setShowToast(true);
               setShowPurchaseModal(false);
-              setTimeout(() => {
+              setTimeout(function() {
                 setShowToast(false);
                 window.location.reload();
               }, 1500);
             }
-          } catch (err: any) {
-            setErrorMsg(err.message || 'Domain registration failed. Please contact support.');
-          } finally {
             setPaying(false);
             setPaymentStatus('');
-          }
+          }).catch(function(err: any) {
+            setErrorMsg(err.message || 'Domain registration failed. Please contact support.');
+            setPaying(false);
+            setPaymentStatus('');
+          });
         },
-        onClose: () => {
+        onClose: function() {
           setPaying(false);
           setPaymentStatus('');
           setErrorMsg('Payment window closed. No charge was made.');
@@ -204,6 +210,7 @@ export const CustomDomains: React.FC = () => {
       setErrorMsg(e?.message || 'Failed to initialize payment gateway. Please try again.');
     }
   };
+
 
   const handleSaveDomain = async () => {
     if (!domain || domainAvailable === false) return;
