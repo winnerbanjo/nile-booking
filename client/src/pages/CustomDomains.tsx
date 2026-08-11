@@ -87,11 +87,16 @@ export const CustomDomains: React.FC = () => {
 
   const handleSearchPurchaseDomain = async () => {
     if (!purchaseDomainName) return;
+    let queryDomain = purchaseDomainName.trim();
+    if (!queryDomain.includes('.')) {
+      queryDomain = `${queryDomain}.com`;
+      setPurchaseDomainName(queryDomain);
+    }
     setSearchingDomain(true);
     setPurchaseDomainAvailable(null);
     setErrorMsg(null);
     try {
-      const res = await domainApi.checkAvailability(purchaseDomainName);
+      const res = await domainApi.checkAvailability(queryDomain);
       setPurchaseDomainAvailable(res.available);
     } catch (err: any) {
       setErrorMsg(err.message || 'Error checking domain availability');
