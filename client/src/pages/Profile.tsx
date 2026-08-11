@@ -11,18 +11,61 @@ import { Upload, CheckCircle, Building2, MapPin, FileText, ImageIcon, Store, Ext
 import { Textarea } from '../components/ui/textarea';
 import { Link } from 'react-router-dom';
 
-const LAGOS_LOCATIONS = [
-  'Victoria Island',
-  'Lekki',
-  'Ikeja',
-  'Yaba',
-  'Surulere',
-  'Ikoyi',
-  'Ajah',
-  'Gbagada',
-  'Maryland',
-  'Alausa',
-];
+const NIGERIA_LOCATIONS: Record<string, string[]> = {
+  'Abuja (FCT)': [
+    'Wuse, Abuja',
+    'Garki, Abuja',
+    'Maitama, Abuja',
+    'Asokoro, Abuja',
+    'Gwarinpa, Abuja',
+    'Jabi, Abuja',
+    'Apo, Abuja',
+    'Utako, Abuja',
+    'Karu, Abuja',
+    'Lugbe, Abuja',
+    'Kubwa, Abuja',
+  ],
+  'Lagos State': [
+    'Victoria Island, Lagos',
+    'Lekki, Lagos',
+    'Ikoyi, Lagos',
+    'Ikeja, Lagos',
+    'Yaba, Lagos',
+    'Surulere, Lagos',
+    'Ajah, Lagos',
+    'Gbagada, Lagos',
+    'Maryland, Lagos',
+    'Alausa, Lagos',
+    'Apapa, Lagos',
+    'Ikorodu, Lagos',
+  ],
+  'Rivers (Port Harcourt)': [
+    'GRA Phase 1-3, Port Harcourt',
+    'Trans Amadi, Port Harcourt',
+    'Peter Odili, Port Harcourt',
+    'Ada George, Port Harcourt',
+    'Eliozu, Port Harcourt',
+    'Rumuola, Port Harcourt',
+  ],
+  'Oyo (Ibadan)': [
+    'Bodija, Ibadan',
+    'Jericho, Ibadan',
+    'Samonda, Ibadan',
+    'Oluyole, Ibadan',
+    'Akobo, Ibadan',
+    'Ring Road, Ibadan',
+  ],
+  'Other Cities / Regions': [
+    'Enugu, Nigeria',
+    'Kano, Nigeria',
+    'Kaduna, Nigeria',
+    'Benin City, Nigeria',
+    'Accra, Ghana',
+    'Nairobi, Kenya',
+    'London, UK',
+    'New York, USA',
+  ],
+};
 
 const PRESET_LOGOS = [
   { name: 'Barber Emblem', url: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=200&h=200&fit=crop' },
@@ -42,8 +85,18 @@ export const Profile: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [showToast, setShowToast] = useState(false);
+  const [isCustomLocation, setIsCustomLocation] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (formData.location) {
+      const allPresets = Object.values(NIGERIA_LOCATIONS).flat();
+      if (!allPresets.includes(formData.location)) {
+        setIsCustomLocation(true);
+      }
+    }
+  }, [formData.location]);
 
   const handleHeaderBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -371,17 +424,40 @@ export const Profile: React.FC = () => {
             </Label>
             <select
               id="location"
-              value={formData.location}
-              onChange={(e) => handleInputChange('location', e.target.value)}
+              value={isCustomLocation ? 'custom' : formData.location}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'custom') {
+                  setIsCustomLocation(true);
+                  handleInputChange('location', '');
+                } else {
+                  setIsCustomLocation(false);
+                  handleInputChange('location', val);
+                }
+              }}
               className="w-full h-9 rounded-lg border border-zinc-300 bg-white px-3 text-xs text-zinc-900"
             >
               <option value="">Select location</option>
-              {LAGOS_LOCATIONS.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}, Lagos
-                </option>
+              {Object.entries(NIGERIA_LOCATIONS).map(([groupName, locs]) => (
+                <optgroup key={groupName} label={groupName}>
+                  {locs.map((loc) => (
+                    <option key={loc} value={loc}>
+                      {loc}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
+              <option value="custom">✍️ Custom Location / Other...</option>
             </select>
+            {isCustomLocation && (
+              <Input
+                type="text"
+                placeholder="Enter your city, LGA, or country..."
+                value={formData.location}
+                onChange={(e) => handleInputChange('location', e.target.value)}
+                className="mt-2 h-9 text-xs border-zinc-300 rounded-lg bg-white"
+              />
+            )}
           </div>
         </div>
 
