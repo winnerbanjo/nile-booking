@@ -42,7 +42,7 @@ describe('Custom Domain Routing and Registration Tests', () => {
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('domain', 'myteststore.com');
       expect(res.body).toHaveProperty('available');
-      expect(res.body).toHaveProperty('priceNGN', 15000);
+      expect(res.body).toHaveProperty('priceNGN', 25000);
     });
 
     it('should reject invalid domain formats with 400', async () => {

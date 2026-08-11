@@ -22,6 +22,33 @@ const getServerIp = async () => {
   return cachedServerIp;
 };
 
+const calculateDomainPrice = async (domain) => {
+  let basePriceUSD = 13.98; // Default .com registration price
+  const cleanDomain = domain.toLowerCase().trim();
+  
+  if (cleanDomain.endsWith('.co')) {
+    basePriceUSD = 25.00;
+  } else if (cleanDomain.endsWith('.org') || cleanDomain.endsWith('.net')) {
+    basePriceUSD = 12.98;
+  } else if (cleanDomain.endsWith('.ng')) {
+    basePriceUSD = 30.00;
+  }
+
+  let exchangeRate = 1650; // Fallback NGN/USD
+  try {
+    const rateRes = await axios.get('https://open.er-api.com/v6/latest/USD', { timeout: 2000 });
+    if (rateRes.data?.rates?.NGN) {
+      exchangeRate = rateRes.data.rates.NGN;
+    }
+  } catch (err) {
+    console.warn('[DOMAIN] Failed to load exchange rates. Using fallback rate:', err.message);
+  }
+
+  const basePriceNGN = Math.round(basePriceUSD * exchangeRate);
+  // Add 10,000 NGN profit, rounded to the nearest 100 Naira
+  return Math.round((basePriceNGN + 10000) / 100) * 100;
+};
+
 // Check if domain is available via Namecheap API
 export const checkDomainAvailability = async (req, res) => {
   try {
@@ -39,7 +66,7 @@ export const checkDomainAvailability = async (req, res) => {
       return res.json({
         domain: cleanDomain,
         available: !['google.com', 'facebook.com', 'apple.com', 'nilebooking.com'].includes(cleanDomain),
-        priceNGN: 15000,
+        priceNGN: 25000, // Fixed mock price
         description: 'Mock Mode Active',
         simulation: true,
       });
@@ -87,10 +114,12 @@ export const checkDomainAvailability = async (req, res) => {
       description = 'Sandbox Simulation (API offline)';
     }
 
+    const priceNGN = await calculateDomainPrice(cleanDomain);
+
     res.json({
       domain: cleanDomain,
       available: isAvailable,
-      priceNGN: 15000, // Fixed yearly custom domain pricing
+      priceNGN,
       description,
       simulation: simulationActive,
     });
@@ -129,6 +158,8 @@ export const purchaseDomain = async (req, res) => {
     // 1. Verify payment with Paystack
     console.log(`[DOMAIN_PURCHASE] Verifying Paystack transaction: ${reference}`);
     let paymentVerified = false;
+    const expectedPriceNGN = await calculateDomainPrice(cleanDomain);
+
     try {
       const verifyRes = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
         headers: {
@@ -138,7 +169,8 @@ export const purchaseDomain = async (req, res) => {
       });
 
       const tx = verifyRes.data?.data;
-      if (verifyRes.data?.status && tx?.status === 'success' && tx?.amount >= 14900 * 100) {
+      const minimumKobo = (expectedPriceNGN - 500) * 100; // Account for minor rounding differences
+      if (verifyRes.data?.status && tx?.status === 'success' && tx?.amount >= minimumKobo) {
         paymentVerified = true;
       }
     } catch (paystackErr) {

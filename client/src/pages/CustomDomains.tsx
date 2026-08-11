@@ -20,6 +20,7 @@ export const CustomDomains: React.FC = () => {
   const [purchaseDomainName, setPurchaseDomainName] = useState('');
   const [searchingDomain, setSearchingDomain] = useState(false);
   const [purchaseDomainAvailable, setPurchaseDomainAvailable] = useState<boolean | null>(null);
+  const [purchaseDomainPrice, setPurchaseDomainPrice] = useState(15000);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('');
@@ -98,6 +99,9 @@ export const CustomDomains: React.FC = () => {
     try {
       const res = await domainApi.checkAvailability(queryDomain);
       setPurchaseDomainAvailable(res.available);
+      if (res.priceNGN) {
+        setPurchaseDomainPrice(res.priceNGN);
+      }
     } catch (err: any) {
       setErrorMsg(err.message || 'Error checking domain availability');
     } finally {
@@ -115,7 +119,7 @@ export const CustomDomains: React.FC = () => {
       const handler = (window as any).PaystackPop.setup({
         key: 'pk_live_8a8770480c060bf0555068a2799f96aecbdda177',
         email: contactInfo.email || user?.email || 'merchant@nile.ng',
-        amount: 15000 * 100, // ₦15,000 NGN in kobo
+        amount: purchaseDomainPrice * 100, // Dynamic NGN price in kobo
         currency: 'NGN',
         callback: async (response: any) => {
           const reference = response.reference;
@@ -326,7 +330,7 @@ export const CustomDomains: React.FC = () => {
                     <span className="font-semibold">{purchaseDomainName}</span> is{' '}
                     {purchaseDomainAvailable ? 'available for registration!' : 'already taken or unavailable.'}
                     {purchaseDomainAvailable && (
-                      <p className="text-[10px] text-zinc-500 font-normal mt-0.5">Price: ₦15,000 NGN / Year (incl. DNS setup)</p>
+                      <p className="text-[10px] text-zinc-500 font-normal mt-0.5">Price: ₦{purchaseDomainPrice.toLocaleString()} NGN / Year (incl. DNS setup)</p>
                     )}
                   </div>
                 </div>
@@ -539,7 +543,7 @@ export const CustomDomains: React.FC = () => {
                   className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 px-4 font-semibold shadow-sm flex items-center gap-1.5"
                 >
                   <CreditCard className="w-4 h-4" />
-                  <span>Pay ₦15,000 via Paystack</span>
+                  <span>Pay ₦{purchaseDomainPrice.toLocaleString()} via Paystack</span>
                 </Button>
               </div>
             </div>
