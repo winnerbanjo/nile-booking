@@ -672,6 +672,39 @@ export const updateProfile = async (req, res) => {
   }
 };
 
+export const addPortfolioItem = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const { url, alt, caption, serviceId } = req.body;
+    if (!url) return res.status(400).json({ message: 'Image URL is required' });
+    let finalUrl = url;
+    if (url.startsWith('data:image')) {
+      try { const uploaded = await uploadImage(url, 'nile-booking/portfolio'); finalUrl = uploaded.url; } catch (e) {}
+    }
+    user.gallery.unshift({ url: finalUrl, alt: alt || caption || 'Portfolio image', caption: caption || '', serviceId: serviceId || null });
+    if (user.gallery.length > 30) user.gallery = user.gallery.slice(0, 30);
+    await user.save();
+    res.status(201).json({ success: true, gallery: user.gallery });
+  } catch (error) {
+    res.status(500).json({ message: 'Error adding portfolio item', error: error.message });
+  }
+};
+
+export const deletePortfolioItem = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const index = parseInt(req.params.index, 10);
+    if (isNaN(index) || index < 0 || index >= user.gallery.length) return res.status(400).json({ message: 'Invalid index' });
+    user.gallery.splice(index, 1);
+    await user.save();
+    res.json({ success: true, gallery: user.gallery });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting portfolio item', error: error.message });
+  }
+};
+
 // @desc    Update onboarding progress
 // @route   PATCH /api/auth/onboarding
 // @access  Private

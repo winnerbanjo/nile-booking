@@ -18,6 +18,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import systemRoutes from './routes/systemRoutes.js';
 import domainRoutes from './routes/domainRoutes.js';
+import reviewRoutes from './routes/reviewRoutes.js';
 
 const app = express();
 
@@ -94,6 +95,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/service-categories', categoryRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/domains', domainRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Global 404 Handler
 app.use((req, res) => {

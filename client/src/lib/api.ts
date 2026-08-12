@@ -561,5 +561,49 @@ export const domainApi = {
   },
 };
 
+// Portfolio API
+export const portfolioApi = {
+  addItem: async (data: { url: string; alt?: string; caption: string; serviceId?: string | null }) => {
+    return request<{ success: boolean; gallery: any[] }>('/auth/portfolio', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  deleteItem: async (index: number) => {
+    return request<{ success: boolean; gallery: any[] }>(`/auth/portfolio/${index}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+// Reviews API
+export const reviewApi = {
+  submitReview: async (data: {
+    providerSlug: string;
+    serviceId?: string;
+    customerName: string;
+    customerEmail: string;
+    rating: number;
+    comment?: string;
+  }) => {
+    return request<{ success: boolean; review: any }>('/reviews', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  getBySlug: async (slug: string) => {
+    return request<{ reviews: any[]; total: number; avgRating: number | null }>(`/reviews/provider/${slug}`);
+  },
+  getMyReviews: async () => {
+    return request<{ reviews: any[]; total: number; avgRating: number | null; breakdown: Record<string, number> }>('/reviews/mine');
+  },
+  togglePublish: async (id: string) => {
+    return request<{ success: boolean; review: any }>(`/reviews/${id}/toggle`, { method: 'PATCH' });
+  },
+  deleteReview: async (id: string) => {
+    return request<{ success: boolean }>(`/reviews/${id}`, { method: 'DELETE' });
+  },
+};
+
 export { ApiError };
 

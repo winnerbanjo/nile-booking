@@ -42,6 +42,7 @@ const Pages = lazy(() => import('./pages/Pages').then((m) => ({ default: m.Pages
 const Calendar = lazy(() => import('./pages/Calendar').then((m) => ({ default: m.Calendar })));
 const Sales = lazy(() => import('./pages/Sales').then((m) => ({ default: m.Sales })));
 const Reviews = lazy(() => import('./pages/Reviews').then((m) => ({ default: m.Reviews })));
+const Portfolio = lazy(() => import('./pages/Portfolio').then((m) => ({ default: m.Portfolio })));
 const Discounts = lazy(() => import('./pages/Discounts').then((m) => ({ default: m.Discounts })));
 
 // Lazy-loaded Admin Routes
@@ -375,6 +376,7 @@ function MainApp() {
               <Route path="payments" element={<Payments />} />
               <Route path="marketing" element={<Marketing />} />
               <Route path="reviews" element={<Reviews />} />
+              <Route path="portfolio" element={<Portfolio />} />
               <Route path="discounts" element={<Discounts />} />
               <Route path="settings" element={<Settings />} />
               <Route path="domains" element={<CustomDomains />} />

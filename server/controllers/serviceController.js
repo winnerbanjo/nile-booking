@@ -249,6 +249,22 @@ export const getServicesBySlug = async (req, res) => {
       isActive: true,
     }).sort({ createdAt: -1 }).lean();
 
+    let reviewStats = {};
+    try {
+      const Review = (await import('../models/Review.js')).default;
+      const svcRatings = await Review.aggregate([
+        { $match: { provider: provider._id, isPublished: true } },
+        { $group: { _id: '$service', avgRating: { $avg: '$rating' }, count: { $sum: 1 } } },
+      ]);
+      svcRatings.forEach(r => { if (r._id) reviewStats[r._id.toString()] = { avgRating: parseFloat(r.avgRating.toFixed(1)), count: r.count }; });
+      const allRatings = await Review.aggregate([
+        { $match: { provider: provider._id, isPublished: true } },
+        { $group: { _id: null, avgRating: { $avg: '$rating' }, count: { $sum: 1 } } },
+      ]);
+      reviewStats._provider = allRatings[0] ? { avgRating: parseFloat(allRatings[0].avgRating.toFixed(1)), count: allRatings[0].count } : null;
+    } catch (e) {}
+    const servicesWithRatings = services.map(s => ({ ...s, avgRating: reviewStats[s._id.toString()]?.avgRating || null, reviewCount: reviewStats[s._id.toString()]?.count || 0 }));
+
     res.json({
       provider: {
         _id: provider._id,
@@ -269,8 +285,10 @@ export const getServicesBySlug = async (req, res) => {
         paymentMethods: provider.paymentMethods || { cash: true, transfer: true, card: false },
         gallery: provider.gallery || [],
         testimonials: provider.testimonials || [],
+        avgRating: reviewStats._provider?.avgRating || null,
+        reviewCount: reviewStats._provider?.count || 0,
       },
-      services,
+      services: servicesWithRatings,
     });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });

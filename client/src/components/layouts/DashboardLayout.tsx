@@ -19,6 +19,7 @@ import {
   Users,
   FileSpreadsheet,
   UserCheck,
+  GalleryHorizontal,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
@@ -52,6 +53,7 @@ const navigation = [
   { name: 'Sales (POS)', href: '/dashboard/sales', icon: ShoppingBag },
   { name: 'Marketing', href: '/dashboard/marketing', icon: TrendingUp },
   { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
+  { name: 'Portfolio', href: '/dashboard/portfolio', icon: GalleryHorizontal },
   { name: 'Discounts', href: '/dashboard/discounts', icon: Tag },
   { name: 'Invoices', href: '/dashboard/invoices', icon: FileSpreadsheet },
   { name: 'Finance', href: '/dashboard/financial', icon: DollarSign },
