@@ -23,7 +23,7 @@ const transactionSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      default: 'USD',
+      default: 'NGN',
     },
     paymentGateway: {
       type: String,
@@ -41,7 +41,7 @@ const transactionSchema = new mongoose.Schema(
     },
     customerEmail: {
       type: String,
-      required: true,
+      default: '',
     },
     customerId: {
       type: mongoose.Schema.Types.ObjectId,

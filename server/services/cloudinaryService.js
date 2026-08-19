@@ -18,19 +18,24 @@ cloudinary.config({
  */
 export const uploadImage = async (imageBase64, folder = 'nile-booking/receipts') => {
   try {
-    // Remove data URL prefix if present
-    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    // Detect resource type and strip data URL prefix
+    const isPdf = imageBase64.startsWith('data:application/pdf');
+    const base64Data = imageBase64.replace(/^data:[^;]+;base64,/, '');
+    const mimeType = isPdf ? 'application/pdf' : 'image/jpeg';
+    const resourceType = isPdf ? 'raw' : 'image';
     
     const result = await cloudinary.uploader.upload(
-      `data:image/jpeg;base64,${base64Data}`,
+      `data:${mimeType};base64,${base64Data}`,
       {
         folder,
-        resource_type: 'image',
-        format: 'jpg',
-        transformation: [
-          { quality: 'auto' },
-          { fetch_format: 'auto' },
-        ],
+        resource_type: resourceType,
+        ...(isPdf ? {} : {
+          format: 'jpg',
+          transformation: [
+            { quality: 'auto' },
+            { fetch_format: 'auto' },
+          ],
+        }),
       }
     );
 
