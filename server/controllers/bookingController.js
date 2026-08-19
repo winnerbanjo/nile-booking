@@ -178,22 +178,65 @@ export const createBooking = async (req, res) => {
 
     // Send Emails asynchronously
     User.findById(service.provider).then((providerUser) => {
-      if (providerUser && customer.email) {
-        // Email to Customer
+      const bookingDateStr = new Date(date).toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const bookingRef = booking.bookingNumber;
+
+      // Email to Customer (only if email provided)
+      if (customer.email) {
         sendEmail({
           to: customer.email,
-          subject: 'Booking Received - Nile Booking',
-          html: `<p>Hi ${customer.name},</p><p>Your booking for <b>${service.name}</b> on ${new Date(date).toLocaleDateString()} at ${timeSlot.startTime} has been received.</p><p>We are currently reviewing your bank transfer receipt. You will receive another email once your booking is confirmed!</p><p>Thank you for using Nile Booking.</p>`,
+          subject: `Booking Received — ${service.name} | Nile Booking`,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;overflow:hidden;">
+              <div style="background:#18181b;padding:24px 28px;">
+                <p style="color:#fff;font-size:18px;font-weight:700;margin:0;">Booking Received ✅</p>
+                <p style="color:#a1a1aa;font-size:13px;margin:6px 0 0;">Ref: ${bookingRef}</p>
+              </div>
+              <div style="padding:28px;">
+                <p style="font-size:14px;color:#3f3f46;margin:0 0 20px;">Hi <b>${customer.name}</b>, your booking has been received and is awaiting confirmation.</p>
+                <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+                  <tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;width:40%;">Service</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${service.name}</td></tr>
+                  <tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;">Date</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${bookingDateStr}</td></tr>
+                  <tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;">Time</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${timeSlot.startTime}</td></tr>
+                  <tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;">Amount</td><td style="padding:10px 0;color:#18181b;font-weight:600;">₦${servicePrice.toLocaleString()}</td></tr>
+                  <tr><td style="padding:10px 0;color:#71717a;">Provider</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${providerUser?.businessName || providerUser?.name || 'Your provider'}</td></tr>
+                </table>
+                ${paymentType === 'bank_transfer' ? '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;font-size:12px;color:#166534;margin-bottom:20px;">We are reviewing your bank transfer receipt. You will be notified once confirmed.</div>' : ''}
+                <p style="font-size:12px;color:#a1a1aa;margin:0;">Powered by <a href="https://nilebooking.co" style="color:#18181b;font-weight:600;">Nile Booking</a></p>
+              </div>
+            </div>
+          `,
         });
-        
-        // Email to Merchant
-        if (providerUser.email) {
-          sendEmail({
-            to: providerUser.email,
-            subject: 'New Booking Awaiting Verification!',
-            html: `<p>Hi ${providerUser.businessName || providerUser.name},</p><p>You have a new booking from ${customer.name} (${customer.email} / ${customer.phone}) for <b>${service.name}</b> on ${new Date(date).toLocaleDateString()} at ${timeSlot.startTime}.</p><p>Please check your dashboard to verify the payment receipt and confirm the booking.</p>`,
-          });
-        }
+      }
+
+      // Email to Merchant (always fires if provider has email)
+      if (providerUser && providerUser.email) {
+        sendEmail({
+          to: providerUser.email,
+          subject: `New Booking — ${service.name} from ${customer.name}`,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;overflow:hidden;">
+              <div style="background:#18181b;padding:24px 28px;">
+                <p style="color:#fff;font-size:18px;font-weight:700;margin:0;">New Booking 📅</p>
+                <p style="color:#a1a1aa;font-size:13px;margin:6px 0 0;">Ref: ${bookingRef}</p>
+              </div>
+              <div style="padding:28px;">
+                <p style="font-size:14px;color:#3f3f46;margin:0 0 20px;">Hi <b>${providerUser.businessName || providerUser.name}</b>, you have a new booking.</p>
+                <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px;">
+                  <tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;width:40%;">Customer</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${customer.name}</td></tr>
+                  <tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;">Phone</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${customer.phone}</td></tr>
+                  ${customer.email ? `<tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;">Email</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${customer.email}</td></tr>` : ''}
+                  <tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;">Service</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${service.name}</td></tr>
+                  <tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;">Date</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${bookingDateStr}</td></tr>
+                  <tr style="border-bottom:1px solid #f4f4f5;"><td style="padding:10px 0;color:#71717a;">Time</td><td style="padding:10px 0;color:#18181b;font-weight:600;">${timeSlot.startTime}</td></tr>
+                  <tr><td style="padding:10px 0;color:#71717a;">Amount</td><td style="padding:10px 0;color:#18181b;font-weight:600;">₦${servicePrice.toLocaleString()}</td></tr>
+                </table>
+                <a href="https://app.nilebooking.co/dashboard/bookings" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;">View in Dashboard →</a>
+                <p style="font-size:12px;color:#a1a1aa;margin:20px 0 0;">Powered by <a href="https://nilebooking.co" style="color:#18181b;font-weight:600;">Nile Booking</a></p>
+              </div>
+            </div>
+          `,
+        });
       }
     }).catch(err => console.error("Error fetching provider for email:", err));
 

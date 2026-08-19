@@ -644,6 +644,76 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
           )}
 
         </main>
+
+        {/* Portfolio Gallery — shown below services on the public page */}
+        {data.provider.gallery && data.provider.gallery.length > 0 && (
+          <div className="max-w-4xl mx-auto px-4 py-8 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-200/80 pb-3">
+              <h2 className="text-base font-semibold text-zinc-900 tracking-tight">Our Work</h2>
+              <span className="text-xs text-zinc-500 font-medium">{data.provider.gallery.length} photos</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {data.provider.gallery.map((item: any, i: number) => {
+                const linkedSvc = data.services.find((s: any) => s._id === item.serviceId?.toString());
+                return (
+                  <div key={i} className="group bg-white border border-zinc-200/80 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <div className="aspect-square bg-zinc-100 overflow-hidden">
+                      <img src={item.url} alt={item.alt || item.caption || `Work ${i+1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e: any) => { e.target.style.display='none'; }} />
+                    </div>
+                    <div className="p-3">
+                      {item.caption && <p className="text-xs font-medium text-zinc-800 mb-2">{item.caption}</p>}
+                      {linkedSvc ? (
+                        <button onClick={() => handleServiceSelect(linkedSvc)} className="w-full py-1.5 text-xs font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors">Book This</button>
+                      ) : data.services.length > 0 ? (
+                        <button onClick={() => { setSelectedService(data.services[0]); setShowDatePicker(true); }} className="w-full py-1.5 text-xs font-medium text-zinc-700 bg-zinc-100 rounded-lg hover:bg-zinc-200 transition-colors">Book Now</button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Customer Reviews — shown below services on the public page */}
+        <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-200/80 pb-3">
+            <div className="flex items-center gap-3">
+              <h2 className="text-base font-semibold text-zinc-900 tracking-tight">Customer Reviews</h2>
+              {avgRating && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-amber-400">★</span>
+                  <span className="text-sm font-bold text-zinc-900">{avgRating.toFixed(1)}</span>
+                  <span className="text-xs text-zinc-500">({reviews.length})</span>
+                </div>
+              )}
+            </div>
+            <button onClick={() => setShowReviewForm(true)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors">✏️ Write a Review</button>
+          </div>
+          {reviewSuccess && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-sm font-medium">✅ Thank you! Your review has been submitted.</div>}
+          {reviews.length === 0 ? (
+            <div className="bg-white border border-zinc-200/80 rounded-xl p-8 text-center shadow-sm"><p className="text-xs text-zinc-500">No reviews yet. Be the first to leave one!</p></div>
+          ) : (
+            <div className="space-y-3">
+              {reviews.map(rev => (
+                <div key={rev._id} className="bg-white border border-zinc-200/80 rounded-xl p-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">{rev.customerName?.charAt(0).toUpperCase()}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-semibold text-zinc-900">{rev.customerName}</p>
+                        <span className="text-[11px] text-zinc-400">{new Date(rev.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                      <div className="flex items-center gap-0.5 mb-2">{[1,2,3,4,5].map(s => <span key={s} className={s <= rev.rating ? 'text-amber-400' : 'text-zinc-300'}>★</span>)}</div>
+                      {rev.comment && <p className="text-xs text-zinc-600 leading-relaxed">&ldquo;{rev.comment}&rdquo;</p>}
+                      {rev.serviceName && <span className="inline-block mt-2 text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{rev.serviceName}</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Merchant Public Footer */}
@@ -932,6 +1002,19 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                   className="h-9 text-xs border-zinc-300"
                 />
               </div>
+              <div>
+                <Label className="text-xs font-medium text-zinc-700 mb-1 block">Email Address <span className="text-zinc-400">(for booking confirmation)</span></Label>
+                <Input
+                  type="email"
+                  value={checkoutData.customer.email}
+                  onChange={(e) => setCheckoutData({
+                    ...checkoutData,
+                    customer: { ...checkoutData.customer, email: e.target.value }
+                  })}
+                  placeholder="you@example.com"
+                  className="h-9 text-xs border-zinc-300"
+                />
+              </div>
 
               {/* Optional Transfer Receipt Image Upload */}
               {checkoutPaymentType === 'bank_transfer' && (
@@ -955,76 +1038,6 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                       </p>
                     )}
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* Portfolio Gallery */}
-            {data.provider.gallery && data.provider.gallery.length > 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-zinc-200/80 pb-3">
-                  <h2 className="text-base font-semibold text-zinc-900 tracking-tight">Our Work</h2>
-                  <span className="text-xs text-zinc-500 font-medium">{data.provider.gallery.length} photos</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {data.provider.gallery.map((item: any, i: number) => {
-                    const linkedSvc = data.services.find((s: any) => s._id === item.serviceId?.toString());
-                    return (
-                      <div key={i} className="group bg-white border border-zinc-200/80 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                        <div className="aspect-square bg-zinc-100 overflow-hidden">
-                          <img src={item.url} alt={item.alt || item.caption || `Work ${i+1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onError={(e: any) => { e.target.style.display='none'; }} />
-                        </div>
-                        <div className="p-3">
-                          {item.caption && <p className="text-xs font-medium text-zinc-800 mb-2">{item.caption}</p>}
-                          {linkedSvc ? (
-                            <button onClick={() => handleServiceSelect(linkedSvc)} className="w-full py-1.5 text-xs font-medium text-white bg-zinc-900 rounded-lg hover:bg-zinc-800 transition-colors">Book This</button>
-                          ) : data.services.length > 0 ? (
-                            <button onClick={() => { setSelectedService(data.services[0]); setShowDatePicker(true); }} className="w-full py-1.5 text-xs font-medium text-zinc-700 bg-zinc-100 rounded-lg hover:bg-zinc-200 transition-colors">Book Now</button>
-                          ) : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          
-            {/* Reviews */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-zinc-200/80 pb-3">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-base font-semibold text-zinc-900 tracking-tight">Customer Reviews</h2>
-                  {avgRating && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-amber-400">★</span>
-                      <span className="text-sm font-bold text-zinc-900">{avgRating.toFixed(1)}</span>
-                      <span className="text-xs text-zinc-500">({reviews.length})</span>
-                    </div>
-                  )}
-                </div>
-                <button onClick={() => setShowReviewForm(true)} className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors">✏️ Write a Review</button>
-              </div>
-              {reviewSuccess && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3 text-sm font-medium">✅ Thank you! Your review has been submitted.</div>}
-              {reviews.length === 0 ? (
-                <div className="bg-white border border-zinc-200/80 rounded-xl p-8 text-center shadow-sm"><p className="text-xs text-zinc-500">No reviews yet. Be the first to leave one!</p></div>
-              ) : (
-                <div className="space-y-3">
-                  {reviews.map(rev => (
-                    <div key={rev._id} className="bg-white border border-zinc-200/80 rounded-xl p-4 shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">{rev.customerName?.charAt(0).toUpperCase()}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-sm font-semibold text-zinc-900">{rev.customerName}</p>
-                            <span className="text-[11px] text-zinc-400">{new Date(rev.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                          </div>
-                          <div className="flex items-center gap-0.5 mb-2">{[1,2,3,4,5].map(s => <span key={s} className={s <= rev.rating ? 'text-amber-400' : 'text-zinc-300'}>★</span>)}</div>
-                          {rev.comment && <p className="text-xs text-zinc-600 leading-relaxed">&ldquo;{rev.comment}&rdquo;</p>}
-                          {rev.serviceName && <span className="inline-block mt-2 text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">{rev.serviceName}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
               )}
             </div>
