@@ -76,6 +76,8 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [activePolicyModal, setActivePolicyModal] = useState<'terms' | 'return' | 'privacy' | null>(null);
   const [checkoutPaymentType, setCheckoutPaymentType] = useState<'bank_transfer' | 'pay_later'>('bank_transfer');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitProgress, setSubmitProgress] = useState(0);
 
   const [checkoutData, setCheckoutData] = useState({
     customer: { name: '', email: '', phone: '' },
@@ -275,11 +277,13 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
 
   const handleCheckoutSubmit = async () => {
     if (!selectedService || !selectedDate || !selectedTime) return;
-
     if (!checkoutData.customer.name || !checkoutData.customer.phone) {
       alert('Please enter your name and WhatsApp phone number');
       return;
     }
+    if (submitting) return;
+    setSubmitting(true);
+    setSubmitProgress(20);
 
     try {
       const [startHour, startMin] = selectedTime.split(':').map(Number);
@@ -288,31 +292,36 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
       const endDate = new Date(startDate.getTime() + selectedService.duration * 60 * 60 * 1000);
       const endTime = format(endDate, 'HH:mm');
 
+      setSubmitProgress(50);
+
       const response = await bookingApi.createBooking({
         customer: checkoutData.customer,
         serviceId: selectedService._id,
         providerSlug: slug || undefined,
         date: selectedDate.toISOString(),
-        timeSlot: {
-          startTime: selectedTime,
-          endTime: endTime,
-        },
+        timeSlot: { startTime: selectedTime, endTime },
         paymentType: checkoutPaymentType,
         receiptImage: receiptImage || undefined,
         notes: checkoutData.notes,
       });
+
+      setSubmitProgress(90);
 
       const whatsappMessage = encodeURIComponent(
         `Hello ${data?.provider.businessName}! I've submitted a booking for ${selectedService.name} on ${format(selectedDate, 'MMMM d, yyyy')} at ${selectedTime}. Booking #${response.booking.bookingNumber}`
       );
       const whatsappLink = `https://wa.me/${data?.provider.phone?.replace(/\D/g, '')}?text=${whatsappMessage}`;
 
-      window.open(whatsappLink, '_blank');
-      alert(checkoutPaymentType === 'bank_transfer' 
-        ? 'Booking & Transfer Receipt Submitted! Opening WhatsApp to send receipt confirmation to merchant...' 
-        : 'Booking Submitted! Opening WhatsApp to send confirmation to merchant...');
-      setShowCheckout(false);
+      setSubmitProgress(100);
+      setTimeout(() => {
+        setSubmitting(false);
+        setSubmitProgress(0);
+        setShowCheckout(false);
+        window.open(whatsappLink, '_blank');
+      }, 400);
     } catch (error: any) {
+      setSubmitting(false);
+      setSubmitProgress(0);
       alert('Failed to create booking: ' + (error.message || 'Unknown error'));
     }
   };
@@ -900,12 +909,23 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                 <p className="text-xs text-zinc-500">{data.provider.businessName}</p>
               </div>
               <button
-                onClick={() => setShowCheckout(false)}
-                className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100"
+                onClick={() => !submitting && setShowCheckout(false)}
+                disabled={submitting}
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Submitting Progress Bar */}
+            {submitting && (
+              <div className="w-full h-1 bg-zinc-100 rounded-full overflow-hidden relative -mt-3">
+                <div 
+                  className="h-full bg-zinc-900 transition-all duration-300 ease-out rounded-full"
+                  style={{ width: `${submitProgress}%` }}
+                />
+              </div>
+            )}
 
             {/* Summary Box */}
             <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-4 text-xs space-y-2">
@@ -1042,12 +1062,20 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               )}
             </div>
 
-            {/* Submit Action */}
+             {/* Submit Action */}
             <Button
               onClick={handleCheckoutSubmit}
-              className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-10 text-xs font-medium shadow-sm"
+              disabled={submitting}
+              className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-10 text-xs font-medium shadow-sm flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
             >
-              {checkoutPaymentType === 'bank_transfer' ? 'Submit Transfer Booking' : 'Confirm Booking'}
+              {submitting ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Processing Booking ({submitProgress}%)
+                </>
+              ) : (
+                checkoutPaymentType === 'bank_transfer' ? 'Submit Transfer Booking' : 'Confirm Booking'
+              )}
             </Button>
 
           </div>

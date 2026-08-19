@@ -131,15 +131,9 @@ export const createBooking = async (req, res) => {
     const servicePrice = service.price;
     const depositAmount = paymentType === 'deposit' ? servicePrice * 0.5 : servicePrice;
 
-    let receiptImageUrl = null;
-    if (paymentType === 'bank_transfer' && receiptImage) {
-      try {
-        const uploadResult = await uploadImage(receiptImage, 'nile-booking/receipts');
-        receiptImageUrl = uploadResult.url;
-      } catch (uploadError) {
-        console.error('Receipt upload error:', uploadError);
-      }
-    }
+    // NOTE: We do NOT await Cloudinary here — it would exceed Vercel's function timeout.
+    // The booking is created immediately; the receipt uploads in the background.
+    const hasReceipt = paymentType === 'bank_transfer' && !!receiptImage;
 
     const booking = await Booking.create({
       customer,
@@ -148,9 +142,9 @@ export const createBooking = async (req, res) => {
       date: new Date(date),
       timeSlot,
       status: 'pending',
-      paymentStatus: receiptImageUrl ? 'awaiting_verification' : 'awaiting_payment',
+      paymentStatus: hasReceipt ? 'awaiting_verification' : 'awaiting_payment',
       paymentType: 'bank_transfer',
-      receiptImageUrl,
+      receiptImageUrl: null, // updated asynchronously after upload
       pricing: {
         servicePrice,
         depositAmount,
@@ -162,7 +156,7 @@ export const createBooking = async (req, res) => {
 
     const transactionReference = `TX-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     
-    // Create a manual transaction record to represent the bank transfer
+    // Create transaction record
     await Transaction.create({
       booking: booking._id,
       provider: service.provider,
@@ -172,9 +166,23 @@ export const createBooking = async (req, res) => {
       paymentGateway: 'bank_transfer',
       gatewayReference: transactionReference,
       transactionReference,
-      customerEmail: customer.email,
-      status: 'pending', // pending manual verification
+      customerEmail: customer.email || '',
+      status: 'pending',
     });
+
+    // Send response immediately — don't wait for Cloudinary or emails
+    res.status(201).json({ booking });
+
+    // --- BACKGROUND TASKS (after response sent) ---
+
+    // Upload receipt to Cloudinary in background
+    if (hasReceipt) {
+      uploadImage(receiptImage, 'nile-booking/receipts')
+        .then((uploadResult) => {
+          Booking.findByIdAndUpdate(booking._id, { receiptImageUrl: uploadResult.url }).catch(() => {});
+        })
+        .catch((err) => console.error('Background receipt upload error:', err));
+    }
 
     // Send Emails asynchronously
     User.findById(service.provider).then((providerUser) => {
@@ -240,9 +248,7 @@ export const createBooking = async (req, res) => {
       }
     }).catch(err => console.error("Error fetching provider for email:", err));
 
-    res.status(201).json({
-      booking,
-    });
+    // (response already sent above before background tasks)
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
