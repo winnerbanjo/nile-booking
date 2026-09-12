@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { randomUUID } from 'node:crypto';
 
 const bookingSchema = new mongoose.Schema(
   {
@@ -82,13 +83,12 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
-// Generate unique booking number
-bookingSchema.pre('save', async function (next) {
+// Required fields are checked before save middleware runs.
+// Generate the reference before validation, without a database count/race.
+bookingSchema.pre('validate', function () {
   if (!this.bookingNumber) {
-    const count = await mongoose.model('Booking').countDocuments();
-    this.bookingNumber = `NB-${Date.now()}-${String(count + 1).padStart(4, '0')}`;
+    this.bookingNumber = `NB-${randomUUID()}`;
   }
-  next();
 });
 
 bookingSchema.index({ provider: 1, status: 1 });
