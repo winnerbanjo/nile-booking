@@ -243,6 +243,42 @@ export interface Booking {
   updatedAt: string;
 }
 
+export interface PublicBooking {
+  reference: string;
+  status: Booking['status'];
+  paymentStatus: Booking['paymentStatus'];
+  paymentMethod?: string;
+  service: { name: string; duration?: number | null };
+  startAt: string;
+  endAt?: string | null;
+  timeSlot: { startTime: string; endTime: string };
+  timezone: string;
+  dateLabel: string | null;
+  timeLabel: string | null;
+  amount: {
+    total: number;
+    deposit: number;
+    dueNow: number;
+    received: number;
+    balanceDue: number;
+    currency: string;
+  };
+  receipt: {
+    uploaded: boolean;
+    status: 'missing' | 'awaiting_verification' | 'verified';
+  };
+  provider: { name: string; phone: string | null; email: string | null };
+  bankDetails: {
+    bankName: string | null;
+    accountName: string | null;
+    accountNumber: string | null;
+  } | null;
+  holdExpiresAt: string | null;
+  canUploadReceipt: boolean;
+  canCancel: boolean;
+  portalPath: string;
+}
+
 // Booking Stats Types
 export interface BookingStats {
   totalBookings: number;

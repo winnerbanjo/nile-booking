@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { setMockMode, mockUsers } from '../utils/mockMode.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 describe('Custom Domain Routing and Registration Tests', () => {
   let providerToken;

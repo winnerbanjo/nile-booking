@@ -1,5 +1,5 @@
 import { lazy, Suspense, Component, ErrorInfo, ReactNode } from 'react';
-import { Routes, Route, Link, Navigate } from 'react-router-dom';
+import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -14,6 +14,7 @@ import { VerifyOtp } from './pages/VerifyOtp';
 import { Dashboard } from './pages/Dashboard';
 import { PublicProvider } from './pages/PublicProvider';
 import { Checkout } from './pages/Checkout';
+import { BookingPortal } from './pages/BookingPortal';
 
 // Lazy-loaded Merchant Sub-routes
 export const servicesImport = () => import('./pages/Services').then((m) => ({ default: m.Services }));
@@ -117,8 +118,8 @@ const PageLoader = () => (
 
 interface ErrorBoundaryProps {
   children: ReactNode;
-  location: any;
-  user: any;
+  location: ReturnType<typeof useLocation>;
+  user: ReturnType<typeof useAuth>['user'];
   logout?: () => void;
 }
 
@@ -228,6 +229,7 @@ class AppErrorBoundaryInner extends Component<
                       import('./lib/queryClient').then(({ queryClient }) => queryClient.clear());
                       localStorage.removeItem('token');
                       localStorage.removeItem('nile_user');
+                      localStorage.removeItem('nile_admin_auth');
                       localStorage.removeItem('nile_dashboard_bookings');
                       localStorage.removeItem('nile_crm_cache');
                       sessionStorage.clear();
@@ -250,17 +252,7 @@ class AppErrorBoundaryInner extends Component<
 
 function AppErrorBoundary({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  
-  // Custom hook usage for location since useLocation is inside router
-  // We need to conditionally use it if router context exists, but since we are inside BrowserRouter, we can just use window.location as fallback or use a hook inside another wrapper if needed.
-  // Actually, useLocation() will work because we are in BrowserRouter in main.tsx
-  let location: any = {};
-  try {
-    const reactRouterDom = require('react-router-dom');
-    location = reactRouterDom.useLocation();
-  } catch (e) {
-    location = { pathname: window.location.pathname, search: window.location.search };
-  }
+  const location = useLocation();
 
   return <AppErrorBoundaryInner user={user} location={location} logout={logout}>{children}</AppErrorBoundaryInner>;
 }
@@ -279,6 +271,7 @@ function StorefrontApp({ slug }: { slug: string }) {
             }
           />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/bookings/:token" element={<BookingPortal />} />
           <Route
             path="/checkout/success"
             element={
@@ -349,6 +342,7 @@ function MainApp() {
               }
             />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/bookings/:token" element={<BookingPortal />} />
 
             {/* Dashboard */}
             <Route

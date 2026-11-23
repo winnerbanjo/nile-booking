@@ -1,11 +1,12 @@
 import express from 'express';
 import { register, login, verifyOtp, resendOtp, forgotPassword, resetPassword, getMe, updateProfile, updateOnboarding, adminLogin, addPortfolioItem, deletePortfolioItem } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
+import { adminLoginGuard } from '../middleware/rateLimit.js';
 
 const router = express.Router();
 router.post('/register', register);
 router.post('/login', login);
-router.post('/admin-login', adminLogin);
+router.post('/admin-login', adminLoginGuard, adminLogin);
 router.post('/verify-otp', verifyOtp);
 router.post('/resend-otp', resendOtp);
 router.post('/forgot-password', forgotPassword);

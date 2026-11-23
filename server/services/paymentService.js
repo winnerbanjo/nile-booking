@@ -1,6 +1,12 @@
 import axios from 'axios';
 import crypto from 'crypto';
 
+const safeEqual = (left, right) => {
+  const a = Buffer.from(String(left));
+  const b = Buffer.from(String(right));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
+
 // Gateways are opt-in. Never silently redirect customers to localhost.
 const requiredCallback = (name, gateway) => {
   const value = process.env[name];
@@ -53,11 +59,13 @@ export const paystackService = {
   },
 
   verifyWebhook: (signature, body) => {
-    const hash = crypto
-      .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
-      .update(JSON.stringify(body))
-      .digest('hex');
-    return hash === signature;
+    const secret = process.env.PAYSTACK_SECRET_KEY;
+    if (!secret || !signature || body === undefined) return false;
+    const raw = Buffer.isBuffer(body)
+      ? body
+      : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
+    const hash = crypto.createHmac('sha512', secret).update(raw).digest('hex');
+    return safeEqual(hash, signature);
   },
 };
 
@@ -108,12 +116,9 @@ export const flutterwaveService = {
     }
   },
 
-  verifyWebhook: (signature, body) => {
-    const hash = crypto
-      .createHmac('sha256', process.env.FLUTTERWAVE_SECRET_HASH)
-      .update(JSON.stringify(body))
-      .digest('hex');
-    return hash === signature;
+  verifyWebhook: (signature) => {
+    const secret = process.env.FLUTTERWAVE_SECRET_HASH;
+    return Boolean(secret && signature) && safeEqual(secret, signature);
   },
 };
 

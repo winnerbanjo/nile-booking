@@ -312,10 +312,10 @@ export const computeDayAvailability = ({
 const resolveProvider = async ({ provider, slug }) => {
   if (slug) {
     if (typeof slug !== 'string') return null;
-    return User.findOne({ slug: slug.toLowerCase() }).select('_id slug businessName name').lean();
+    return User.findOne({ slug: slug.toLowerCase() }).select('_id slug businessName name paymentMethods bankAccount').lean();
   }
   if (provider && mongoose.Types.ObjectId.isValid(provider)) {
-    return User.findById(provider).select('_id slug businessName name').lean();
+    return User.findById(provider).select('_id slug businessName name paymentMethods bankAccount').lean();
   }
   return null;
 };
@@ -359,7 +359,7 @@ export const resolveAvailabilityContext = async ({ provider, slug, serviceId }) 
     if (!service) {
       throw new AvailabilityError(404, 'SERVICE_NOT_FOUND', 'Service not found.');
     }
-    providerUser = await User.findById(service.provider).select('_id slug businessName name').lean();
+    providerUser = await User.findById(service.provider).select('_id slug businessName name paymentMethods bankAccount').lean();
   }
 
   if (!providerUser) {

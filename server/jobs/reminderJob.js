@@ -9,7 +9,7 @@
  */
 
 import cron from 'node-cron';
-import { scheduleReminders } from '../services/notificationService.js';
+import { scheduleReminders, retryFailedNotifications } from '../services/notificationService.js';
 
 /**
  * Run reminder check every hour
@@ -21,7 +21,8 @@ export const startReminderJob = () => {
     console.log('\n⏰ Running scheduled reminder check...');
     try {
       const result = await scheduleReminders();
-      console.log(`✅ Reminder check completed. Sent ${result.remindersSent || 0} reminders.`);
+      await retryFailedNotifications();
+      console.log(`✅ Reminder check completed. Sent ${(result.unpaidHoldSent || 0) + (result.appointmentSent || 0)} reminders.`);
     } catch (error) {
       console.error('❌ Reminder job error:', error);
     }
@@ -39,7 +40,8 @@ export const startReminderJobDev = () => {
     console.log('\n⏰ Running reminder check (dev mode)...');
     try {
       const result = await scheduleReminders();
-      console.log(`✅ Reminder check completed. Sent ${result.remindersSent || 0} reminders.`);
+      await retryFailedNotifications();
+      console.log(`✅ Reminder check completed. Sent ${(result.unpaidHoldSent || 0) + (result.appointmentSent || 0)} reminders.`);
     } catch (error) {
       console.error('❌ Reminder job error:', error);
     }

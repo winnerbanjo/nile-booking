@@ -9,9 +9,6 @@ interface ProtectedAdminRouteProps {
 export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({ children }) => {
   const { user, loading } = useAuth();
 
-  // Check for admin token first (master key login)
-  const nileAdminAuth = localStorage.getItem('nile_admin_auth');
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -20,8 +17,9 @@ export const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({ childr
     );
   }
 
-  // Strict RBAC: Check admin auth token OR user role
-  if ((!nileAdminAuth || nileAdminAuth !== 'true') && (!user || user.role !== 'admin')) {
+  // The backend-issued token and /auth/me are the authority. A localStorage
+  // boolean is never sufficient to enter the admin portal.
+  if (!user || user.role !== 'admin') {
     return <Navigate to="/admin/portal" replace />;
   }
 

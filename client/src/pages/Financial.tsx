@@ -74,7 +74,9 @@ export const Financial: React.FC = () => {
     successRate: 0,
   };
   const bookings = bookingsData?.bookings || [];
-  const banks = bankData?.data || [];
+  const banks = Array.from(
+    new Map((bankData?.data || []).map((bank) => [bank.code, bank])).values()
+  );
   const isLoading = isStatsLoading || isBookingsLoading;
   const isError = isStatsError || isBookingsError;
 

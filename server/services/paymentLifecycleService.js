@@ -8,6 +8,7 @@ import {
 import {
   sendBookingConfirmation,
   notifyBookingCancellation,
+  notifyProviderCancellation,
 } from './notificationService.js';
 
 /**
@@ -382,10 +383,19 @@ export const rejectBooking = async ({ bookingId, actor, reason = '' }) => {
 };
 
 /** Cancel a pending/confirmed booking, release its slot, notify the customer. */
-export const cancelBooking = async ({ bookingId, actor, reason = '' }) => {
+export const cancelBooking = async ({ bookingId, actor, reason = '', allowCustomer = false }) => {
   const booking = await Booking.findById(bookingId).populate('service provider');
   if (!booking) throw new PaymentLifecycleError(404, 'BOOKING_NOT_FOUND', 'Booking not found.');
-  requireProviderAccess(booking, actor);
+
+  // Only the token-gated public controller may pass allowCustomer. All provider
+  // and admin callers keep the existing ownership check.
+  if (allowCustomer) {
+    if (!actor || actor.role !== 'customer') {
+      throw new PaymentLifecycleError(401, 'AUTH_REQUIRED', 'Customer access is required.');
+    }
+  } else {
+    requireProviderAccess(booking, actor);
+  }
 
   try {
     transition(booking, BOOKING_EVENTS.BOOKING_CANCELLED, actor);
@@ -410,7 +420,13 @@ export const cancelBooking = async ({ bookingId, actor, reason = '' }) => {
     outcome: 'cancelled',
   }).catch((error) => ({ success: false, error: error.message }));
 
-  return { booking, transaction, notification };
+  // A customer-initiated cancellation must reach the provider too. This is a
+  // notification only; the transition and slot release above remain unchanged.
+  const providerNotification = await notifyProviderCancellation(booking._id, {
+    reason: reason || 'Cancelled by customer',
+  }).catch((error) => ({ success: false, error: error.message }));
+
+  return { booking, transaction, notification, providerNotification };
 };
 
 export const completeBooking = async ({ bookingId, actor }) => {

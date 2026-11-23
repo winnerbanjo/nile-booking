@@ -17,11 +17,12 @@ const router = express.Router();
 
 // Paystack routes
 router.post('/paystack/verify', verifyPaystackPayment);
-router.post('/paystack/webhook', express.raw({ type: 'application/json' }), paystackWebhook);
+// The app-level JSON parser preserves req.rawBody for signature verification.
+router.post('/paystack/webhook', paystackWebhook);
 
 // Flutterwave routes
 router.post('/flutterwave/verify', verifyFlutterwavePayment);
-router.post('/flutterwave/webhook', express.json(), flutterwaveWebhook);
+router.post('/flutterwave/webhook', flutterwaveWebhook);
 
 // Bank account routes
 router.get('/banks', protect, getBanks);

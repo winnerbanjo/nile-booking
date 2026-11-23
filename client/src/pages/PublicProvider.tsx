@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { serviceApi, scheduleApi, bookingApi, reviewApi, availabilityApi } from '../lib/api';
 import { Calendar } from '../components/ui/calendar';
@@ -83,6 +83,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<AvailabilitySlot[]>([]);
   const [availability, setAvailability] = useState<ProviderAvailability | null>(null);
+  const availabilityRequestRef = useRef(0);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [slotNotice, setSlotNotice] = useState<string | null>(null);
@@ -95,6 +96,12 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const [checkoutPaymentType, setCheckoutPaymentType] = useState<'bank_transfer' | 'pay_later'>('bank_transfer');
   const [submitting, setSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
+  const [bookingSuccess, setBookingSuccess] = useState<{
+    reference: string;
+    portalUrl: string;
+    whatsappLink: string;
+    receiptError?: string;
+  } | null>(null);
 
   const [checkoutData, setCheckoutData] = useState({
     customer: { name: '', email: '', phone: '' },
@@ -140,28 +147,30 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   // Calendar availability comes from the server — never computed in the browser.
   useEffect(() => {
     if (!slug || !selectedService) {
+      availabilityRequestRef.current += 1;
       setAvailability(null);
       setAvailableTimeSlots([]);
       return;
     }
     let active = true;
+    const requestId = ++availabilityRequestRef.current;
     setAvailabilityLoading(true);
     setAvailabilityError(null);
     availabilityApi
       .getProviderAvailability({ slug, service: selectedService._id })
       .then((result) => {
-        if (!active) return;
+        if (!active || requestId !== availabilityRequestRef.current) return;
         setAvailability(result);
         setAvailableTimeSlots(result.slots);
       })
       .catch((error) => {
-        if (!active) return;
+        if (!active || requestId !== availabilityRequestRef.current) return;
         setAvailability(null);
         setAvailableTimeSlots([]);
         setAvailabilityError(error.message || 'Could not load availability');
       })
       .finally(() => {
-        if (active) setAvailabilityLoading(false);
+        if (active && requestId === availabilityRequestRef.current) setAvailabilityLoading(false);
       });
     return () => {
       active = false;
@@ -171,26 +180,29 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   // Slots for the chosen date (server recomputes on every date change).
   useEffect(() => {
     if (!selectedDate || !selectedService || !slug) {
+      // Do not invalidate the service-level calendar request when no date is
+      // selected yet; only a real date request should supersede it.
       setAvailableTimeSlots([]);
       return;
     }
     let active = true;
+    const requestId = ++availabilityRequestRef.current;
     setAvailabilityLoading(true);
     setAvailabilityError(null);
     availabilityApi
       .getProviderAvailability({ slug, service: selectedService._id, date: format(selectedDate, 'yyyy-MM-dd') })
       .then((result) => {
-        if (!active) return;
+        if (!active || requestId !== availabilityRequestRef.current) return;
         setAvailability(result);
         setAvailableTimeSlots(result.slots);
       })
       .catch((error) => {
-        if (!active) return;
+        if (!active || requestId !== availabilityRequestRef.current) return;
         setAvailableTimeSlots([]);
         setAvailabilityError(error.message || 'Could not load availability');
       })
       .finally(() => {
-        if (active) setAvailabilityLoading(false);
+        if (active && requestId === availabilityRequestRef.current) setAvailabilityLoading(false);
       });
     return () => {
       active = false;
@@ -288,8 +300,8 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
-        alert('Invalid file format. Please upload a JPG, PNG, or PDF.');
+      if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) {
+        alert('Invalid file format. Please upload a JPG, PNG, WebP, or PDF.');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
@@ -377,6 +389,11 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
       );
       const whatsappLink = `https://wa.me/${data?.provider.phone?.replace(/\D/g, '')}?text=${whatsappMessage}`;
 
+      const portalUrl = response.portalUrl
+        || (response.booking.publicToken
+          ? `${window.location.origin}/bookings/${response.booking.publicToken}`
+          : `${window.location.origin}/`);
+
       setSubmitProgress(100);
       setTimeout(() => {
         setSubmitting(false);
@@ -384,7 +401,12 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
         setShowCheckout(false);
         setSelectedSlot(null);
         setIdempotencyKey(createIdempotencyKey());
-        window.open(whatsappLink, '_blank');
+        setBookingSuccess({
+          reference: response.booking.bookingNumber,
+          portalUrl,
+          whatsappLink,
+          receiptError: response.receiptUpload?.status === 'failed' ? response.receiptUpload.error : undefined,
+        });
       }, 400);
     } catch (error: any) {
       setSubmitting(false);
@@ -1189,13 +1211,13 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                   <div className="flex flex-col gap-2">
                     <input
                       type="file"
-                      accept="image/jpeg, image/png, application/pdf"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
                       onChange={handleReceiptUpload}
                       className="text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
                     />
                     {!receiptImage && (
                       <p className="text-[10px] text-zinc-500 leading-tight">
-                        You can skip this step and complete your booking now. If you do, please send your receipt to {data.provider.businessName} via WhatsApp or reply to the confirmation email later.
+                        You can skip this step and complete your booking now. Your success screen and confirmation email will include a private booking link where you can upload the receipt later.
                       </p>
                     )}
                     {receiptImage && (
@@ -1224,6 +1246,60 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               )}
             </Button>
 
+          </div>
+        </div>
+      )}
+
+      {/* Durable booking success screen */}
+      {bookingSuccess && (
+        <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-zinc-200 p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle2 className="h-5 w-5" />
+                <h3 className="text-base font-semibold">Booking received</h3>
+              </div>
+              <button
+                onClick={() => setBookingSuccess(null)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-4 text-xs space-y-1.5">
+              <p className="text-zinc-500">Your booking reference</p>
+              <p className="font-mono text-sm font-bold text-zinc-900 break-all">{bookingSuccess.reference}</p>
+              <p className="text-zinc-500 pt-1">Keep this private link to view payment details, upload a receipt later, or cancel:</p>
+              <a
+                href={bookingSuccess.portalUrl}
+                className="block break-all font-medium text-emerald-700 underline underline-offset-2"
+              >
+                {bookingSuccess.portalUrl}
+              </a>
+            </div>
+
+            {bookingSuccess.receiptError && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                {bookingSuccess.receiptError}
+              </div>
+            )}
+
+            <a
+              href={bookingSuccess.portalUrl}
+              className="flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800"
+            >
+              View booking page
+            </a>
+            <a
+              href={bookingSuccess.whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
+            >
+              Send booking note on WhatsApp
+            </a>
           </div>
         </div>
       )}
