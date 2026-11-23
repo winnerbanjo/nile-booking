@@ -7,7 +7,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Checkbox } from '../components/ui/checkbox';
 import type { Schedule, WeeklySchedule } from '../types';
-import { Plus, Trash2, Clock, CheckCircle2, Sliders } from 'lucide-react';
+import { Plus, Trash2, Clock, CheckCircle2, Sliders, CalendarOff } from 'lucide-react';
 import { EmptyState } from '../components/ui/EmptyState';
 
 const DAYS = [
@@ -27,13 +27,22 @@ export const Settings: React.FC = () => {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [bufferTime, setBufferTime] = useState(15);
-  const [bookingWindow, setBookingWindow] = useState(30);
-  const [minimumLeadTime, setMinimumLeadTime] = useState(2);
-
-
+  const [bookingWindow, setBookingWindow] = useState(60);
+  const [minimumLeadTime, setMinimumLeadTime] = useState(0);
+  const [timezone, setTimezone] = useState('Africa/Lagos');
+  const [blockedStart, setBlockedStart] = useState('');
+  const [blockedEnd, setBlockedEnd] = useState('');
+  const [blockedReason, setBlockedReason] = useState('');
 
   const updateMutation = useMutation({
-    mutationFn: (data: { weeklySchedule?: WeeklySchedule; bufferTime?: number }) => scheduleApi.updateSchedule(data),
+    mutationFn: (data: {
+      weeklySchedule?: WeeklySchedule;
+      bufferTime?: number;
+      timezone?: string;
+      bookingWindowDays?: number;
+      minimumLeadTimeMinutes?: number;
+      unavailableDates?: Schedule['unavailableDates'];
+    }) => scheduleApi.updateSchedule(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.merchant.schedule });
       setShowToast(true);
@@ -44,16 +53,31 @@ export const Settings: React.FC = () => {
     }
   });
 
-  const autoSave = (currentSchedule?: Schedule | null, currentBufferTime?: number) => {
+  const autoSave = (
+    currentSchedule?: Schedule | null,
+    overrides?: Partial<{
+      bufferTime: number;
+      bookingWindowDays: number;
+      minimumLeadTimeMinutes: number;
+      timezone: string;
+    }>
+  ) => {
     const sched = currentSchedule || schedule;
-    const buf = currentBufferTime !== undefined ? currentBufferTime : bufferTime;
     if (!sched) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    
+
     saveTimeoutRef.current = setTimeout(() => {
       updateMutation.mutate({
         weeklySchedule: sched.weeklySchedule,
-        bufferTime: buf,
+        bufferTime: overrides?.bufferTime ?? bufferTime,
+        timezone: overrides?.timezone ?? timezone,
+        bookingWindowDays: overrides?.bookingWindowDays ?? bookingWindow,
+        minimumLeadTimeMinutes: overrides?.minimumLeadTimeMinutes ?? minimumLeadTime,
+        unavailableDates: sched.unavailableDates.map((entry) => ({
+          date: entry.date,
+          endDate: entry.endDate || null,
+          reason: entry.reason || '',
+        })),
       });
     }, 800);
   };
@@ -63,6 +87,8 @@ export const Settings: React.FC = () => {
     provider: 'default-provider',
     timezone: 'Africa/Lagos',
     bufferTime: 15,
+    bookingWindowDays: 60,
+    minimumLeadTimeMinutes: 0,
     unavailableDates: [],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -85,8 +111,11 @@ export const Settings: React.FC = () => {
   useEffect(() => {
     if (data) {
       if (data.weeklySchedule) {
-        setSchedule(data);
+        setSchedule({ ...data, unavailableDates: data.unavailableDates || [] });
         setBufferTime(data.bufferTime || 15);
+        setBookingWindow(data.bookingWindowDays ?? 60);
+        setMinimumLeadTime(data.minimumLeadTimeMinutes ?? 0);
+        setTimezone(data.timezone || 'Africa/Lagos');
       } else {
         setSchedule(defaultSchedule);
       }
@@ -171,6 +200,47 @@ export const Settings: React.FC = () => {
     autoSave(newSchedule);
   };
 
+  const formatBlockedDate = (value: string) => {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString().slice(0, 10);
+  };
+
+  const addBlockedDate = () => {
+    if (!schedule || !blockedStart) return;
+    const start = new Date(`${blockedStart}T00:00:00`);
+    const end = blockedEnd ? new Date(`${blockedEnd}T00:00:00`) : null;
+    if (end && end < start) {
+      alert('The blocked range end must be on or after its start date.');
+      return;
+    }
+    const newSchedule: Schedule = {
+      ...schedule,
+      unavailableDates: [
+        ...(schedule.unavailableDates || []),
+        {
+          date: start.toISOString(),
+          endDate: end ? end.toISOString() : null,
+          reason: blockedReason.trim(),
+        },
+      ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    };
+    setSchedule(newSchedule);
+    setBlockedStart('');
+    setBlockedEnd('');
+    setBlockedReason('');
+    autoSave(newSchedule);
+  };
+
+  const removeBlockedDate = (index: number) => {
+    if (!schedule) return;
+    const newSchedule: Schedule = {
+      ...schedule,
+      unavailableDates: (schedule.unavailableDates || []).filter((_, i) => i !== index),
+    };
+    setSchedule(newSchedule);
+    autoSave(newSchedule);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50/50">
@@ -226,7 +296,7 @@ export const Settings: React.FC = () => {
                 onChange={(e) => {
                   const newBuffer = parseInt(e.target.value);
                   setBufferTime(newBuffer);
-                  autoSave(schedule, newBuffer);
+                  autoSave(schedule, { bufferTime: newBuffer });
                 }}
                 className="w-full h-9 rounded-lg border border-zinc-300 bg-white px-3 text-xs text-zinc-900 focus:border-zinc-900 focus:ring-zinc-900"
               >
@@ -242,7 +312,9 @@ export const Settings: React.FC = () => {
               <select
                 value={bookingWindow}
                 onChange={(e) => {
-                  setBookingWindow(parseInt(e.target.value));
+                  const days = parseInt(e.target.value);
+                  setBookingWindow(days);
+                  autoSave(schedule, { bookingWindowDays: days });
                 }}
                 className="w-full h-9 rounded-lg border border-zinc-300 bg-white px-3 text-xs text-zinc-900 focus:border-zinc-900 focus:ring-zinc-900"
               >
@@ -258,7 +330,9 @@ export const Settings: React.FC = () => {
               <select
                 value={minimumLeadTime}
                 onChange={(e) => {
-                  setMinimumLeadTime(parseInt(e.target.value));
+                  const minutes = parseInt(e.target.value);
+                  setMinimumLeadTime(minutes);
+                  autoSave(schedule, { minimumLeadTimeMinutes: minutes });
                 }}
                 className="w-full h-9 rounded-lg border border-zinc-300 bg-white px-3 text-xs text-zinc-900 focus:border-zinc-900 focus:ring-zinc-900"
               >
@@ -267,6 +341,41 @@ export const Settings: React.FC = () => {
                 <option value="24">24 hours minimum</option>
               </select>
               <p className="text-[11px] text-zinc-400 mt-1">Prevents last-minute bookings</p>
+            </div>
+
+            <div>
+              <Label className="text-xs font-medium text-zinc-700 mb-1.5 block">Timezone</Label>
+              <select
+                value={timezone}
+                onChange={(e) => {
+                  const nextTimezone = e.target.value;
+                  setTimezone(nextTimezone);
+                  const newSchedule: Schedule = { ...schedule, timezone: nextTimezone };
+                  setSchedule(newSchedule);
+                  autoSave(newSchedule, { timezone: nextTimezone });
+                }}
+                className="w-full h-9 rounded-lg border border-zinc-300 bg-white px-3 text-xs text-zinc-900 focus:border-zinc-900 focus:ring-zinc-900"
+              >
+                {Array.from(new Set([
+                  timezone,
+                  'Africa/Lagos',
+                  'Africa/Abidjan',
+                  'Africa/Nairobi',
+                  'Africa/Johannesburg',
+                  'Africa/Cairo',
+                  'Europe/London',
+                  'Europe/Paris',
+                  'America/New_York',
+                  'America/Los_Angeles',
+                  'Asia/Dubai',
+                  'Asia/Kolkata',
+                  'Australia/Sydney',
+                  'UTC',
+                ])).map((zone) => (
+                  <option key={zone} value={zone}>{zone}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-zinc-400 mt-1">Your working hours are interpreted in this timezone</p>
             </div>
           </div>
         </div>
@@ -340,6 +449,65 @@ export const Settings: React.FC = () => {
               );
             })}
           </div>
+        </div>
+
+        {/* Blocked Dates */}
+        <div className="bg-white border border-zinc-200/80 rounded-xl p-5 shadow-sm space-y-4">
+          <h2 className="text-base font-semibold text-zinc-900 border-b border-zinc-100 pb-3 flex items-center gap-2">
+            <CalendarOff className="w-4 h-4 text-zinc-600" />
+            Blocked Dates
+          </h2>
+          <p className="text-xs text-zinc-500 font-normal">
+            Customers cannot book on these dates. Use an end date to block a range (inclusive).
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+            <div>
+              <Label className="text-xs font-medium text-zinc-700 mb-1.5 block">From</Label>
+              <Input type="date" value={blockedStart} onChange={(e) => setBlockedStart(e.target.value)} className="h-9 text-xs" />
+            </div>
+            <div>
+              <Label className="text-xs font-medium text-zinc-700 mb-1.5 block">To (optional)</Label>
+              <Input type="date" value={blockedEnd} min={blockedStart || undefined} onChange={(e) => setBlockedEnd(e.target.value)} className="h-9 text-xs" />
+            </div>
+            <div>
+              <Label className="text-xs font-medium text-zinc-700 mb-1.5 block">Reason (optional)</Label>
+              <Input value={blockedReason} onChange={(e) => setBlockedReason(e.target.value)} placeholder="Holiday, travel..." className="h-9 text-xs" />
+            </div>
+            <Button
+              type="button"
+              onClick={addBlockedDate}
+              disabled={!blockedStart}
+              className="h-9 text-xs bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Block Date
+            </Button>
+          </div>
+
+          {(schedule.unavailableDates || []).length === 0 ? (
+            <p className="text-xs text-zinc-400 font-normal py-1">No blocked dates. Every working day is bookable.</p>
+          ) : (
+            <div className="space-y-2">
+              {(schedule.unavailableDates || []).map((entry, index) => (
+                <div key={`${entry.date}-${index}`} className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50/40">
+                  <div className="text-xs text-zinc-800 font-medium">
+                    {formatBlockedDate(entry.date)}
+                    {entry.endDate && entry.endDate !== entry.date ? ` → ${formatBlockedDate(entry.endDate)}` : ''}
+                    {entry.reason ? <span className="text-zinc-400 font-normal"> · {entry.reason}</span> : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeBlockedDate(index)}
+                    className="text-zinc-400 hover:text-red-600"
+                    aria-label={`Remove blocked date ${formatBlockedDate(entry.date)}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Auto-Save Toast */}

@@ -84,6 +84,12 @@ export const createService = async (req, res) => {
       });
     }
 
+    if (!(Number(duration) > 0)) {
+      return res.status(400).json({
+        message: 'Duration must be greater than zero (in hours).',
+      });
+    }
+
     if (getMockMode()) {
       const newMockService = {
         _id: `mock_service_${Date.now()}`,
@@ -146,6 +152,10 @@ export const updateService = async (req, res) => {
     }
 
     const { name, description, category, price, duration, capacity, images, location, features, isActive } = req.body;
+
+    if (duration !== undefined && !(Number(duration) > 0)) {
+      return res.status(400).json({ message: 'Duration must be greater than zero (in hours).' });
+    }
 
     if (name) service.name = name;
     if (description) service.description = description;

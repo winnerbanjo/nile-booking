@@ -11,6 +11,7 @@ import authRoutes from './routes/authRoutes.js';
 import scheduleRoutes from './routes/scheduleRoutes.js';
 import serviceRoutes from './routes/serviceRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
+import availabilityRoutes from './routes/availabilityRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import staffRoutes from './routes/staffRoutes.js';
@@ -55,7 +56,8 @@ const corsOptions = {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "x-cron-secret"]
+  allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "x-cron-secret"],
+  exposedHeaders: ["Idempotency-Key"]
 };
 
 app.use(cors(corsOptions));
@@ -88,6 +90,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/availability', availabilityRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/staff', staffRoutes);

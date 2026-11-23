@@ -27,9 +27,37 @@ const bookingSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    // Canonical UTC instant of the appointment. Availability, conflicts and
+    // holds are decided from these fields, never from the display strings.
+    startAt: {
+      type: Date,
+      default: null,
+    },
+    endAt: {
+      type: Date,
+      default: null,
+    },
+    // Provider-local display strings (HH:mm).
     timeSlot: {
       startTime: { type: String, required: true },
       endTime: { type: String, required: true },
+    },
+    // How the customer intends to pay, used only to schedule the slot hold.
+    paymentMethod: {
+      type: String,
+      enum: ['bank_transfer', 'pay_later', 'card'],
+      default: 'bank_transfer',
+    },
+    // When an unpaid pending booking releases the slot. Null = never (receipt
+    // attached, confirmed, or pay-in-person per cash policy).
+    holdExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    // Client-supplied per-submit key; unique per provider when present.
+    idempotencyKey: {
+      type: String,
+      default: undefined,
     },
     status: {
       type: String,
@@ -92,7 +120,29 @@ bookingSchema.pre('validate', function () {
 });
 
 bookingSchema.index({ provider: 1, status: 1 });
+bookingSchema.index({ provider: 1, startAt: 1, endAt: 1 });
+bookingSchema.index(
+  { provider: 1, idempotencyKey: 1 },
+  { unique: true, partialFilterExpression: { idempotencyKey: { $exists: true } } }
+);
 bookingSchema.index({ provider: 1, createdAt: -1 });
+
+// Any code path that confirms/cancels a booking keeps slot claims in sync —
+// including payment verification, which never touches the availability service.
+bookingSchema.post('save', async function (doc) {
+  try {
+    if (doc.status === 'confirmed') {
+      const { confirmSlot } = await import('../services/availabilityService.js');
+      await doc.constructor.updateOne({ _id: doc._id }, { $set: { holdExpiresAt: null } });
+      await confirmSlot(doc._id);
+    } else if (doc.status === 'cancelled' || doc.status === 'rejected') {
+      const { releaseSlot } = await import('../services/availabilityService.js');
+      await releaseSlot(doc._id, doc.status);
+    }
+  } catch (error) {
+    console.error('[availability] failed to sync claims for booking', doc._id?.toString(), error.message);
+  }
+});
 bookingSchema.index({ status: 1, createdAt: -1 });
 bookingSchema.index({ 'customer.email': 1 });
 bookingSchema.index({ date: 1 });
