@@ -4,6 +4,7 @@ import type {
   Schedule,
   WeeklySchedule,
   UnavailableDate,
+  ProviderAvailability,
   ProviderWithServices,
   Booking,
   BookingStats,
@@ -22,7 +23,12 @@ const API_BASE_URL = configuredApiBaseUrl
     : 'https://api.nilebooking.co/api';
 
 class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    public code?: string,
+    public details?: Record<string, any>
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -68,7 +74,12 @@ const request = async <T>(
       const error = await response.json().catch(() => ({
         message: response.statusText,
       }));
-      throw new ApiError(response.status, error.message || 'Request failed');
+      throw new ApiError(
+        response.status,
+        error.message || 'Request failed',
+        error.code,
+        error
+      );
     }
 
     // Handle empty responses
@@ -234,6 +245,8 @@ export const scheduleApi = {
     weeklySchedule?: WeeklySchedule;
     bufferTime?: number;
     timezone?: string;
+    bookingWindowDays?: number;
+    minimumLeadTimeMinutes?: number;
     unavailableDates?: UnavailableDate[];
   }) => {
     return request<Schedule>('/schedule', {
@@ -326,21 +339,35 @@ export const serviceApi = {
   },
 };
 
+// Availability API
+export const availabilityApi = {
+  getProviderAvailability: async (params: { provider?: string; slug?: string; service: string; date?: string }) => {
+    const query = new URLSearchParams();
+    if (params.provider) query.append('provider', params.provider);
+    if (params.slug) query.append('slug', params.slug);
+    query.append('service', params.service);
+    if (params.date) query.append('date', params.date);
+    return request<ProviderAvailability>(`/availability?${query.toString()}`);
+  },
+};
+
 // Booking API
 export const bookingApi = {
   createBooking: async (data: {
     customer: { name: string; email: string; phone: string };
     serviceId: string;
     providerSlug?: string;
-    date: string;
-    timeSlot: { startTime: string; endTime: string };
+    startAt: string;
+    date?: string;
+    timeSlot?: { startTime: string; endTime: string };
     paymentType: 'full' | 'deposit' | 'pay_later' | 'bank_transfer';
     paymentGateway?: 'paystack' | 'flutterwave';
     notes?: string;
     receiptImage?: string;
-  }) => {
-    return request<{ booking: Booking; paymentData: any }>('/bookings', {
+  }, idempotencyKey?: string) => {
+    return request<{ booking: Booking; paymentData?: any; holdExpiresAt?: string | null; idempotent?: boolean }>('/bookings', {
       method: 'POST',
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
       body: JSON.stringify(data),
     });
   },

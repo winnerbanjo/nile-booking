@@ -82,9 +82,24 @@ const scheduleSchema = new mongoose.Schema(
       default: 15,
       min: 0,
     },
+    // How many days ahead customers may book (server-enforced).
+    bookingWindowDays: {
+      type: Number,
+      default: 60,
+      min: 1,
+      max: 365,
+    },
+    // Minimum notice before a slot can be booked (server-enforced).
+    minimumLeadTimeMinutes: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     unavailableDates: [
       {
         date: { type: Date, required: true },
+        // Optional inclusive end of a blocked range.
+        endDate: { type: Date, default: null },
         reason: String,
       },
     ],

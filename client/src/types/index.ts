@@ -101,6 +101,7 @@ export interface WeeklySchedule {
 
 export interface UnavailableDate {
   date: string;
+  endDate?: string | null;
   reason?: string;
 }
 
@@ -110,9 +111,42 @@ export interface Schedule {
   timezone: string;
   weeklySchedule: WeeklySchedule;
   bufferTime: number;
+  bookingWindowDays?: number;
+  minimumLeadTimeMinutes?: number;
   unavailableDates: UnavailableDate[];
   createdAt: string;
   updatedAt: string;
+}
+
+// Server-computed availability
+export interface AvailabilitySlot {
+  date: string;
+  start: string;
+  end: string;
+  localStart: string;
+  localEnd: string;
+  label: string;
+  timezone: string;
+}
+
+export interface AvailabilityDay {
+  date: string;
+  available: boolean;
+  slotCount: number;
+}
+
+export interface ProviderAvailability {
+  provider: { _id: string; slug: string; businessName: string; timezone: string };
+  service: { _id: string; name: string; durationMinutes: number; price: number };
+  timezone: string;
+  timezoneLabel: string;
+  horizonDays: number;
+  minimumLeadTimeMinutes: number;
+  date: string;
+  days: AvailabilityDay[];
+  slots: AvailabilitySlot[];
+  alternatives: AvailabilitySlot[];
+  hasAvailability: boolean;
 }
 
 // Provider Types
@@ -174,13 +208,26 @@ export interface Booking {
   provider: string | { _id: string; businessName: string; email: string };
   service: Service | string | { _id: string; name: string };
   date: string;
+  startAt?: string;
+  endAt?: string;
+  holdExpiresAt?: string | null;
   timeSlot: {
     startTime: string;
     endTime: string;
   };
   status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled';
-  paymentStatus: 'pending' | 'pending_verification' | 'partial' | 'paid' | 'refunded';
-  paymentType: 'bank_transfer' | 'full' | 'deposit';
+  paymentStatus:
+    | 'pending'
+    | 'pending_verification'
+    | 'partial'
+    | 'paid'
+    | 'refunded'
+    | 'awaiting_payment'
+    | 'awaiting_verification'
+    | 'confirmed'
+    | 'cancelled';
+  paymentType: 'bank_transfer' | 'full' | 'deposit' | 'pay_later';
+  paymentMethod?: 'bank_transfer' | 'pay_later' | 'card';
   pricing: {
     servicePrice: number;
     depositAmount: number;
