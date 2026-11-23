@@ -6,11 +6,12 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { NileLogo } from '../components/ui/NileLogo';
-import { ArrowRight, ShieldCheck, KeyRound, CheckCircle2, X } from 'lucide-react';
+import { ArrowRight, ShieldCheck, KeyRound, CheckCircle2, X, Eye, EyeOff } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -152,15 +153,26 @@ export const Login: React.FC = () => {
                   Forgot Password?
                 </button>
               </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="•••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-10 text-xs border-zinc-300 rounded-lg"
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="•••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-10 pr-10 text-xs border-zinc-300 rounded-lg"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-zinc-400 hover:text-zinc-700 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <Button

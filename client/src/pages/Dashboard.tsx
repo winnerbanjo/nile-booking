@@ -18,6 +18,8 @@ import {
   Circle,
   X,
   Globe,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { dashboardApi, authApi } from '../lib/api';
@@ -124,49 +126,98 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Setup Checklist — dismissible, shown during onboarding */}
+        {/* Website setup — dismissible onboarding checklist */}
         {!checklistDismissed && !user?.onboarding?.onboardingCompleted && (
-          <div className="bg-white border border-amber-200 rounded-xl p-5 shadow-sm space-y-3">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-900">Complete your website setup</h3>
-                <p className="text-xs text-zinc-500 mt-0.5">
-                  {[true, user?.onboarding?.websiteGenerated, user?.onboarding?.firstServiceAdded].filter(Boolean).length} of 7 steps completed
-                </p>
-              </div>
-              <button onClick={dismissChecklist} className="text-zinc-400 hover:text-zinc-600 transition-colors mt-0.5 flex-shrink-0">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-2">
-              {[
-                { label: 'Create your account', done: true, href: null },
-                { label: 'Generate your website', done: !!(user?.onboarding?.websiteGenerated), href: null },
-                { label: 'Add your first service', done: !!(user?.onboarding?.firstServiceAdded), href: '/dashboard/services' },
-                { label: 'Set your availability', done: false, href: '/dashboard/settings' },
-                { label: 'Add your business logo', done: !!(user?.logo || user?.profileImage), href: '/dashboard/profile' },
-                { label: 'Preview your website', done: false, href: user?.slug ? getStorefrontUrl(user.slug) : null, external: true },
-                { label: 'Share your website link', done: false, href: '/dashboard/marketing' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-2.5">
-                  {item.done ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                  ) : (
-                    <Circle className="w-4 h-4 text-zinc-200 flex-shrink-0" />
-                  )}
-                  {item.href && !item.done ? (
-                    (item as any).external ? (
-                      <a href={item.href} target="_blank" rel="noopener noreferrer" className="text-xs text-zinc-600 hover:text-zinc-900 hover:underline font-medium">{item.label}</a>
-                    ) : (
-                      <Link to={item.href} className="text-xs text-zinc-600 hover:text-zinc-900 hover:underline font-medium">{item.label}</Link>
-                    )
-                  ) : (
-                    <span className={`text-xs ${item.done ? 'text-zinc-400 line-through' : 'text-zinc-400'}`}>{item.label}</span>
-                  )}
+          <section className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-400 to-teal-600" />
+            <div className="p-5 sm:p-6">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold tracking-tight text-zinc-900">Make your website ready for business</h3>
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Getting started</span>
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-500">Complete these essentials to give clients a polished experience from discovery to booking.</p>
+                  </div>
                 </div>
-              ))}
+                <button
+                  onClick={dismissChecklist}
+                  aria-label="Dismiss website setup checklist"
+                  className="absolute right-4 top-4 rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 sm:static sm:-mt-1 sm:-mr-1"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {(() => {
+                const steps = [
+                  { label: 'Create your account', done: true, href: null },
+                  { label: 'Generate your website', done: !!user?.onboarding?.websiteGenerated, href: null },
+                  { label: 'Add your first service', done: !!user?.onboarding?.firstServiceAdded, href: '/dashboard/services' },
+                  { label: 'Set your availability', done: false, href: '/dashboard/settings' },
+                  { label: 'Add your business logo', done: !!(user?.logo || user?.profileImage), href: '/dashboard/profile' },
+                  { label: 'Preview your website', done: false, href: user?.slug ? getStorefrontUrl(user.slug) : null, external: true },
+                  { label: 'Share your website link', done: false, href: '/dashboard/marketing' },
+                ];
+                const completedSteps = steps.filter((step) => step.done).length;
+                const progress = Math.round((completedSteps / steps.length) * 100);
+
+                return (
+                  <>
+                    <div className="mt-5 flex items-center gap-3">
+                      <div
+                        className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100"
+                        role="progressbar"
+                        aria-label="Website setup progress"
+                        aria-valuemin={0}
+                        aria-valuemax={steps.length}
+                        aria-valuenow={completedSteps}
+                      >
+                        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${progress}%` }} />
+                      </div>
+                      <span className="shrink-0 text-xs font-medium tabular-nums text-zinc-500">{completedSteps} of {steps.length} complete</span>
+                    </div>
+
+                    <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {steps.slice(1).map((item) => {
+                        const content = (
+                          <>
+                            {item.done ? (
+                              <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
+                            ) : (
+                              <Circle className="h-4 w-4 shrink-0 text-zinc-300" />
+                            )}
+                            <span className={`min-w-0 flex-1 text-xs font-medium ${item.done ? 'text-zinc-400' : 'text-zinc-700'}`}>{item.label}</span>
+                            {item.href && !item.done && <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" />}
+                          </>
+                        );
+                        const className = `flex min-h-10 items-center gap-2.5 rounded-lg border px-3 py-2 transition-colors ${
+                          item.done
+                            ? 'border-zinc-100 bg-zinc-50/70'
+                            : item.href
+                              ? 'border-zinc-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/40'
+                              : 'border-zinc-100 bg-zinc-50/40'
+                        }`;
+
+                        if (item.href && !item.done) {
+                          return item.external ? (
+                            <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" className={className}>{content}</a>
+                          ) : (
+                            <Link key={item.label} to={item.href} className={className}>{content}</Link>
+                          );
+                        }
+                        return <div key={item.label} className={className}>{content}</div>;
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
-          </div>
+          </section>
         )}
 
         {/* Metric Cards Grid */}

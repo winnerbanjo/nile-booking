@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -44,29 +44,44 @@ import {
 import { PageErrorBoundary } from './PageErrorBoundary';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
-  { name: 'Bookings', href: '/dashboard/bookings', icon: BookOpen },
-  { name: 'Customers (CRM)', href: '/dashboard/customers', icon: Users },
-  { name: 'Services', href: '/dashboard/services', icon: Package },
-  { name: 'Staff', href: '/dashboard/staff', icon: UserCheck },
-  { name: 'Sales (POS)', href: '/dashboard/sales', icon: ShoppingBag },
-  { name: 'Marketing', href: '/dashboard/marketing', icon: TrendingUp },
-  { name: 'Reviews', href: '/dashboard/reviews', icon: Star },
-  { name: 'Portfolio', href: '/dashboard/portfolio', icon: GalleryHorizontal },
-  { name: 'Discounts', href: '/dashboard/discounts', icon: Tag },
-  { name: 'Invoices', href: '/dashboard/invoices', icon: FileSpreadsheet },
-  { name: 'Finance', href: '/dashboard/financial', icon: DollarSign },
-  { name: 'Availability', href: '/dashboard/settings', icon: Calendar },
-  { name: 'Domains', href: '/dashboard/domains', icon: Globe },
-  { name: 'Edit Website', href: '/dashboard/profile', icon: Settings },
+  { name: 'Dashboard', shortName: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Calendar', shortName: 'Calendar', href: '/dashboard/calendar', icon: Calendar },
+  { name: 'Bookings', shortName: 'Bookings', href: '/dashboard/bookings', icon: BookOpen },
+  { name: 'Customers (CRM)', shortName: 'Customers', href: '/dashboard/customers', icon: Users },
+  { name: 'Services', shortName: 'Services', href: '/dashboard/services', icon: Package },
+  { name: 'Staff', shortName: 'Staff', href: '/dashboard/staff', icon: UserCheck },
+  { name: 'Sales (POS)', shortName: 'Sales', href: '/dashboard/sales', icon: ShoppingBag },
+  { name: 'Marketing', shortName: 'Marketing', href: '/dashboard/marketing', icon: TrendingUp },
+  { name: 'Reviews', shortName: 'Reviews', href: '/dashboard/reviews', icon: Star },
+  { name: 'Portfolio', shortName: 'Portfolio', href: '/dashboard/portfolio', icon: GalleryHorizontal },
+  { name: 'Discounts', shortName: 'Discounts', href: '/dashboard/discounts', icon: Tag },
+  { name: 'Invoices', shortName: 'Invoices', href: '/dashboard/invoices', icon: FileSpreadsheet },
+  { name: 'Finance', shortName: 'Finance', href: '/dashboard/financial', icon: DollarSign },
+  { name: 'Availability', shortName: 'Availability', href: '/dashboard/settings', icon: Calendar },
+  { name: 'Domains', shortName: 'Domains', href: '/dashboard/domains', icon: Globe },
+  { name: 'Edit Website', shortName: 'Website', href: '/dashboard/profile', icon: Settings },
 ];
 
 export const DashboardLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window === 'undefined' ? true : window.matchMedia('(min-width: 1024px)').matches
+  );
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  // Collapsing is a desktop-only affordance. The mobile drawer always shows
+  // full labels, even if the rail was collapsed before the viewport shrank.
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)');
+    const syncViewport = () => setIsDesktop(query.matches);
+    syncViewport();
+    query.addEventListener('change', syncViewport);
+    return () => query.removeEventListener('change', syncViewport);
+  }, []);
+
+  const sidebarLabelsVisible = sidebarExpanded || !isDesktop;
 
   return (
     <div className="min-h-screen bg-gray-50/50">
@@ -83,27 +98,44 @@ export const DashboardLayout: React.FC = () => {
         className={cn(
           'fixed inset-y-0 left-0 z-50 bg-white border-r border-zinc-200/80 transform transition-all duration-200 ease-in-out lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-          sidebarExpanded ? 'w-60' : 'w-16'
+          sidebarLabelsVisible ? 'w-60' : 'w-16'
         )}
       >
         <div className="flex flex-col h-full">
           {/* Logo Bar */}
-          <div className="flex items-center justify-between h-14 px-4 border-b border-zinc-200/80">
-            {sidebarExpanded && (
-              <Link to="/dashboard" className="flex items-center gap-2">
+          <div className="flex h-14 items-center gap-2 border-b border-zinc-200/80 px-3">
+            {sidebarLabelsVisible ? (
+              <Link to="/dashboard" className="flex min-w-0 flex-1 items-center gap-2">
                 <NileLogo size="sm" />
               </Link>
-            )}
-            <div className="flex items-center gap-1">
+            ) : (
               <button
-                onClick={() => setSidebarExpanded(!sidebarExpanded)}
-                className="hidden lg:flex p-1.5 hover:bg-zinc-100 rounded-md text-zinc-500 transition-colors"
+                type="button"
+                onClick={() => setSidebarExpanded(true)}
+                title="Expand sidebar"
+                aria-label="Expand sidebar"
+                className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40"
               >
-                <ChevronRight className={cn('h-4 w-4 transition-transform', !sidebarExpanded && 'rotate-180')} />
+                <NileLogo size="sm" showText={false} />
               </button>
+            )}
+            <div className={cn('flex shrink-0 items-center gap-1', sidebarLabelsVisible ? 'ml-auto' : 'lg:hidden')}>
+              {sidebarLabelsVisible && (
+                <button
+                  type="button"
+                  onClick={() => setSidebarExpanded(false)}
+                  title="Collapse sidebar"
+                  aria-label="Collapse sidebar"
+                  className="hidden h-8 w-8 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 lg:flex"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              )}
               <button
+                type="button"
                 onClick={() => setSidebarOpen(false)}
-                className="lg:hidden p-1.5 hover:bg-zinc-100 rounded-md text-zinc-700"
+                aria-label="Close navigation"
+                className="rounded-md p-1.5 text-zinc-700 transition-colors hover:bg-zinc-100 lg:hidden"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -159,16 +191,21 @@ export const DashboardLayout: React.FC = () => {
                   onClick={() => setSidebarOpen(false)}
                   onMouseEnter={handleMouseEnter}
                   onFocus={handleMouseEnter}
+                  title={sidebarLabelsVisible ? undefined : item.name}
+                  aria-label={sidebarLabelsVisible ? undefined : item.name}
                   className={cn(
-                    'flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-colors',
+                    'flex items-center text-xs font-medium rounded-lg transition-colors',
+                    sidebarLabelsVisible ? 'px-3 py-2' : 'justify-center py-2',
                     isActive
                       ? 'bg-zinc-900 text-white shadow-none'
                       : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
                   )}
                 >
-                  <item.icon className={cn('h-4 w-4 flex-shrink-0', sidebarExpanded ? 'mr-3' : 'mx-auto')} />
-                  {sidebarExpanded && (
+                  <item.icon className={cn('h-4 w-4 flex-shrink-0', sidebarLabelsVisible && 'mr-3')} />
+                  {sidebarLabelsVisible ? (
                     <span className="truncate">{item.name}</span>
+                  ) : (
+                    <span className="sr-only">{item.name}</span>
                   )}
                 </Link>
               );
@@ -176,8 +213,8 @@ export const DashboardLayout: React.FC = () => {
           </nav>
 
           {/* User Account Footer (Ecosystem links completely removed as requested) */}
-          <div className="px-3 py-3 border-t border-zinc-200/80 bg-zinc-50/50">
-            {sidebarExpanded && (
+          <div className={cn('border-t border-zinc-200/80 bg-zinc-50/50 pb-20 pt-3 lg:pb-3', sidebarLabelsVisible ? 'px-3' : 'px-2')}>
+            {sidebarLabelsVisible && (
               <div className="mb-2 px-1">
                 <p className="text-xs font-medium text-zinc-900 truncate">
                   {user?.businessName || user?.name}
@@ -187,42 +224,46 @@ export const DashboardLayout: React.FC = () => {
             )}
             <button
               onClick={logout}
+              title="Log out"
+              aria-label="Log out"
               className={cn(
-                'w-full flex items-center px-2 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60 rounded-md transition-colors',
-                !sidebarExpanded && 'justify-center px-0'
+                'w-full flex items-center py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60 rounded-md transition-colors',
+                sidebarLabelsVisible ? 'px-2' : 'justify-center px-0'
               )}
             >
-              <LogOut className={cn('h-3.5 w-3.5', sidebarExpanded ? 'mr-2' : '')} />
-              {sidebarExpanded && <span>Log Out</span>}
+              <LogOut className={cn('h-3.5 w-3.5 flex-shrink-0', sidebarLabelsVisible && 'mr-2')} />
+              {sidebarLabelsVisible && <span>Log Out</span>}
             </button>
           </div>
         </div>
       </aside>
 
       {/* Mobile Bottom Navigation Bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-zinc-200 px-2 py-1.5 grid grid-cols-4 gap-1">
+      <div className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 gap-1 border-t border-zinc-200 bg-white px-2 pb-[max(0.375rem,env(safe-area-inset-bottom))] pt-1.5 lg:hidden">
         {navigation.slice(0, 4).map((item) => {
           const isActive = location.pathname === item.href;
           return (
             <Link
               key={item.name}
               to={item.href}
+              title={item.name}
+              aria-label={item.name}
               className={cn(
-                'flex flex-col items-center justify-center py-1 rounded-md text-[10px] font-medium transition-colors',
+                'flex min-w-0 flex-col items-center justify-center rounded-md px-0.5 py-1 text-[10px] font-medium transition-colors',
                 isActive
                   ? 'text-zinc-900 font-semibold'
                   : 'text-zinc-500 hover:text-zinc-900'
               )}
             >
-              <item.icon className="h-4 w-4 mb-0.5" />
-              <span>{item.name}</span>
+              <item.icon className="mb-0.5 h-4 w-4 shrink-0" />
+              <span className="w-full truncate text-center">{item.shortName}</span>
             </Link>
           );
         })}
       </div>
 
       {/* Main Content Workspace */}
-      <div className={cn('transition-all duration-200 pb-16 lg:pb-0', sidebarExpanded ? 'lg:pl-60' : 'lg:pl-16')}>
+      <div className={cn('transition-all duration-200 pb-16 lg:pb-0', sidebarLabelsVisible ? 'lg:pl-60' : 'lg:pl-16')}>
         
         {/* Minimal Header */}
         <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-zinc-200/80">
