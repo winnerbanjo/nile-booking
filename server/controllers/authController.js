@@ -24,6 +24,8 @@ const safeEqual = (left, right) => {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
 
+const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
+
 // @desc    Register provider
 // @route   POST /api/auth/register
 // @access  Public
@@ -47,7 +49,7 @@ export const register = async (req, res) => {
       }
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = generateOtp();
     const otpExpires = new Date(Date.now() + 15 * 60 * 1000);
 
     if (getMockMode()) {
@@ -180,11 +182,17 @@ export const verifyOtp = async (req, res) => {
 
     if (getMockMode()) {
       const mockUser = mockUsers.get(cleanEmail);
-      if (!mockUser || mockUser.otpCode !== otpCode.trim()) {
+      if (!mockUser || !safeEqual(mockUser.otpCode || '', String(otpCode).trim())) {
+        return res.status(400).json({ message: 'Invalid or expired OTP code' });
+      }
+      if (!mockUser.otpExpires || Date.now() > new Date(mockUser.otpExpires).getTime()) {
+        mockUser.otpCode = null;
+        mockUser.otpExpires = null;
         return res.status(400).json({ message: 'Invalid or expired OTP code' });
       }
       mockUser.isVerified = true;
       mockUser.otpCode = null;
+      mockUser.otpExpires = null;
 
       await sendMailtrapApiEmail({
         toEmail: cleanEmail,
@@ -207,7 +215,13 @@ export const verifyOtp = async (req, res) => {
     }
 
     const user = await User.findOne({ email: cleanEmail }).select('+password');
-    if (!user || user.otpCode !== otpCode.trim()) {
+    if (!user || !safeEqual(user.otpCode || '', String(otpCode).trim())) {
+      return res.status(400).json({ message: 'Invalid or expired OTP code' });
+    }
+    if (!user.otpExpires || Date.now() > new Date(user.otpExpires).getTime()) {
+      user.otpCode = null;
+      user.otpExpires = null;
+      await user.save();
       return res.status(400).json({ message: 'Invalid or expired OTP code' });
     }
 
@@ -250,7 +264,7 @@ export const resendOtp = async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email is required' });
     const cleanEmail = email.trim().toLowerCase();
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = generateOtp();
 
     if (getMockMode()) {
       const mockUser = mockUsers.get(cleanEmail);
@@ -466,7 +480,7 @@ export const resetPassword = async (req, res) => {
       if (!mockUser) {
         return res.status(404).json({ message: "We couldn't find a merchant account using that email address. Please check the spelling or create a new storefront if you haven't registered yet." });
       }
-      if (!mockUser.otpCode || mockUser.otpCode !== cleanOtp) {
+      if (!mockUser.otpCode || !safeEqual(mockUser.otpCode, cleanOtp)) {
         return res.status(400).json({ message: 'Please check the 6-digit code and try again.' });
       }
       if (!mockUser.otpExpires || Date.now() > new Date(mockUser.otpExpires).getTime()) {
@@ -486,7 +500,7 @@ export const resetPassword = async (req, res) => {
       return res.status(404).json({ message: "We couldn't find a merchant account using that email address. Please check the spelling or create a new storefront if you haven't registered yet." });
     }
 
-    if (!user.otpCode || user.otpCode !== cleanOtp) {
+    if (!user.otpCode || !safeEqual(user.otpCode, cleanOtp)) {
       return res.status(400).json({ message: 'Please check the 6-digit code and try again.' });
     }
 

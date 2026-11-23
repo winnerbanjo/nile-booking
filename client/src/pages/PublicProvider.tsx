@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { serviceApi, scheduleApi, bookingApi, reviewApi, availabilityApi } from '../lib/api';
 import { Calendar } from '../components/ui/calendar';
@@ -83,6 +83,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
   const [availableTimeSlots, setAvailableTimeSlots] = useState<AvailabilitySlot[]>([]);
   const [availability, setAvailability] = useState<ProviderAvailability | null>(null);
+  const availabilityRequestRef = useRef(0);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [slotNotice, setSlotNotice] = useState<string | null>(null);
@@ -146,28 +147,30 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   // Calendar availability comes from the server — never computed in the browser.
   useEffect(() => {
     if (!slug || !selectedService) {
+      availabilityRequestRef.current += 1;
       setAvailability(null);
       setAvailableTimeSlots([]);
       return;
     }
     let active = true;
+    const requestId = ++availabilityRequestRef.current;
     setAvailabilityLoading(true);
     setAvailabilityError(null);
     availabilityApi
       .getProviderAvailability({ slug, service: selectedService._id })
       .then((result) => {
-        if (!active) return;
+        if (!active || requestId !== availabilityRequestRef.current) return;
         setAvailability(result);
         setAvailableTimeSlots(result.slots);
       })
       .catch((error) => {
-        if (!active) return;
+        if (!active || requestId !== availabilityRequestRef.current) return;
         setAvailability(null);
         setAvailableTimeSlots([]);
         setAvailabilityError(error.message || 'Could not load availability');
       })
       .finally(() => {
-        if (active) setAvailabilityLoading(false);
+        if (active && requestId === availabilityRequestRef.current) setAvailabilityLoading(false);
       });
     return () => {
       active = false;
@@ -177,26 +180,29 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   // Slots for the chosen date (server recomputes on every date change).
   useEffect(() => {
     if (!selectedDate || !selectedService || !slug) {
+      // Do not invalidate the service-level calendar request when no date is
+      // selected yet; only a real date request should supersede it.
       setAvailableTimeSlots([]);
       return;
     }
     let active = true;
+    const requestId = ++availabilityRequestRef.current;
     setAvailabilityLoading(true);
     setAvailabilityError(null);
     availabilityApi
       .getProviderAvailability({ slug, service: selectedService._id, date: format(selectedDate, 'yyyy-MM-dd') })
       .then((result) => {
-        if (!active) return;
+        if (!active || requestId !== availabilityRequestRef.current) return;
         setAvailability(result);
         setAvailableTimeSlots(result.slots);
       })
       .catch((error) => {
-        if (!active) return;
+        if (!active || requestId !== availabilityRequestRef.current) return;
         setAvailableTimeSlots([]);
         setAvailabilityError(error.message || 'Could not load availability');
       })
       .finally(() => {
-        if (active) setAvailabilityLoading(false);
+        if (active && requestId === availabilityRequestRef.current) setAvailabilityLoading(false);
       });
     return () => {
       active = false;

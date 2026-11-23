@@ -82,7 +82,17 @@ app.options('*', (req, res) => res.sendStatus(204));
 // Normal JSON stays small. Only the token-gated public receipt endpoint gets
 // enough room for a validated 5 MB binary encoded as base64.
 const receiptUploadPath = /^\/api\/bookings\/public\/[a-f0-9]{64}\/receipt$/i;
-const defaultJsonParser = express.json({ limit: process.env.JSON_BODY_LIMIT || '1mb' });
+const paymentWebhookPath = /^\/api\/payments\/(?:paystack|flutterwave)\/webhook$/i;
+const defaultJsonParser = express.json({
+  limit: process.env.JSON_BODY_LIMIT || '1mb',
+  // Payment signatures cover the exact bytes sent by the gateway, not a
+  // re-serialized object. Preserve those bytes for webhook verification.
+  verify: (req, res, buf) => {
+    if (paymentWebhookPath.test(req.path)) {
+      req.rawBody = buf;
+    }
+  },
+});
 const receiptJsonParser = express.json({
   limit: process.env.RECEIPT_BODY_LIMIT || '7mb',
   verify: (req, res, buf) => {

@@ -16,19 +16,6 @@ export const Providers: React.FC = () => {
     queryFn: () => adminApi.getProviders(),
   });
 
-  if (isError) {
-    return (
-      <AdminLocalErrorState
-        title="Failed to load providers"
-        message={(error as any)?.message || 'Service provider directory could not be loaded.'}
-        onRetry={() => refetch()}
-      />
-    );
-  }
-
-  const normalised = normaliseApiResponse(data, 'providers');
-  const providers = normalised.data;
-
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => adminApi.updateProviderStatus(id, status),
     onSuccess: (data, variables) => {
@@ -41,6 +28,19 @@ export const Providers: React.FC = () => {
       alert('Failed to update status');
     }
   });
+
+  if (isError) {
+    return (
+      <AdminLocalErrorState
+        title="Failed to load providers"
+        message={(error as any)?.message || 'Service provider directory could not be loaded.'}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  const normalised = normaliseApiResponse(data, 'providers');
+  const providers = normalised.data;
 
   const handleUpdateStatus = (providerId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';

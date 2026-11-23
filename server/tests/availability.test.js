@@ -16,6 +16,7 @@ import availabilityRoutes from '../routes/availabilityRoutes.js';
 import bookingRoutes from '../routes/bookingRoutes.js';
 import { getSchedule, updateSchedule } from '../controllers/scheduleController.js';
 import { updateBookingStatus } from '../controllers/bookingController.js';
+import { deleteService } from '../controllers/serviceController.js';
 import {
   claimSlot,
   computeHoldExpiresAt,
@@ -103,6 +104,7 @@ const providerApp = (providerId) => {
   });
   privateApp.get('/api/schedule', getSchedule);
   privateApp.put('/api/schedule', updateSchedule);
+  privateApp.delete('/api/services/:id', deleteService);
   privateApp.put('/api/bookings/:id/status', updateBookingStatus);
   return privateApp;
 };
@@ -167,6 +169,49 @@ describe('GET /api/availability', () => {
     expect(response.body.slots[0].start).toBe(`${date}T08:00:00.000Z`);
     expect(response.body.days.length).toBe(61);
     expect(response.body.days.find((day) => day.date === date).available).toBe(true);
+  });
+
+  it('deletes a service the provider owns', async () => {
+    const { user, service } = await createProvider('delete-service-provider');
+
+    const response = await request(providerApp(user._id)).delete(`/api/services/${service._id}`);
+
+    expect(response.status).toBe(200);
+    expect(await Service.findById(service._id)).toBeNull();
+  });
+
+  it('rejects a payment method the provider has disabled', async () => {
+    const { user, service } = await createProvider('cash-only-provider');
+    await createSchedule(user._id);
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { paymentMethods: { cash: true, transfer: false, card: false } } }
+    );
+
+    const response = await postBooking({
+      ...bookingBody(service._id, startAt(3, '09:00')),
+      providerSlug: 'cash-only-provider',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('PAYMENT_METHOD_DISABLED');
+  });
+
+  it('rejects pay-in-person when cash is disabled', async () => {
+    const { user, service } = await createProvider('transfer-only-provider');
+    await createSchedule(user._id);
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { paymentMethods: { cash: false, transfer: true, card: false } } }
+    );
+
+    const response = await postBooking({
+      ...bookingBody(service._id, startAt(3, '09:00'), { paymentType: 'pay_later' }),
+      providerSlug: 'transfer-only-provider',
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe('PAYMENT_METHOD_DISABLED');
   });
 
   it('rejects a bad service id with 400 and an unknown one with 404', async () => {

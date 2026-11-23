@@ -287,6 +287,19 @@ export const createBooking = async (req, res) => {
     }
 
     const paymentMethod = paymentType === 'pay_later' ? 'pay_later' : 'bank_transfer';
+    const paymentMethods = context.provider.paymentMethods || {};
+    if (paymentMethod === 'bank_transfer' && paymentMethods.transfer === false) {
+      return res.status(400).json({
+        message: 'This business does not accept bank transfers. Please choose another payment method.',
+        code: 'PAYMENT_METHOD_DISABLED',
+      });
+    }
+    if (paymentMethod === 'pay_later' && paymentMethods.cash === false) {
+      return res.status(400).json({
+        message: 'This business does not accept pay-in-person bookings. Please choose another payment method.',
+        code: 'PAYMENT_METHOD_DISABLED',
+      });
+    }
     const bookingPaymentType = ['full', 'deposit', 'pay_later'].includes(paymentType) ? paymentType : 'full';
     const hasReceipt = paymentMethod === 'bank_transfer' && !!receiptImage;
     const paymentStatus = hasReceipt ? 'awaiting_verification' : 'awaiting_payment';

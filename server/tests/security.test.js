@@ -1,8 +1,10 @@
+import crypto from 'node:crypto';
 import request from 'supertest';
 import app from '../app.js';
 import { validateRequiredSecrets, getJwtSecret } from '../config/secrets.js';
 import { validateReceiptDataUrl, ReceiptValidationError } from '../utils/receipt.js';
 import { setMockMode } from '../utils/mockMode.js';
+import { paystackService, flutterwaveService } from '../services/paymentService.js';
 
 const tinyPng =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nWQAAAAASUVORK5CYII=';
@@ -60,6 +62,39 @@ describe('CORS allowlist', () => {
 
     expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
     expect(res.headers['access-control-allow-credentials']).toBe('true');
+  });
+});
+
+describe('Payment webhook signatures', () => {
+  const originalPaystackKey = process.env.PAYSTACK_SECRET_KEY;
+  const originalFlutterwaveHash = process.env.FLUTTERWAVE_SECRET_HASH;
+
+  beforeEach(() => {
+    process.env.PAYSTACK_SECRET_KEY = 'sk_test_webhook_secret';
+    process.env.FLUTTERWAVE_SECRET_HASH = 'flw_test_webhook_hash';
+  });
+
+  afterEach(() => {
+    if (originalPaystackKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+    else process.env.PAYSTACK_SECRET_KEY = originalPaystackKey;
+    if (originalFlutterwaveHash === undefined) delete process.env.FLUTTERWAVE_SECRET_HASH;
+    else process.env.FLUTTERWAVE_SECRET_HASH = originalFlutterwaveHash;
+  });
+
+  it('verifies the exact raw Paystack request bytes', () => {
+    const raw = Buffer.from(JSON.stringify({ event: 'charge.success', data: { reference: 'TX-1' } }));
+    const signature = crypto
+      .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
+      .update(raw)
+      .digest('hex');
+
+    expect(paystackService.verifyWebhook(signature, raw)).toBe(true);
+    expect(paystackService.verifyWebhook(signature, Buffer.from('{"event":"charge.success"}'))).toBe(false);
+  });
+
+  it('compares the Flutterwave verif-hash header to the configured secret', () => {
+    expect(flutterwaveService.verifyWebhook('flw_test_webhook_hash')).toBe(true);
+    expect(flutterwaveService.verifyWebhook('wrong-hash')).toBe(false);
   });
 });
 

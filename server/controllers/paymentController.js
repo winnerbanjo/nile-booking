@@ -70,7 +70,7 @@ export const verifyPaystackPayment = async (req, res) => {
 export const paystackWebhook = async (req, res) => {
   try {
     const signature = req.headers['x-paystack-signature'];
-    const isValid = paystackService.verifyWebhook(signature, req.body);
+    const isValid = paystackService.verifyWebhook(signature, req.rawBody || req.body);
 
     if (!isValid) {
       return res.status(400).json({ message: 'Invalid signature' });
@@ -145,7 +145,7 @@ export const verifyFlutterwavePayment = async (req, res) => {
 export const flutterwaveWebhook = async (req, res) => {
   try {
     const signature = req.headers['verif-hash'];
-    const isValid = flutterwaveService.verifyWebhook(signature, req.body);
+    const isValid = flutterwaveService.verifyWebhook(signature);
 
     if (!isValid) {
       return res.status(400).json({ message: 'Invalid signature' });

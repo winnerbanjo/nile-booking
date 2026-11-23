@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Service from '../models/Service.js';
 import { getMockMode, mockServices, mockUsers } from '../utils/mockMode.js';
 

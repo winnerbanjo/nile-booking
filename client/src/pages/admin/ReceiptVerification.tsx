@@ -15,19 +15,6 @@ export const ReceiptVerification: React.FC = () => {
     queryFn: () => adminApi.getPendingVerifications(),
   });
 
-  if (isError) {
-    return (
-      <AdminLocalErrorState
-        title="Failed to load pending verifications"
-        message={(error as any)?.message || 'Receipt verification queue could not be loaded.'}
-        onRetry={() => refetch()}
-      />
-    );
-  }
-
-  const normalised = normaliseApiResponse(data, 'bookings');
-  const pendingBookings = normalised.data;
-
   const verifyMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' }) => adminApi.verifyReceipt(id, action),
     onSuccess: (data, variables) => {
@@ -47,6 +34,19 @@ export const ReceiptVerification: React.FC = () => {
       }
     }
   });
+
+  if (isError) {
+    return (
+      <AdminLocalErrorState
+        title="Failed to load pending verifications"
+        message={(error as any)?.message || 'Receipt verification queue could not be loaded.'}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  const normalised = normaliseApiResponse(data, 'bookings');
+  const pendingBookings = normalised.data;
 
   const handleApprove = (bookingId: string) => {
     verifyMutation.mutate({ id: bookingId, action: 'approve' });
