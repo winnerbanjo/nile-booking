@@ -97,7 +97,7 @@ export const Customers: React.FC = () => {
   };
 
   const { data: serverCustomers = [], isLoading, isError, refetch } = useQuery({
-    queryKey: queryKeys.merchant.customers,
+    queryKey: queryKeys.merchant.customers(),
     queryFn: fetchCustomers,
   });
 

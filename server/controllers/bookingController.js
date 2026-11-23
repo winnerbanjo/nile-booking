@@ -496,9 +496,9 @@ export const uploadPublicReceipt = async (req, res) => {
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found', code: 'BOOKING_NOT_FOUND' });
     }
-    if (booking.status !== 'pending') {
+    if (booking.status !== 'pending' || booking.paymentMethod !== 'bank_transfer') {
       return res.status(409).json({
-        message: 'This booking can no longer accept a receipt.',
+        message: 'This booking does not accept a transfer receipt.',
         code: 'BOOKING_NOT_EDITABLE',
       });
     }

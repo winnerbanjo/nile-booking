@@ -161,6 +161,14 @@ describe('Token-gated booking portal', () => {
     expect(portal.body.booking.paymentMethod).toBe('pay_later');
     expect(portal.body.booking.bankDetails).toBeNull();
     expect(portal.body.booking.canUploadReceipt).toBe(false);
+
+    const receipt = await request(app)
+      .post(`/api/bookings/public/${stored.publicToken}/receipt`)
+      .send({
+        receiptImage: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nWQAAAAASUVORK5CYII=',
+      });
+    expect(receipt.statusCode).toBe(409);
+    expect(receipt.body.code).toBe('BOOKING_NOT_EDITABLE');
   });
 
   it('accepts a later receipt, clears the hold, and leaves the claim in place', async () => {
@@ -204,6 +212,12 @@ describe('Token-gated booking portal', () => {
     expect(await SlotClaim.countDocuments({ booking: stored._id })).toBe(0);
     expect(updated.notifications.cancellationProvider.status).toBe('sent');
     expect(updated.notifications.cancellationCustomer.status).toBe('sent');
+
+    // Cancellation saves the booking; it must not rotate the existing link.
+    const afterCancel = await request(app).get(`/api/bookings/public/${stored.publicToken}`);
+    expect(afterCancel.statusCode).toBe(200);
+    expect(afterCancel.body.booking.status).toBe('cancelled');
+    expect(afterCancel.body.booking.canCancel).toBe(false);
   });
 
   it('rejects a receipt with an unsupported type before upload', async () => {

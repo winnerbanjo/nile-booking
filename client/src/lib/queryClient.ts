@@ -10,6 +10,7 @@ export const queryKeys = {
     services: (filters = {}) => ['merchant', 'services', filters],
     service: (id: string) => ['merchant', 'service', id],
     categories: ['merchant', 'service-categories'],
+    schedule: ['merchant', 'schedule'],
     bookings: (filters = {}) => ['merchant', 'bookings', filters],
     customers: (filters = {}) => ['merchant', 'customers', filters],
     transactions: (filters = {}) => ['merchant', 'transactions', filters],

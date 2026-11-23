@@ -190,7 +190,10 @@ bookingSchema.pre('validate', function () {
   if (!this.bookingNumber) {
     this.bookingNumber = `NB-${randomUUID()}`;
   }
-  if (!this.publicToken) {
+  // Only mint on create. Existing documents often load without select:false
+  // fields; regenerating here would silently invalidate every shared portal
+  // link whenever the booking is saved (for example, on cancellation).
+  if (!this.publicToken && this.isNew) {
     this.publicToken = randomBytes(32).toString('hex');
   }
 });

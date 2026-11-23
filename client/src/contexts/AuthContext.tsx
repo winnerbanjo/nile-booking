@@ -23,46 +23,34 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  // Synchronous hydration from localStorage for 0ms initial load
-  const [user, setUser] = useState<User | null>(() => {
-    const cachedUser = localStorage.getItem('nile_user');
-    if (cachedUser) {
-      try {
-        return JSON.parse(cachedUser);
-      } catch (e) {}
-    }
-    return null;
-  });
-
-  const [loading, setLoading] = useState<boolean>(() => {
-    const token = localStorage.getItem('token');
-    const cachedUser = localStorage.getItem('nile_user');
-    // If token and cached user exist, render immediately without spinner!
-    return !!token && !cachedUser;
-  });
+  // Never authorize from cached localStorage. The server-issued token and
+  // /auth/me response are the only source of the current role.
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(() => !!localStorage.getItem('token'));
 
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const userData = await authApi.getMe();
-          if (userData) {
-            setUser(userData);
-            localStorage.setItem('nile_user', JSON.stringify(userData));
-          }
-        } catch (error) {
-          console.warn('Auth check fallback:', error);
-          if (!localStorage.getItem('nile_user')) {
-            localStorage.removeItem('token');
-            setUser(null);
-          }
-        }
-      } else {
+      if (!token) {
         setUser(null);
         localStorage.removeItem('nile_user');
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      try {
+        const userData = await authApi.getMe();
+        if (!userData) throw new Error('No authenticated user returned');
+        setUser(userData);
+        localStorage.setItem('nile_user', JSON.stringify(userData));
+      } catch (error) {
+        console.warn('Auth check failed:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('nile_user');
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
     };
     initAuth();
   }, []);

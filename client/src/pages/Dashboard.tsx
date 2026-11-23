@@ -27,7 +27,7 @@ import type { Booking } from '../types';
 import { queryKeys } from '../lib/queryClient';
 import { EmptyState } from '../components/ui/EmptyState';
 import { MetricCardSkeleton, TableSkeleton } from '../components/ui/SkeletonLoader';
-import { safeDate } from '../lib/utils';
+import { formatDateSafe } from '../lib/utils';
 
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
@@ -322,7 +322,7 @@ export const Dashboard: React.FC = () => {
                             </td>
                             <td className="px-6 py-3.5 font-normal">{serviceName}</td>
                             <td className="px-6 py-3.5 text-zinc-500 font-normal">
-                              {safeDate(booking.date) || new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at {booking.timeSlot?.startTime || '10:00'}
+                              {formatDateSafe(booking.date, { month: 'short', day: 'numeric' })} at {booking.timeSlot?.startTime || '10:00'}
                             </td>
                             <td className="px-6 py-3.5 font-medium text-zinc-900">
                               ₦{(booking.pricing?.totalAmount || booking.pricing?.servicePrice || 0).toLocaleString()}
