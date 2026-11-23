@@ -106,19 +106,7 @@ export const About: React.FC = () => {
                 Lagos, Nigeria
               </p>
             </div>
-            <div className="p-6 rounded-2xl bg-white/50">
-              <div className="flex items-center gap-2 mb-3">
-                <MapPin className="w-5 h-5 text-[#22c55e]" />
-                <h3 className="font-black text-gray-900 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                  USA HQ
-                </h3>
-              </div>
-              <p className="text-gray-600 font-light">
-                NILE TECHNOLOGIES INC<br />
-                30 N Gould St Ste R<br />
-                Sheridan, WY 82801, USA
-              </p>
-            </div>
+
           </div>
         </motion.div>
 

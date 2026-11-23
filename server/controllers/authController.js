@@ -24,9 +24,8 @@ const ensureDemoAccount = async (email, role = 'provider') => {
         email,
         password: 'password123',
         role: isBarber ? 'provider' : 'admin',
-        businessName: isBarber ? 'The Modern Barber' : 'Nile Technologies Inc',
+        businessName: isBarber ? 'The Modern Barber' : 'Nile Admin',
         slug: isBarber ? 'the-modern-barber' : 'nile-admin',
-        phone: '+2348123843076',
         isVerified: true,
       });
 

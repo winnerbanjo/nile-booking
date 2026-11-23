@@ -29,7 +29,7 @@ export const ReceiptVerification: React.FC = () => {
   const pendingBookings = normalised.data;
 
   const verifyMutation = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'approve' | 'decline' }) => adminApi.verifyReceipt(id, action),
+    mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' }) => adminApi.verifyReceipt(id, action),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['adminVerifications'] });
       if (variables.action === 'approve') {
@@ -53,7 +53,7 @@ export const ReceiptVerification: React.FC = () => {
   };
 
   const handleDecline = (bookingId: string) => {
-    verifyMutation.mutate({ id: bookingId, action: 'decline' });
+    verifyMutation.mutate({ id: bookingId, action: 'reject' });
   };
 
   if (loading) {
@@ -128,15 +128,15 @@ export const ReceiptVerification: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Payment Receipt</p>
-                    {booking.paymentReceiptUrl ? (
+                    {booking.receiptImageUrl ? (
                       <a 
-                        href={booking.paymentReceiptUrl} 
+                        href={booking.receiptImageUrl}
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="block w-full h-40 rounded-lg border-2 border-dashed border-gray-200 hover:border-emerald-500 hover:bg-gray-50 transition-colors flex flex-col items-center justify-center text-gray-500 group overflow-hidden"
                       >
-                        {booking.paymentReceiptUrl.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                          <img src={booking.paymentReceiptUrl} alt="Receipt" className="w-full h-full object-cover" />
+                        {booking.receiptImageUrl.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                          <img src={booking.receiptImageUrl} alt="Receipt" className="w-full h-full object-cover" />
                         ) : (
                           <>
                             <ImageIcon className="w-8 h-8 mb-2 group-hover:text-emerald-500 transition-colors" />

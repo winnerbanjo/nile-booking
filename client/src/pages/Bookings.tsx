@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { bookingApi } from '../lib/api';
+import { bookingApi, paymentApi } from '../lib/api';
 import { queryKeys } from '../lib/queryClient';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
 import { Check, X, CheckCircle, FileText, Loader2, Filter } from 'lucide-react';
 import { EmptyState } from '../components/ui/EmptyState';
 import { TableSkeleton } from '../components/ui/SkeletonLoader';
@@ -18,6 +19,10 @@ export const Bookings: React.FC = () => {
   const [page, setPage] = useState(1);
   const [selectedReceipt, setSelectedReceipt] = useState<Booking | null>(null);
   const [processingReceipt, setProcessingReceipt] = useState<string | null>(null);
+  const [verifyAmount, setVerifyAmount] = useState<string>('');
+  const [verifyOverride, setVerifyOverride] = useState('');
+  const [rejectReason, setRejectReason] = useState('');
+  const [cashAcknowledged, setCashAcknowledged] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.merchant.bookings({ status: statusFilter !== 'all' ? statusFilter : undefined, page, limit: 20 }),
@@ -46,21 +51,42 @@ export const Bookings: React.FC = () => {
     updateStatusMutation.mutate({ id: bookingId, status: newStatus });
   };
 
+  const expectedAmountFor = (booking: Booking) =>
+    booking.paymentType === 'deposit' && booking.depositAmount
+      ? booking.depositAmount
+      : (booking.totalPrice || booking.pricing?.totalAmount || 0);
+
+  const openReceipt = (booking: Booking) => {
+    setSelectedReceipt(booking);
+    setVerifyAmount(String(expectedAmountFor(booking)));
+    setVerifyOverride('');
+    setRejectReason('');
+    setCashAcknowledged(false);
+  };
+
   const handleReceiptAction = async (bookingId: string, action: 'approve' | 'reject') => {
     setProcessingReceipt(bookingId);
     try {
       if (action === 'approve') {
-        await bookingApi.updateBookingStatus(bookingId, 'confirmed');
-        await bookingApi.updateBookingStatus(bookingId, 'paid');
+        const response = await paymentApi.verifyBookingPayment(bookingId, {
+          amountReceived: Number(verifyAmount),
+          overrideReason: verifyOverride.trim() || undefined,
+          cashAcknowledged: cashAcknowledged || undefined,
+        });
+        if (response.confirmationEmail?.status === 'failed') {
+          alert(`Payment confirmed, but the confirmation email failed: ${response.confirmationEmail.error || 'unknown error'}`);
+        } else {
+          alert('Payment verified and booking confirmed');
+        }
       } else {
-        await bookingApi.updateBookingStatus(bookingId, 'rejected');
+        await bookingApi.updateBookingStatus(bookingId, 'rejected', rejectReason.trim() || undefined);
+        alert('Payment rejected; the customer was notified if they have an email.');
       }
       setSelectedReceipt(null);
       queryClient.invalidateQueries({ queryKey: queryKeys.merchant.bookings() });
       queryClient.invalidateQueries({ queryKey: queryKeys.merchant.dashboard });
-      alert(`Receipt ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
     } catch (error: any) {
-      alert('Failed to process receipt: ' + (error.message || 'Unknown error'));
+      alert('Failed to process payment: ' + (error.message || 'Unknown error'));
     } finally {
       setProcessingReceipt(null);
     }
@@ -195,35 +221,33 @@ export const Bookings: React.FC = () => {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${
-                            booking.paymentStatus === 'paid'
+                            booking.paymentStatus === 'confirmed'
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-zinc-100 text-zinc-600 border-zinc-200'
                           }`}>
                             {booking.paymentStatus}
                           </span>
+                          {booking.confirmationEmail?.status === 'failed' && (
+                            <div
+                              className="text-[10px] text-red-600 mt-1"
+                              title={booking.confirmationEmail.error || 'Confirmation email failed'}
+                            >
+                              Email failed
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {booking.status === 'pending' && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleStatusUpdate(booking._id, 'confirmed')}
-                                  className="h-7 text-xs bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50 px-2.5"
-                                >
-                                  <Check className="h-3.5 w-3.5 mr-1" />
-                                  Confirm
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleStatusUpdate(booking._id, 'rejected')}
-                                  className="h-7 text-xs bg-white text-red-600 border-red-200 hover:bg-red-50 px-2"
-                                >
-                                  <X className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openReceipt(booking)}
+                                className="h-7 text-xs bg-white text-emerald-700 border-emerald-300 hover:bg-emerald-50 px-2.5"
+                              >
+                                <Check className="h-3.5 w-3.5 mr-1" />
+                                Verify Payment
+                              </Button>
                             )}
                             {booking.status === 'confirmed' && (
                               <Button
@@ -235,11 +259,11 @@ export const Bookings: React.FC = () => {
                                 Mark Completed
                               </Button>
                             )}
-                            {booking.paymentType === 'bank_transfer' && booking.receiptImageUrl && (
+                            {booking.receiptImageUrl && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => setSelectedReceipt(booking)}
+                                onClick={() => openReceipt(booking)}
                                 className="h-7 text-xs bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-50 px-2.5"
                               >
                                 <FileText className="h-3.5 w-3.5 mr-1 text-zinc-500" />
@@ -307,16 +331,67 @@ export const Bookings: React.FC = () => {
                 <span className="font-medium text-zinc-900">{selectedReceipt.customer?.name || 'Unknown customer'}</span>
               </div>
                 <div className="flex justify-between">
-                  <span className="text-zinc-500">Amount</span>
-                  <span className="font-bold text-zinc-900">₦{selectedReceipt.pricing?.totalAmount?.toLocaleString()}</span>
+                  <span className="text-zinc-500">Total price</span>
+                  <span className="font-bold text-zinc-900">₦{(selectedReceipt.totalPrice || selectedReceipt.pricing?.totalAmount || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-500">Expected now</span>
+                  <span className="font-semibold text-zinc-900">₦{expectedAmountFor(selectedReceipt).toLocaleString()}</span>
                 </div>
               </div>
 
-              {selectedReceipt.receiptImageUrl && (
+              {selectedReceipt.receiptImageUrl ? (
                 <div className="rounded-lg overflow-hidden border border-zinc-200 max-h-64">
                   <img src={selectedReceipt.receiptImageUrl} alt="Receipt" className="w-full h-full object-contain" />
                 </div>
+              ) : (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  No receipt is attached. A bank-transfer payment cannot be verified until a receipt exists.
+                </p>
               )}
+
+              <div className="space-y-3">
+                {selectedReceipt.paymentMethod === 'pay_later' && (
+                  <label className="flex items-center gap-2 text-xs text-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={cashAcknowledged}
+                      onChange={(e) => setCashAcknowledged(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-zinc-300"
+                    />
+                    I confirm cash was received in person
+                  </label>
+                )}
+                <div>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">Amount received (₦)</label>
+                  <Input
+                    type="number"
+                    value={verifyAmount}
+                    onChange={(e) => setVerifyAmount(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">
+                    Reason for partial payment (required if the amount differs)
+                  </label>
+                  <Input
+                    value={verifyOverride}
+                    onChange={(e) => setVerifyOverride(e.target.value)}
+                    placeholder="e.g. Customer paid a deposit"
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-700 mb-1">Rejection reason (optional)</label>
+                  <Input
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Sent to the customer by email"
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </div>
 
               <div className="flex gap-3 pt-2">
                 <Button

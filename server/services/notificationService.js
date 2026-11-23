@@ -1,5 +1,7 @@
 import axios from 'axios';
+import { DateTime } from 'luxon';
 import Booking from '../models/Booking.js';
+import Schedule from '../models/Schedule.js';
 import User from '../models/User.js';
 import Service from '../models/Service.js';
 
@@ -154,20 +156,42 @@ const getNileLogoSVG = () => `
   </svg>
 `;
 
+const formatMoney = (amount, currency = 'NGN') => {
+  const symbol = currency === 'NGN' ? '₦' : `${currency} `;
+  return `${symbol}${Number(amount || 0).toLocaleString()}`;
+};
+
+/**
+ * Final customer confirmation, sent once after payment verification.
+ * Date/time are rendered in the provider's timezone, with the zone labelled.
+ */
 export const sendBookingConfirmation = async (booking) => {
   try {
     const bookingPopulated = await Booking.findById(booking._id || booking)
       .populate('service', 'name description price duration')
       .populate('provider', 'name businessName phone email');
-    
+
     if (!bookingPopulated) return { success: false, error: 'Booking not found' };
+    if (!bookingPopulated.customer?.email) {
+      return { success: false, error: 'Customer has no email address' };
+    }
 
     const provider = bookingPopulated.provider;
     const service = bookingPopulated.service;
     const customer = bookingPopulated.customer;
+    const schedule = await Schedule.findOne({ provider: provider?._id || bookingPopulated.provider }).lean();
+    const timezone = schedule?.timezone || 'UTC';
+    const start = bookingPopulated.startAt
+      ? DateTime.fromJSDate(new Date(bookingPopulated.startAt), { zone: timezone })
+      : DateTime.fromJSDate(new Date(bookingPopulated.date), { zone: timezone });
+    const formattedDate = start.toLocaleString({ weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const formattedTime = `${bookingPopulated.timeSlot.startTime}–${bookingPopulated.timeSlot.endTime} (${timezone})`;
     const receiptUrl = `${process.env.CLIENT_URL || 'https://nilebooking.co'}/bookings/${bookingPopulated.bookingNumber}`;
-    const bookingDate = new Date(bookingPopulated.date);
-    const formattedDate = bookingDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const providerName = provider?.businessName || provider?.name || 'your provider';
+    const providerContact = provider?.email || provider?.phone || '';
+    const currency = bookingPopulated.pricing?.currency || 'NGN';
+    const amountPaid = bookingPopulated.amountReceived || bookingPopulated.pricing?.totalAmount || 0;
+    const balanceDue = bookingPopulated.balanceDue || 0;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -175,8 +199,16 @@ export const sendBookingConfirmation = async (booking) => {
       <body style="font-family: Inter, sans-serif; padding: 20px; color: #111827;">
         <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e4e4e7;">
           <h2 style="color: #09090b;">Booking Confirmed!</h2>
-          <p>Hello ${customer.name}, your booking for <strong>${service.name}</strong> with ${provider.businessName || provider.name} on ${formattedDate} at ${bookingPopulated.timeSlot.startTime} is confirmed.</p>
-          <p><strong>Booking #:</strong> ${bookingPopulated.bookingNumber}</p>
+          <p>Hello ${customer.name}, your payment for <strong>${service?.name || 'your appointment'}</strong> with ${providerName} has been confirmed.</p>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;margin:20px 0;">
+            <tr><td style="padding:6px 0;color:#71717a;">Reference</td><td style="padding:6px 0;font-weight:600;">${bookingPopulated.bookingNumber}</td></tr>
+            <tr><td style="padding:6px 0;color:#71717a;">Service</td><td style="padding:6px 0;font-weight:600;">${service?.name || 'Appointment'}</td></tr>
+            <tr><td style="padding:6px 0;color:#71717a;">Date</td><td style="padding:6px 0;font-weight:600;">${formattedDate}</td></tr>
+            <tr><td style="padding:6px 0;color:#71717a;">Time</td><td style="padding:6px 0;font-weight:600;">${formattedTime}</td></tr>
+            <tr><td style="padding:6px 0;color:#71717a;">Amount paid</td><td style="padding:6px 0;font-weight:600;">${formatMoney(amountPaid, currency)}</td></tr>
+            ${balanceDue > 0 ? `<tr><td style="padding:6px 0;color:#71717a;">Balance due</td><td style="padding:6px 0;font-weight:600;">${formatMoney(balanceDue, currency)}</td></tr>` : ''}
+          </table>
+          ${providerContact ? `<p style="font-size:13px;color:#3f3f46;">Questions? Contact ${providerName}: ${providerContact}</p>` : ''}
           <a href="${receiptUrl}" style="display: inline-block; background: #09090b; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">View Receipt</a>
         </div>
       </body>
@@ -186,7 +218,7 @@ export const sendBookingConfirmation = async (booking) => {
     return await sendMailtrapApiEmail({
       toEmail: customer.email,
       toName: customer.name,
-      subject: `Booking Confirmed | ${service.name} with ${provider.businessName || provider.name}`,
+      subject: `Booking Confirmed | ${service?.name || 'Appointment'} with ${providerName}`,
       htmlContent,
       category: 'Booking Confirmation',
     });
@@ -206,6 +238,43 @@ export const notifyPaymentConfirmation = async (bookingId) => {
   return { success: true };
 };
 
-export const notifyBookingCancellation = async (bookingId) => {
-  return { success: true };
+export const notifyBookingCancellation = async (bookingId, { reason = '', outcome = 'cancelled' } = {}) => {
+  try {
+    const booking = await Booking.findById(bookingId)
+      .populate('service', 'name')
+      .populate('provider', 'name businessName phone email');
+
+    if (!booking) return { success: false, error: 'Booking not found' };
+    if (!booking.customer?.email) return { success: false, error: 'Customer has no email address' };
+
+    const providerName = booking.provider?.businessName || booking.provider?.name || 'your provider';
+    const providerContact = booking.provider?.email || booking.provider?.phone || '';
+    const heading = outcome === 'rejected' ? 'Payment Not Accepted' : 'Booking Cancelled';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <body style="font-family: Inter, sans-serif; padding: 20px; color: #111827;">
+        <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; padding: 32px; border: 1px solid #e4e4e7;">
+          <h2 style="color: #09090b;">${heading}</h2>
+          <p>Hello ${booking.customer.name}, your booking <strong>${booking.bookingNumber}</strong> for ${booking.service?.name || 'your appointment'} with ${providerName} is not going ahead.</p>
+          ${reason ? `<p style="padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;">${reason}</p>` : ''}
+          <p>The time has been released. You can book another slot on the provider's page.</p>
+          ${providerContact ? `<p style="font-size:13px;color:#3f3f46;">Contact ${providerName}: ${providerContact}</p>` : ''}
+        </div>
+      </body>
+      </html>
+    `;
+
+    return await sendMailtrapApiEmail({
+      toEmail: booking.customer.email,
+      toName: booking.customer.name,
+      subject: `${heading} | ${booking.bookingNumber}`,
+      htmlContent,
+      category: 'Booking Cancellation',
+    });
+  } catch (error) {
+    console.error('❌ notifyBookingCancellation error:', error);
+    return { success: false, error: error.message };
+  }
 };

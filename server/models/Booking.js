@@ -80,6 +80,29 @@ const bookingSchema = new mongoose.Schema(
       totalAmount: { type: Number, required: true },
       currency: { type: String, default: 'USD' },
     },
+    // Money truth, kept alongside `pricing` for backward compatibility.
+    totalPrice: { type: Number, default: 0 },
+    depositAmount: { type: Number, default: 0 },
+    balanceDue: { type: Number, default: 0 },
+    amountReceived: { type: Number, default: 0 },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    verifiedAt: { type: Date, default: null },
+    verificationOverrideReason: { type: String, default: null },
+    cashAcknowledged: { type: Boolean, default: false },
+    cashAcknowledgedAt: { type: Date, default: null },
+    confirmationEmail: {
+      status: {
+        type: String,
+        enum: ['not_sent', 'pending', 'sent', 'failed'],
+        default: 'not_sent',
+      },
+      sentAt: { type: Date, default: null },
+      error: { type: String, default: null },
+    },
     paymentGateway: {
       type: String,
       enum: ['paystack', 'flutterwave', null],

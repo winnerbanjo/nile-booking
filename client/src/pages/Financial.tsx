@@ -210,11 +210,11 @@ export const Financial: React.FC = () => {
                       <td className="px-6 py-3.5 font-semibold text-zinc-900">₦{tx.pricing.totalAmount.toLocaleString()}</td>
                       <td className="px-6 py-3.5">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${
-                          tx.paymentStatus === 'paid'
+                          tx.paymentStatus === 'confirmed'
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-amber-50 text-amber-700 border-amber-200'
                         }`}>
-                          {tx.paymentStatus === 'paid' ? 'Paid' : 'Verification Pending'}
+                          {tx.paymentStatus === 'confirmed' ? 'Confirmed' : 'Verification Pending'}
                         </span>
                       </td>
                     </tr>

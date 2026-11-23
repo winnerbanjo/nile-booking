@@ -59,7 +59,6 @@ const startServer = async () => {
     console.log(`
   🚀 NILE ENGINE LIVE ON PORT ${PORT}
   🎨 LOGO: River N (Green)
-  🏦 BANK: Providus | 8123843076
   `);
   });
 };

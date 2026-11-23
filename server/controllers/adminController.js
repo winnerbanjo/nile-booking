@@ -3,6 +3,16 @@ import User from '../models/User.js';
 import Service from '../models/Service.js';
 import Transaction from '../models/Transaction.js';
 import { getMockMode } from '../utils/mockMode.js';
+import {
+  PaymentLifecycleError,
+  rejectBooking,
+  verifyBookingPayment,
+} from '../services/paymentLifecycleService.js';
+
+const PENDING_VERIFICATION_FILTER = {
+  paymentStatus: 'awaiting_verification',
+  receiptImageUrl: { $ne: null },
+};
 
 // @desc    Get admin statistics
 // @route   GET /api/admin/stats
@@ -29,10 +39,7 @@ export const getAdminStats = async (req, res) => {
           },
         },
       ]),
-      Booking.countDocuments({
-        paymentStatus: 'pending_verification',
-        receiptImage: { $ne: null },
-      }),
+      Booking.countDocuments(PENDING_VERIFICATION_FILTER),
       User.countDocuments({ role: 'provider' }),
       User.countDocuments({ role: 'customer' }),
       Booking.countDocuments(),
@@ -78,10 +85,7 @@ export const getPendingVerifications = async (req, res) => {
     if (getMockMode()) {
       return res.json({ bookings: [] });
     }
-    const bookings = await Booking.find({
-      paymentStatus: 'pending_verification',
-      receiptImage: { $ne: null },
-    })
+    const bookings = await Booking.find(PENDING_VERIFICATION_FILTER)
       .populate('provider', 'businessName email')
       .populate('service', 'name')
       .sort({ createdAt: -1 })
@@ -103,25 +107,40 @@ export const verifyReceipt = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
     const { bookingId } = req.params;
-    const { action } = req.body;
+    const { action, amountReceived, overrideReason, reason } = req.body;
 
-    const booking = await Booking.findById(bookingId);
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
+    if (!['approve', 'reject', 'decline'].includes(action)) {
+      return res.status(400).json({ message: 'Invalid action. Use "approve" or "reject"' });
     }
 
-    if (action === 'approve') {
-      booking.status = 'confirmed';
-      booking.paymentStatus = 'paid';
-      await booking.save();
-      res.json({ message: 'Receipt verified and booking confirmed', booking });
-    } else if (action === 'reject') {
-      booking.status = 'rejected';
-      booking.paymentStatus = 'pending';
-      await booking.save();
-      res.json({ message: 'Receipt rejected', booking });
-    } else {
-      return res.status(400).json({ message: 'Invalid action. Use "approve" or "reject"' });
+    try {
+      if (action === 'approve') {
+        let received = amountReceived;
+        if (received === undefined) {
+          const transaction = await Transaction.findOne({ booking: bookingId }).sort({ createdAt: 1 }).lean();
+          received = transaction?.amount;
+        }
+        const result = await verifyBookingPayment({
+          bookingId,
+          actor: req.user,
+          amountReceived: received,
+          overrideReason,
+        });
+        return res.json({
+          message: 'Receipt verified and booking confirmed',
+          booking: result.booking,
+          transaction: result.transaction,
+          confirmationEmail: result.email,
+        });
+      }
+
+      const result = await rejectBooking({ bookingId, actor: req.user, reason: reason || 'Receipt rejected' });
+      return res.json({ message: 'Receipt rejected', booking: result.booking });
+    } catch (error) {
+      if (error instanceof PaymentLifecycleError) {
+        return res.status(error.statusCode).json({ message: error.message, code: error.code, ...error.details });
+      }
+      throw error;
     }
   } catch (error) {
     res.status(500).json({ message: 'Error verifying receipt', error: error.message });

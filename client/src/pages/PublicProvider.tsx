@@ -305,7 +305,10 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     }
   };
 
-  const transferEnabled = Boolean(data?.provider) && data.provider.paymentMethods?.transfer !== false;
+  const hasBankDetails = Boolean(
+    data?.provider?.bankAccount?.accountNumber && data?.provider?.bankAccount?.accountName
+  );
+  const transferEnabled = Boolean(data?.provider) && data.provider.paymentMethods?.transfer !== false && hasBankDetails;
   const cashEnabled = Boolean(data?.provider) && data.provider.paymentMethods?.cash !== false;
   const noPaymentMethod = Boolean(data?.provider) && !transferEnabled && !cashEnabled;
 
@@ -1133,8 +1136,8 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                 </div>
                 <div className="pt-1">
                   <p className="text-sm font-bold text-white">{getBankName(data?.provider?.bankAccount?.bankName)}</p>
-                  <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">{data?.provider?.bankAccount?.accountNumber || '8123843076'}</p>
-                  <p className="text-xs text-zinc-300">{data?.provider?.bankAccount?.accountName || data?.provider?.businessName || 'Nile Technologies Inc'}</p>
+                  <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">{data?.provider?.bankAccount?.accountNumber}</p>
+                  <p className="text-xs text-zinc-300">{data?.provider?.bankAccount?.accountName}</p>
                 </div>
               </div>
             )}

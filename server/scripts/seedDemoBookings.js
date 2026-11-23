@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Booking from '../models/Booking.js';
 import Service from '../models/Service.js';
+import { computeBookingAmounts } from '../services/paymentLifecycleService.js';
 
 export const seedDemoBookings = async (passedBarberId = null) => {
   try {
@@ -30,17 +31,19 @@ export const seedDemoBookings = async (passedBarberId = null) => {
     // 4. Generate the "Today's Flow" (Hardcoded to avoid mapping errors)
     const now = new Date();
     const demoData = [
-      { name: 'Adeola Johnson', email: 'adeola@example.com', phone: '+2348123456789', price: 15000, status: 'completed', paymentStatus: 'paid', paymentType: 'full' },
-      { name: 'Chukwu Emeka', email: 'chukwu@example.com', phone: '+2348123456790', price: 12000, status: 'pending', paymentStatus: 'pending', paymentType: 'pay_later' },
-      { name: 'Tunde Adeyemi', email: 'tunde@example.com', phone: '+2348123456791', price: 18000, status: 'confirmed', paymentStatus: 'paid', paymentType: 'full' },
-      { name: 'Kemi Okafor', email: 'kemi@example.com', phone: '+2348123456792', price: 15000, status: 'confirmed', paymentStatus: 'paid', paymentType: 'full' },
-      { name: 'David Okonkwo', email: 'david@example.com', phone: '+2348123456793', price: 20000, status: 'pending', paymentStatus: 'partial', paymentType: 'deposit' }
+      { name: 'Adeola Johnson', email: 'adeola@example.com', phone: '+2348123456789', price: 15000, status: 'completed', paymentStatus: 'confirmed', paymentType: 'full' },
+      { name: 'Chukwu Emeka', email: 'chukwu@example.com', phone: '+2348123456790', price: 12000, status: 'pending', paymentStatus: 'awaiting_payment', paymentType: 'pay_later' },
+      { name: 'Tunde Adeyemi', email: 'tunde@example.com', phone: '+2348123456791', price: 18000, status: 'confirmed', paymentStatus: 'confirmed', paymentType: 'full' },
+      { name: 'Kemi Okafor', email: 'kemi@example.com', phone: '+2348123456792', price: 15000, status: 'confirmed', paymentStatus: 'confirmed', paymentType: 'full' },
+      { name: 'David Okonkwo', email: 'david@example.com', phone: '+2348123456793', price: 20000, status: 'pending', paymentStatus: 'awaiting_payment', paymentType: 'deposit' }
     ];
 
     const finalBookings = demoData.map((b, i) => {
       const servicePrice = b.price;
-      const depositAmount = b.paymentType === 'deposit' ? servicePrice * 0.3 : 0;
-      const totalAmount = b.paymentType === 'pay_later' ? 0 : (b.paymentType === 'deposit' ? depositAmount : servicePrice);
+      const { totalPrice, depositAmount } = computeBookingAmounts({
+        servicePrice,
+        paymentType: b.paymentType,
+      });
       
       return {
         provider: barberId,
@@ -53,9 +56,13 @@ export const seedDemoBookings = async (passedBarberId = null) => {
         pricing: { 
           servicePrice,
           depositAmount,
-          totalAmount,
+          totalAmount: totalPrice,
           currency: 'NGN' 
         },
+        totalPrice,
+        depositAmount,
+        balanceDue: totalPrice,
+        paymentMethod: b.paymentType === 'pay_later' ? 'pay_later' : 'bank_transfer',
         paymentType: b.paymentType,
         paymentStatus: b.paymentStatus,
         status: b.status,
