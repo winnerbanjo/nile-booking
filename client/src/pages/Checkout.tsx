@@ -73,6 +73,7 @@ export const Checkout: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showTransferSheet, setShowTransferSheet] = useState(false);
   const [showPendingVerification, setShowPendingVerification] = useState(false);
+  const [createdBooking, setCreatedBooking] = useState<{ reference: string; portalUrl: string } | null>(null);
   const [receiptUploaded, setReceiptUploaded] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -125,6 +126,15 @@ export const Checkout: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) {
+        setError('Receipt must be a JPG, PNG, WebP, or PDF file.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Receipt must be 5 MB or smaller.');
+        return;
+      }
+      setError('');
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData({ ...formData, receiptImage: reader.result as string });
@@ -174,7 +184,12 @@ export const Checkout: React.FC = () => {
         receiptImage: formData.receiptImage, // Optional: might be undefined
       });
 
-      // Navigate to success page
+      const portalUrl = response.portalUrl
+        || (response.booking.publicToken
+          ? `${window.location.origin}/bookings/${response.booking.publicToken}`
+          : `${window.location.origin}/`);
+
+      setCreatedBooking({ reference: response.booking.bookingNumber, portalUrl });
       setShowPendingVerification(true);
       setLoading(false);
     } catch (err: any) {
@@ -393,7 +408,7 @@ export const Checkout: React.FC = () => {
                 )}
                 {!receiptUploaded && (
                   <div className="text-center mt-4 text-sm text-gray-500">
-                    <p>You can upload your receipt later. Your booking will be marked as "Awaiting Payment".</p>
+                    <p>You can upload your receipt later from the private booking link shown after submission. Your booking will be marked as "Awaiting Payment".</p>
                   </div>
                 )}
               </div>
@@ -469,7 +484,7 @@ export const Checkout: React.FC = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
                 capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
@@ -522,6 +537,19 @@ export const Checkout: React.FC = () => {
                   Your booking is pending verification. We'll notify you once your payment receipt has been confirmed.
                 </p>
               </div>
+              {createdBooking && (
+                <div className="p-4 bg-gray-50 rounded-xl mb-4 text-left">
+                  <p className="text-xs text-gray-500 mb-1">Booking reference</p>
+                  <p className="font-mono text-sm font-bold text-gray-900 break-all mb-3">{createdBooking.reference}</p>
+                  <p className="text-xs text-gray-500 mb-2">Save this private link to upload a receipt later, check payment status, or cancel:</p>
+                  <a
+                    href={createdBooking.portalUrl}
+                    className="block break-all text-sm font-semibold text-[#22c55e] underline underline-offset-2"
+                  >
+                    {createdBooking.portalUrl}
+                  </a>
+                </div>
+              )}
               <div className="p-4 bg-gray-50 rounded-xl mb-6">
                 <p className="text-sm text-gray-600 mb-2">Need help?</p>
                 {provider?.phone ? (
@@ -538,6 +566,14 @@ export const Checkout: React.FC = () => {
                   <p className="text-sm text-gray-600">Contact the business directly for help.</p>
                 )}
               </div>
+              {createdBooking && (
+                <a
+                  href={createdBooking.portalUrl}
+                  className="mb-3 flex w-full items-center justify-center rounded-md bg-[#22c55e] px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-600"
+                >
+                  View booking page
+                </a>
+              )}
               <Button
                 onClick={() => navigate('/')}
                 className="w-full bg-gray-900 hover:bg-gray-800 text-white"

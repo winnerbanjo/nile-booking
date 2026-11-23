@@ -1,5 +1,36 @@
 import mongoose from 'mongoose';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
+
+const notificationStateSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['not_sent', 'pending', 'sent', 'failed', 'skipped'],
+      default: 'not_sent',
+    },
+    attempts: { type: Number, default: 0 },
+    lastAttemptAt: { type: Date, default: null },
+    sentAt: { type: Date, default: null },
+    error: { type: String, default: null },
+  },
+  { _id: false }
+);
+
+const reminderStateSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['not_sent', 'sending', 'sent', 'failed', 'skipped'],
+      default: 'not_sent',
+    },
+    attempts: { type: Number, default: 0 },
+    lastAttemptAt: { type: Date, default: null },
+    sentAt: { type: Date, default: null },
+    error: { type: String, default: null },
+    leaseUntil: { type: Date, default: null },
+  },
+  { _id: false }
+);
 
 const bookingSchema = new mongoose.Schema(
   {
@@ -7,6 +38,14 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       unique: true,
       required: true,
+    },
+    // Unguessable customer access token. Never expose it through provider list
+    // queries; it is returned only from create and used in customer links.
+    publicToken: {
+      type: String,
+      unique: true,
+      sparse: true,
+      select: false,
     },
     customer: {
       name: { type: String, required: true },
@@ -103,6 +142,16 @@ const bookingSchema = new mongoose.Schema(
       sentAt: { type: Date, default: null },
       error: { type: String, default: null },
     },
+    notifications: {
+      bookingReceivedCustomer: { type: notificationStateSchema, default: () => ({}) },
+      bookingReceivedProvider: { type: notificationStateSchema, default: () => ({}) },
+      cancellationCustomer: { type: notificationStateSchema, default: () => ({}) },
+      cancellationProvider: { type: notificationStateSchema, default: () => ({}) },
+    },
+    reminders: {
+      unpaidHold: { type: reminderStateSchema, default: () => ({}) },
+      appointment: { type: reminderStateSchema, default: () => ({}) },
+    },
     paymentGateway: {
       type: String,
       enum: ['paystack', 'flutterwave', null],
@@ -124,6 +173,7 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Legacy flag retained for old records; new reminders use `reminders`.
     reminderSent: {
       type: Boolean,
       default: false,
@@ -140,6 +190,9 @@ bookingSchema.pre('validate', function () {
   if (!this.bookingNumber) {
     this.bookingNumber = `NB-${randomUUID()}`;
   }
+  if (!this.publicToken) {
+    this.publicToken = randomBytes(32).toString('hex');
+  }
 });
 
 bookingSchema.index({ provider: 1, status: 1 });
@@ -149,6 +202,8 @@ bookingSchema.index(
   { unique: true, partialFilterExpression: { idempotencyKey: { $exists: true } } }
 );
 bookingSchema.index({ provider: 1, createdAt: -1 });
+bookingSchema.index({ status: 1, 'reminders.unpaidHold.status': 1, holdExpiresAt: 1 });
+bookingSchema.index({ status: 1, 'reminders.appointment.status': 1, startAt: 1 });
 
 // Any code path that confirms/cancels a booking keeps slot claims in sync —
 // including payment verification, which never touches the availability service.

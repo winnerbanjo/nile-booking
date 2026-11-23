@@ -102,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('nile_user');
+    localStorage.removeItem('nile_admin_auth');
     localStorage.removeItem('nile_dashboard_bookings');
     localStorage.removeItem('nile_crm_cache');
     queryClient.clear();

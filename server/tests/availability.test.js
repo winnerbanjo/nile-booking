@@ -4,6 +4,7 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { DateTime } from 'luxon';
+import { v2 as cloudinary } from 'cloudinary';
 
 import User from '../models/User.js';
 import Service from '../models/Service.js';
@@ -21,6 +22,7 @@ import {
   releaseExpiredHolds,
   sweepExpiredHolds,
 } from '../services/availabilityService.js';
+import { resetRateLimitsForTests } from '../middleware/rateLimit.js';
 
 jest.setTimeout(120000);
 
@@ -131,7 +133,14 @@ afterAll(async () => {
   await mongod?.stop();
 });
 
+afterEach(() => jest.restoreAllMocks());
+
 beforeEach(async () => {
+  resetRateLimitsForTests();
+  jest.spyOn(cloudinary.uploader, 'upload').mockResolvedValue({
+    secure_url: 'https://example.com/receipt.png',
+    public_id: 'test-receipt',
+  });
   await Promise.all([
     Booking.deleteMany({}),
     SlotClaim.deleteMany({}),

@@ -29,6 +29,7 @@ export const uploadImage = async (imageBase64, folder = 'nile-booking/receipts')
       {
         folder,
         resource_type: resourceType,
+        timeout: Number(process.env.CLOUDINARY_UPLOAD_TIMEOUT_MS) || 20000,
         ...(isPdf ? {} : {
           format: 'jpg',
           transformation: [

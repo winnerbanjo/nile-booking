@@ -1,10 +1,13 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = 'nile_super_secure_jwt_production_secret_2026_key';
+// Manual integration script. Never embed a real secret or account IDs.
+const JWT_SECRET = process.env.JWT_SECRET;
+const userA = process.env.TEST_USER_A_ID;
+const userB = process.env.TEST_USER_B_ID;
 
-// Mock user IDs (MongoDB ObjectIds)
-const userA = '69a583add5a928ecc1149eff'; // WINNER OYEBANJO
-const userB = '69a6236e0e436219416406bb'; // Akinsola
+if (!JWT_SECRET || !userA || !userB) {
+  throw new Error('Set JWT_SECRET, TEST_USER_A_ID and TEST_USER_B_ID in the local environment.');
+}
 
 const tokenA = jwt.sign({ id: userA }, JWT_SECRET, { expiresIn: '1h' });
 const tokenB = jwt.sign({ id: userB }, JWT_SECRET, { expiresIn: '1h' });

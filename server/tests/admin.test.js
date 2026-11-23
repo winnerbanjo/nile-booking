@@ -3,8 +3,10 @@ import app from '../app.js';
 import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import { setMockMode, mockUsers } from '../utils/mockMode.js';
+import adminRoutes from '../routes/adminRoutes.js';
+import { resetRateLimitsForTests } from '../middleware/rateLimit.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 describe('Master Admin Security and Stability Tests', () => {
   let adminToken;
@@ -224,13 +226,75 @@ describe('Master Admin Security and Stability Tests', () => {
     });
 
     it('should return 200 and a token when master key is correct', async () => {
+      resetRateLimitsForTests();
       const res = await request(app)
         .post('/api/auth/admin-login')
-        .send({ password: 'alphaadmin2026' });
+        .send({ password: process.env.ADMIN_MASTER_KEY });
       expect(res.statusCode).toBe(200);
       expect(res.body).toHaveProperty('token');
       expect(res.body.role).toBe('admin');
       expect(res.body.email).toBe('admin@nilebooking.co');
     });
+  });
+
+  describe('Admin login backoff', () => {
+    it('locks repeated failures for an IP with a Retry-After header', async () => {
+      resetRateLimitsForTests();
+      const ip = '203.0.113.77';
+
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const res = await request(app)
+          .post('/api/auth/admin-login')
+          .set('X-Forwarded-For', ip)
+          .send({ password: 'wrong-master-key' });
+        expect(res.statusCode).toBe(401);
+      }
+
+      const blocked = await request(app)
+        .post('/api/auth/admin-login')
+        .set('X-Forwarded-For', ip)
+        .send({ password: 'wrong-master-key' });
+      expect(blocked.statusCode).toBe(429);
+      expect(blocked.body.code).toBe('ADMIN_LOGIN_BACKOFF');
+      expect(Number(blocked.headers['retry-after'])).toBeGreaterThan(0);
+    });
+  });
+
+  // ===========================================================================
+  // PART 5: Every registered /api/admin route is covered programmatically
+  // ===========================================================================
+  describe('All registered admin routes', () => {
+    const adminRouterPaths = [];
+    for (const layer of adminRoutes.stack) {
+      if (!layer.route) continue;
+      const routePath = layer.route.path.replace(/:([A-Za-z]+)/g, '507f1f77bcf86cd799439011');
+      for (const method of Object.keys(layer.route.methods)) {
+        if (layer.route.methods[method]) {
+          adminRouterPaths.push({ method, path: `/api/admin${routePath}` });
+        }
+      }
+    }
+
+    it('enumerates at least one route and covers every registered route', () => {
+      expect(adminRouterPaths.length).toBeGreaterThan(0);
+      expect(new Set(adminRouterPaths.map((route) => `${route.method}:${route.path}`)).size)
+        .toBe(adminRouterPaths.length);
+    });
+
+    for (const route of adminRouterPaths) {
+      it(`${route.method.toUpperCase()} ${route.path} rejects missing and non-admin tokens`, async () => {
+        resetRateLimitsForTests();
+        const noToken = await request(app)[route.method](route.path);
+        expect(noToken.statusCode).toBe(401);
+
+        const provider = await request(app)[route.method](route.path)
+          .set('Authorization', providerToken);
+        expect(provider.statusCode).toBe(403);
+
+        const customer = await request(app)[route.method](route.path)
+          .set('Authorization', customerToken);
+        expect(customer.statusCode).toBe(403);
+      });
+    }
   });
 });

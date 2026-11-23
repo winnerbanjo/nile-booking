@@ -5,50 +5,23 @@ import crypto from 'crypto';
 import { getMockMode, mockUsers } from '../utils/mockMode.js';
 import { sendMailtrapApiEmail } from '../services/notificationService.js';
 import { uploadImage } from '../services/cloudinaryService.js';
+import { getJwtSecret, getAdminMasterKey } from '../config/secrets.js';
+import {
+  clearAdminLoginFailures,
+  recordAdminLoginFailure,
+} from '../middleware/rateLimit.js';
 
-// Generate JWT token
+// Generate JWT token. getJwtSecret() fails closed; there is no public fallback.
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'your-secret-key-change-in-production', {
-    expiresIn: '30d',
+  return jwt.sign({ id }, getJwtSecret(), {
+    expiresIn: process.env.JWT_EXPIRES_IN || '30d',
   });
 };
 
-// Auto-seed demo accounts in MongoDB Atlas if missing
-const ensureDemoAccount = async (email, role = 'provider') => {
-  try {
-    let user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      const isBarber = email.includes('barber');
-      user = await User.create({
-        name: isBarber ? 'The Modern Barber' : 'Nile Administrator',
-        email,
-        password: 'password123',
-        role: isBarber ? 'provider' : 'admin',
-        businessName: isBarber ? 'The Modern Barber' : 'Nile Admin',
-        slug: isBarber ? 'the-modern-barber' : 'nile-admin',
-        isVerified: true,
-      });
-
-      if (isBarber) {
-        await Schedule.create({
-          provider: user._id,
-          weeklySchedule: {
-            monday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-            tuesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-            wednesday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-            thursday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-            friday: { enabled: true, timeSlots: [{ startTime: '09:00', endTime: '18:00' }] },
-            saturday: { enabled: true, timeSlots: [{ startTime: '10:00', endTime: '16:00' }] },
-            sunday: { enabled: false, timeSlots: [] },
-          },
-        });
-      }
-    }
-    return user;
-  } catch (e) {
-    console.error('Demo account seed note:', e.message);
-    return null;
-  }
+const safeEqual = (left, right) => {
+  const a = Buffer.from(String(left));
+  const b = Buffer.from(String(right));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
 
 // @desc    Register provider
@@ -749,10 +722,22 @@ export const adminLogin = async (req, res) => {
       return res.status(400).json({ message: 'Master key is required' });
     }
 
-    const masterKey = process.env.ADMIN_MASTER_KEY || 'alphaadmin2026';
-    if (password !== masterKey) {
+    const masterKey = getAdminMasterKey();
+    if (!safeEqual(password, masterKey)) {
+      const state = recordAdminLoginFailure(req.adminLoginKey || `admin:${req.ip || 'unknown'}`);
+      if (state.blockedUntil > Date.now()) {
+        const retryAfter = Math.ceil((state.blockedUntil - Date.now()) / 1000);
+        res.set('Retry-After', String(retryAfter));
+        return res.status(429).json({
+          message: 'Too many failed admin login attempts. Try again later.',
+          code: 'ADMIN_LOGIN_BACKOFF',
+          retryAfter,
+        });
+      }
       return res.status(401).json({ message: 'Invalid master key' });
     }
+
+    clearAdminLoginFailures(req.adminLoginKey || `admin:${req.ip || 'unknown'}`);
 
     if (getMockMode()) {
       return res.json({

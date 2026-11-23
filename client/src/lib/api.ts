@@ -7,6 +7,7 @@ import type {
   ProviderAvailability,
   ProviderWithServices,
   Booking,
+  PublicBooking,
   BookingStats,
   Transaction,
 } from '../types';
@@ -40,7 +41,8 @@ const getAuthToken = (): string | null => {
 
 const request = async <T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutOverrideMs?: number
 ): Promise<T> => {
   const token = getAuthToken();
   const headers: HeadersInit = {
@@ -54,7 +56,7 @@ const request = async <T>(
 
   // Use a longer timeout for auth endpoints to handle cold starts in production.
   const isAuthEndpoint = endpoint.startsWith('/auth/');
-  const timeoutMs = isAuthEndpoint ? 45000 : 20000;
+  const timeoutMs = timeoutOverrideMs || (isAuthEndpoint ? 45000 : 20000);
 
   // Create AbortController for timeout
   const controller = new AbortController();
@@ -365,11 +367,18 @@ export const bookingApi = {
     notes?: string;
     receiptImage?: string;
   }, idempotencyKey?: string) => {
-    return request<{ booking: Booking; paymentData?: any; holdExpiresAt?: string | null; idempotent?: boolean }>('/bookings', {
+    return request<{
+      booking: Booking & { publicToken?: string };
+      paymentData?: any;
+      holdExpiresAt?: string | null;
+      portalUrl?: string;
+      receiptUpload?: { status: 'uploaded' | 'failed' | 'pending' | 'not_provided'; error?: string };
+      idempotent?: boolean;
+    }>('/bookings', {
       method: 'POST',
       headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
       body: JSON.stringify(data),
-    });
+    }, 60000);
   },
 
   getBookings: async (params?: { status?: string; page?: number; limit?: number }) => {
@@ -395,6 +404,25 @@ export const bookingApi = {
 
   getBookingStats: async () => {
     return request<BookingStats>('/bookings/stats');
+  },
+
+  getPublicBooking: async (token: string) => {
+    return request<{ booking: PublicBooking }>(`/bookings/public/${encodeURIComponent(token)}`);
+  },
+
+  uploadPublicReceipt: async (token: string, receiptImage: string) => {
+    return request<{ success: boolean; paymentStatus: string; receipt: { uploaded: boolean; status: string } }>(
+      `/bookings/public/${encodeURIComponent(token)}/receipt`,
+      { method: 'POST', body: JSON.stringify({ receiptImage }) },
+      60000
+    );
+  },
+
+  cancelPublicBooking: async (token: string, reason?: string) => {
+    return request<{ success: boolean; status: string; paymentStatus: string }>(
+      `/bookings/public/${encodeURIComponent(token)}/cancel`,
+      { method: 'POST', body: JSON.stringify({ reason }) }
+    );
   },
 };
 

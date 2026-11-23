@@ -15,5 +15,15 @@
       "src": "/(.*)",
       "destination": "api/index.js"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/availability/sweep",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/notifications/reminders/check",
+      "schedule": "*/10 * * * *"
+    }
   ]
 }

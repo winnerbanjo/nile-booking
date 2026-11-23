@@ -42,14 +42,10 @@ export const getProviderAvailability = async (req, res) => {
 
 // @desc    Release elapsed holds across all providers
 // @route   POST /api/availability/sweep
-// @access  Cron only (x-cron-secret)
+// @route   GET  /api/availability/sweep (Vercel Cron)
+// @access  Cron only (requireCronSecret accepts Bearer or x-cron-secret)
 export const sweepHolds = async (req, res) => {
   try {
-    const secret = process.env.CRON_SECRET;
-    if (!secret || req.headers['x-cron-secret'] !== secret) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
     const result = await sweepExpiredHolds();
     res.json({ success: true, ...result });
   } catch (error) {

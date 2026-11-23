@@ -14,6 +14,7 @@ import { VerifyOtp } from './pages/VerifyOtp';
 import { Dashboard } from './pages/Dashboard';
 import { PublicProvider } from './pages/PublicProvider';
 import { Checkout } from './pages/Checkout';
+import { BookingPortal } from './pages/BookingPortal';
 
 // Lazy-loaded Merchant Sub-routes
 export const servicesImport = () => import('./pages/Services').then((m) => ({ default: m.Services }));
@@ -228,6 +229,7 @@ class AppErrorBoundaryInner extends Component<
                       import('./lib/queryClient').then(({ queryClient }) => queryClient.clear());
                       localStorage.removeItem('token');
                       localStorage.removeItem('nile_user');
+                      localStorage.removeItem('nile_admin_auth');
                       localStorage.removeItem('nile_dashboard_bookings');
                       localStorage.removeItem('nile_crm_cache');
                       sessionStorage.clear();
@@ -279,6 +281,7 @@ function StorefrontApp({ slug }: { slug: string }) {
             }
           />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/bookings/:token" element={<BookingPortal />} />
           <Route
             path="/checkout/success"
             element={
@@ -349,6 +352,7 @@ function MainApp() {
               }
             />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/bookings/:token" element={<BookingPortal />} />
 
             {/* Dashboard */}
             <Route

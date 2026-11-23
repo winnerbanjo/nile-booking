@@ -2,6 +2,7 @@ import Schedule from '../models/Schedule.js';
 import { getMockMode, mockSchedules, mockUsers } from '../utils/mockMode.js';
 import { isValidTimezone, DEFAULT_BOOKING_WINDOW_DAYS, DEFAULT_MINIMUM_LEAD_TIME_MINUTES, MAX_BOOKING_WINDOW_DAYS } from '../services/availabilityService.js';
 import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '../config/secrets.js';
 
 const parseMinutes = (value, fallback) => {
   if (value === undefined || value === null || value === '') return fallback;
@@ -61,7 +62,7 @@ export const getSchedule = async (req, res) => {
       let userId = 'mock_user_barber_id_123';
       if (token) {
         try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+          const decoded = jwt.verify(token, getJwtSecret());
           userId = decoded.id;
         } catch (e) {}
       }
@@ -112,7 +113,7 @@ export const updateSchedule = async (req, res) => {
       let userId = 'mock_user_barber_id_123';
       if (token) {
         try {
-          const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+          const decoded = jwt.verify(token, getJwtSecret());
           userId = decoded.id;
         } catch (e) {}
       }
