@@ -386,10 +386,10 @@ export const bookingApi = {
     return request<Booking>(`/bookings/${id}`);
   },
 
-  updateBookingStatus: async (id: string, status: string) => {
+  updateBookingStatus: async (id: string, status: string, reason?: string) => {
     return request<Booking>(`/bookings/${id}/status`, {
       method: 'PUT',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, reason }),
     });
   },
 
@@ -435,10 +435,24 @@ export const paymentApi = {
     );
   },
 
-  verifyManualTransaction: async (transactionId: string) => {
-    return request<{ message: string; transaction: any; booking: any }>(`/payments/transactions/${transactionId}/verify`, {
-      method: 'PUT',
-    });
+  verifyManualTransaction: async (
+    transactionId: string,
+    data: { amountReceived: number; overrideReason?: string; cashAcknowledged?: boolean }
+  ) => {
+    return request<{ message: string; transaction: any; booking: Booking; alreadyVerified?: boolean; partial?: boolean; confirmationEmail?: any }>(
+      `/payments/transactions/${transactionId}/verify`,
+      { method: 'PUT', body: JSON.stringify(data) }
+    );
+  },
+
+  verifyBookingPayment: async (
+    bookingId: string,
+    data: { amountReceived: number; overrideReason?: string; cashAcknowledged?: boolean }
+  ) => {
+    return request<{ message: string; transaction: any; booking: Booking; alreadyVerified?: boolean; partial?: boolean; confirmationEmail?: any }>(
+      `/payments/bookings/${bookingId}/verify`,
+      { method: 'PUT', body: JSON.stringify(data) }
+    );
   },
 
   processRefund: async (transactionId: string, data: { amount: number; reason?: string }) => {
@@ -492,10 +506,14 @@ export const adminApi = {
   getPendingVerifications: async () => {
     return request<{ bookings: any[]; data: any[]; pagination: any }>('/admin/verifications');
   },
-  verifyReceipt: async (bookingId: string, action: 'approve' | 'reject') => {
+  verifyReceipt: async (
+    bookingId: string,
+    action: 'approve' | 'reject',
+    data: { amountReceived?: number; overrideReason?: string; reason?: string } = {}
+  ) => {
     return request<{ message: string; booking: Booking }>(`/admin/verifications/${bookingId}/verify`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, ...data }),
     });
   },
   getProviders,

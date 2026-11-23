@@ -8,6 +8,7 @@ import {
   verifyBankAccount,
   getTransactions,
   verifyManualPayment,
+  verifyBookingPaymentController,
   processRefund,
 } from '../controllers/paymentController.js';
 import { protect } from '../middleware/auth.js';
@@ -27,6 +28,7 @@ router.get('/banks', protect, getBanks);
 router.post('/verify-bank', protect, verifyBankAccount);
 router.get('/transactions', protect, getTransactions);
 router.put('/transactions/:id/verify', protect, verifyManualPayment);
+router.put('/bookings/:bookingId/verify', protect, verifyBookingPaymentController);
 router.post('/transactions/:id/refund', protect, processRefund);
 
 export default router;

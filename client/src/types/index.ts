@@ -216,18 +216,19 @@ export interface Booking {
     endTime: string;
   };
   status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled';
-  paymentStatus:
-    | 'pending'
-    | 'pending_verification'
-    | 'partial'
-    | 'paid'
-    | 'refunded'
-    | 'awaiting_payment'
-    | 'awaiting_verification'
-    | 'confirmed'
-    | 'cancelled';
+  paymentStatus: 'awaiting_payment' | 'awaiting_verification' | 'confirmed' | 'cancelled';
   paymentType: 'bank_transfer' | 'full' | 'deposit' | 'pay_later';
   paymentMethod?: 'bank_transfer' | 'pay_later' | 'card';
+  totalPrice?: number;
+  depositAmount?: number;
+  balanceDue?: number;
+  amountReceived?: number;
+  verifiedAt?: string | null;
+  confirmationEmail?: {
+    status: 'not_sent' | 'pending' | 'sent' | 'failed';
+    sentAt?: string | null;
+    error?: string | null;
+  };
   pricing: {
     servicePrice: number;
     depositAmount: number;
@@ -237,6 +238,7 @@ export interface Booking {
   notes?: string;
   whatsappLink?: string;
   receiptImageUrl?: string;
+  paymentReference?: string | null;
   createdAt: string;
   updatedAt: string;
 }

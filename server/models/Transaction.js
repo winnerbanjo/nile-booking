@@ -21,6 +21,16 @@ const transactionSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    // Amount the provider confirmed receiving for this transaction.
+    amountReceived: {
+      type: Number,
+      default: 0,
+    },
+    verifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     currency: {
       type: String,
       default: 'NGN',

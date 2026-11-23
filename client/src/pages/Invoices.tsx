@@ -301,11 +301,19 @@ export const Invoices: React.FC = () => {
               </div>
 
               {/* Settlement Bank Details */}
-              <div className="bg-zinc-900 text-white rounded-lg p-4 text-xs space-y-1">
-                <p className="text-zinc-400 font-medium uppercase text-[10px]">Bank Settlement Account</p>
-                <p className="font-bold text-sm">Access Bank • 8123843076</p>
-                <p className="text-zinc-300 text-[11px]">{user?.businessName || 'Merchant Account'}</p>
-              </div>
+              {user?.bankAccount?.accountNumber ? (
+                <div className="bg-zinc-900 text-white rounded-lg p-4 text-xs space-y-1">
+                  <p className="text-zinc-400 font-medium uppercase text-[10px]">Bank Settlement Account</p>
+                  <p className="font-bold text-sm">
+                    {user.bankAccount.bankName ? `${user.bankAccount.bankName} • ` : ''}{user.bankAccount.accountNumber}
+                  </p>
+                  <p className="text-zinc-300 text-[11px]">{user.bankAccount.accountName || user.businessName || 'Merchant Account'}</p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+                  No settlement bank account is configured. Add one in Financial settings before sending transfer instructions.
+                </div>
+              )}
 
               <div className="flex gap-3 pt-2">
                 <Button

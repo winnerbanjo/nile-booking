@@ -329,7 +329,7 @@ export const Dashboard: React.FC = () => {
                             </td>
                             <td className="px-6 py-3.5">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${
-                                booking.status === 'confirmed' || booking.paymentStatus === 'paid'
+                                booking.status === 'confirmed' || booking.paymentStatus === 'confirmed'
                                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                   : 'bg-amber-50 text-amber-700 border-amber-200'
                               }`}>

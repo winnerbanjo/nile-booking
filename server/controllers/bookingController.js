@@ -17,6 +17,13 @@ import {
   resolveAvailabilityContext,
   validateRequestedStart,
 } from '../services/availabilityService.js';
+import {
+  PaymentLifecycleError,
+  cancelBooking,
+  completeBooking,
+  computeBookingAmounts,
+  rejectBooking,
+} from '../services/paymentLifecycleService.js';
 import { DateTime } from 'luxon';
 import crypto from 'crypto';
 
@@ -186,9 +193,8 @@ export const createBooking = async (req, res) => {
     const paymentStatus = hasReceipt ? 'awaiting_verification' : 'awaiting_payment';
     const holdExpiresAt = computeHoldExpiresAt({ paymentMethod, paymentStatus });
     const servicePrice = service.price;
-    const totalPrice = servicePrice;
-    const depositAmount = paymentType === 'deposit' ? servicePrice * 0.5 : 0;
-    const expectedPayment = depositAmount || servicePrice;
+    const amounts = computeBookingAmounts({ servicePrice, paymentType });
+    const { totalPrice, depositAmount, expectedPayment } = amounts;
 
     // NOTE: We do NOT await Cloudinary here — it would exceed Vercel's function timeout.
     // The booking is created immediately; the receipt uploads in the background.
@@ -215,6 +221,9 @@ export const createBooking = async (req, res) => {
           totalAmount: totalPrice,
           currency: 'NGN',
         },
+        totalPrice,
+        depositAmount,
+        balanceDue: totalPrice,
         notes,
       });
     } catch (error) {
@@ -481,26 +490,31 @@ export const updateBookingStatus = async (req, res) => {
       });
     }
 
-    const booking = await Booking.findOne({
-      _id: req.params.id,
-      provider: req.user._id,
+    const reason = typeof req.body.reason === 'string' ? req.body.reason : '';
+    try {
+      if (status === 'cancelled') {
+        const result = await cancelBooking({ bookingId: req.params.id, actor: req.user, reason });
+        return res.json(result.booking);
+      }
+      if (status === 'rejected') {
+        const result = await rejectBooking({ bookingId: req.params.id, actor: req.user, reason });
+        return res.json(result.booking);
+      }
+      if (status === 'completed') {
+        const result = await completeBooking({ bookingId: req.params.id, actor: req.user });
+        return res.json(result.booking);
+      }
+    } catch (error) {
+      if (error instanceof PaymentLifecycleError) {
+        return res.status(error.statusCode).json({ message: error.message, code: error.code, ...error.details });
+      }
+      throw error;
+    }
+
+    return res.status(400).json({
+      message: 'Unsupported booking status change. Use cancelled, rejected or completed.',
+      code: 'INVALID_STATUS',
     });
-    if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
-    }
-
-    if (!['cancelled', 'rejected', 'completed'].includes(status)) {
-      return res.status(400).json({
-        message: 'Unsupported booking status change. Use cancelled, rejected or completed.',
-        code: 'INVALID_STATUS',
-      });
-    }
-
-    booking.status = status;
-    if (status !== 'completed') booking.paymentStatus = 'cancelled';
-    // The Booking model hook releases this booking's slot claims.
-    await booking.save();
-    return res.json(booking);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

@@ -96,20 +96,19 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-center gap-1.5">
                 <Phone className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                <a href="tel:+2348123843076" className="hover:text-zinc-900 transition-colors">
-                  +234 812 384 3076
+                <a href="mailto:hello@nile.ng" className="hover:text-zinc-900 transition-colors">
+                  hello@nile.ng
                 </a>
               </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <h4 className="font-semibold text-zinc-900 tracking-tight">USA HQ</h4>
+            <h4 className="font-semibold text-zinc-900 tracking-tight">Contact</h4>
             <div className="text-zinc-500 space-y-1 font-normal leading-relaxed">
-              <div className="flex items-start gap-1.5">
-                <MapPin className="w-3.5 h-3.5 mt-0.5 text-zinc-400 shrink-0" />
-                <span>Nile Technologies Inc.<br />30 N Gould St Ste R<br />Sheridan, WY 82801, USA</span>
-              </div>
+              <a href="mailto:hello@nile.ng" className="hover:text-zinc-900 transition-colors">
+                hello@nile.ng
+              </a>
             </div>
           </div>
 

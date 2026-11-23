@@ -1,6 +1,15 @@
 import axios from 'axios';
 import crypto from 'crypto';
 
+// Gateways are opt-in. Never silently redirect customers to localhost.
+const requiredCallback = (name, gateway) => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required when ${gateway} payments are enabled.`);
+  }
+  return value;
+};
+
 // Paystack integration
 export const paystackService = {
   initializePayment: async (amount, email, reference, metadata = {}) => {
@@ -12,7 +21,7 @@ export const paystackService = {
           email,
           reference,
           metadata,
-          callback_url: process.env.PAYSTACK_CALLBACK_URL || 'http://localhost:3000/checkout/callback',
+          callback_url: requiredCallback('PAYSTACK_CALLBACK_URL', 'Paystack'),
         },
         {
           headers: {
@@ -62,7 +71,7 @@ export const flutterwaveService = {
           tx_ref: reference,
           amount,
           currency: 'USD',
-          redirect_url: process.env.FLUTTERWAVE_CALLBACK_URL || 'http://localhost:3000/checkout/callback',
+          redirect_url: requiredCallback('FLUTTERWAVE_CALLBACK_URL', 'Flutterwave'),
           payment_options: 'card, banktransfer, ussd',
           customer: {
             email,
