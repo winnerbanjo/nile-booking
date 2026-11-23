@@ -194,7 +194,7 @@ export const DashboardLayout: React.FC = () => {
                   title={sidebarLabelsVisible ? undefined : item.name}
                   aria-label={sidebarLabelsVisible ? undefined : item.name}
                   className={cn(
-                    'flex items-center text-xs font-medium rounded-lg transition-colors',
+                    'flex items-center rounded-l-lg text-xs font-medium transition-colors',
                     sidebarLabelsVisible ? 'px-3 py-2' : 'justify-center py-2',
                     isActive
                       ? 'bg-zinc-900 text-white shadow-none'
