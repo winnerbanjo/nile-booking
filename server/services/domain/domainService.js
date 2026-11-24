@@ -913,6 +913,7 @@ export const processRenewalPayment = async (data) => {
       expiryReminderSentAt: null,
       expiryReminderLastAttemptAt: null,
       expiryReminderLeaseUntil: null,
+      expiryReminderClaimId: null,
       expiryReminderAttempts: 0,
       expiryReminderError: null,
     };
@@ -1039,7 +1040,7 @@ const expiryReminderEligibility = (now) => ({
  * is only written after the mail provider succeeds. A failed send remains
  * retryable on a later run instead of being silently marked complete.
  */
-export const runDomainExpiryReminders = async ({ now = new Date() } = {}) => {
+export const runDomainExpiryReminders = async ({ now = new Date(), sendReminder = notifyMerchant } = {}) => {
   const windowEnd = new Date(now.getTime() + EXPIRY_REMINDER_DAYS * DAY_MS);
   const statuses = ['ACTIVE', 'DNS_PENDING', 'REGISTERED'];
 
@@ -1048,12 +1049,14 @@ export const runDomainExpiryReminders = async ({ now = new Date() } = {}) => {
     'registration.expiryDate': { $gt: now, $lte: windowEnd },
     ...expiryReminderEligibility(now),
   })
+    .sort({ 'renewal.expiryReminderLastAttemptAt': 1, 'registration.expiryDate': 1 })
     .limit(100)
     .select('_id');
 
   const result = { scanned: candidates.length, sent: 0, failed: 0 };
 
   for (const candidate of candidates) {
+    const claimId = crypto.randomUUID();
     const claimed = await CustomDomain.findOneAndUpdate(
       {
         _id: candidate._id,
@@ -1065,6 +1068,7 @@ export const runDomainExpiryReminders = async ({ now = new Date() } = {}) => {
         $set: {
           'renewal.expiryReminderStatus': 'sending',
           'renewal.expiryReminderLeaseUntil': new Date(now.getTime() + 10 * 60 * 1000),
+          'renewal.expiryReminderClaimId': claimId,
           'renewal.expiryReminderLastAttemptAt': now,
           'renewal.expiryReminderError': null,
         },
@@ -1081,7 +1085,7 @@ export const runDomainExpiryReminders = async ({ now = new Date() } = {}) => {
     const dashboardUrl = `${(process.env.CLIENT_URL || 'https://app.nilebooking.co').replace(/\/$/, '')}/dashboard/domains`;
 
     try {
-      const delivery = await notifyMerchant(
+      const delivery = await sendReminder(
         merchant,
         `Your domain ${claimed.domain} expires in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`,
         domainEmailShell(
@@ -1098,17 +1102,24 @@ export const runDomainExpiryReminders = async ({ now = new Date() } = {}) => {
         throw new Error(delivery?.error || 'Email delivery failed');
       }
 
-      await CustomDomain.updateOne(
-        { _id: claimed._id },
+      const finalized = await CustomDomain.updateOne(
+        {
+          _id: claimed._id,
+          'registration.expiryDate': claimed.registration.expiryDate,
+          'renewal.expiryReminderStatus': 'sending',
+          'renewal.expiryReminderClaimId': claimId,
+        },
         {
           $set: {
             'renewal.expiryReminderStatus': 'sent',
             'renewal.expiryReminderSentAt': new Date(),
             'renewal.expiryReminderLeaseUntil': null,
+            'renewal.expiryReminderClaimId': null,
             'renewal.expiryReminderError': null,
           },
         }
       );
+      if (!finalized.modifiedCount) continue;
       result.sent += 1;
       logEvent('domain_expiry_reminder_sent', {
         domainId: String(claimed._id),
@@ -1116,16 +1127,23 @@ export const runDomainExpiryReminders = async ({ now = new Date() } = {}) => {
         daysRemaining,
       });
     } catch (error) {
-      await CustomDomain.updateOne(
-        { _id: claimed._id },
+      const finalized = await CustomDomain.updateOne(
+        {
+          _id: claimed._id,
+          'registration.expiryDate': claimed.registration.expiryDate,
+          'renewal.expiryReminderStatus': 'sending',
+          'renewal.expiryReminderClaimId': claimId,
+        },
         {
           $set: {
             'renewal.expiryReminderStatus': 'failed',
             'renewal.expiryReminderLeaseUntil': null,
+            'renewal.expiryReminderClaimId': null,
             'renewal.expiryReminderError': String(error.message || 'Email delivery failed').slice(0, 500),
           },
         }
       );
+      if (!finalized.modifiedCount) continue;
       result.failed += 1;
       logEvent('domain_expiry_reminder_failed', {
         domainId: String(claimed._id),

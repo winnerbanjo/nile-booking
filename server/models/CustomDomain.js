@@ -117,6 +117,7 @@ const customDomainSchema = new mongoose.Schema(
       expiryReminderSentAt: { type: Date, default: null },
       expiryReminderLastAttemptAt: { type: Date, default: null },
       expiryReminderLeaseUntil: { type: Date, default: null },
+      expiryReminderClaimId: { type: String, default: null },
       expiryReminderAttempts: { type: Number, default: 0 },
       expiryReminderError: { type: String, default: null },
       lastError: { type: String, default: null },

@@ -43,8 +43,9 @@ const renewLimit = rateLimit({
   message: 'Too many renewal attempts. Please wait a few minutes.',
 });
 
-router.post('/cron/maintenance', requireCronSecret, runDomainCron);
 // Vercel Cron issues GET requests; POST remains available for manual runs.
+router.get('/cron/maintenance', requireCronSecret, runDomainCron);
+router.post('/cron/maintenance', requireCronSecret, runDomainCron);
 router.get('/cron/renewal-reminders', requireCronSecret, runDomainRenewalReminderCron);
 router.post('/cron/renewal-reminders', requireCronSecret, runDomainRenewalReminderCron);
 
