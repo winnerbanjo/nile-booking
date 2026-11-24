@@ -277,7 +277,7 @@ export const DashboardLayout: React.FC = () => {
             <div className="flex-1" />
             <div className="flex items-center gap-3">
               <a
-                href={getStorefrontUrl(user?.slug)}
+                href={getStorefrontUrl(user?.slug, user?.customDomain)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-900 bg-white border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-all shadow-sm"

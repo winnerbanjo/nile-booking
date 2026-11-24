@@ -1,6 +1,15 @@
 import mongoose from 'mongoose';
 import Service from '../models/Service.js';
+import User from '../models/User.js';
 import { getMockMode, mockServices, mockUsers } from '../utils/mockMode.js';
+
+const markOnboardingStep = async (userId, update) => {
+  try {
+    await User.updateOne({ _id: userId }, { $set: update });
+  } catch {
+    // Onboarding progress must never block the merchant's primary action.
+  }
+};
 
 const defaultMockServicesList = [
   {
@@ -121,6 +130,11 @@ export const createService = async (req, res) => {
       images: images || [],
       location: location || {},
       features: features || [],
+    });
+
+    await markOnboardingStep(req.user._id, {
+      'onboarding.firstServiceAdded': true,
+      'onboarding.websiteGenerated': true,
     });
 
     res.status(201).json(service);

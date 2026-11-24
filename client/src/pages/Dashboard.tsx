@@ -51,7 +51,24 @@ export const Dashboard: React.FC = () => {
     queryKey: queryKeys.merchant.dashboard,
     queryFn: () => dashboardApi.getSummary(),
     enabled: !!user?._id,
+    // Return from Services, Settings or Marketing and the checklist reflects
+    // what was saved, even within the default cache window.
+    refetchOnMount: 'always',
   });
+
+  const markChecklistStep = async (patch: {
+    websitePreviewed?: boolean;
+    websiteShared?: boolean;
+  }) => {
+    try {
+      await authApi.updateOnboarding(patch);
+      await refetch();
+    } catch (err) {
+      console.error('Failed to update setup progress', err);
+    }
+  };
+
+  const setup = data?.setup;
 
   const metrics = data?.metrics || {
     totalBookings: 0,
@@ -110,6 +127,7 @@ export const Dashboard: React.FC = () => {
             <Link
               to={`/p/${user?.slug || ''}`}
               target="_blank"
+              onClick={() => void markChecklistStep({ websitePreviewed: true })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-md hover:bg-zinc-50 transition-colors shadow-2xs"
             >
               <Store className="w-3.5 h-3.5 text-zinc-500" />
@@ -154,14 +172,46 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {(() => {
-                const steps = [
+                const steps: Array<{
+                  label: string;
+                  done: boolean;
+                  href: string | null;
+                  external?: boolean;
+                  onClick?: () => void;
+                }> = [
                   { label: 'Create your account', done: true, href: null },
-                  { label: 'Generate your website', done: !!user?.onboarding?.websiteGenerated, href: null },
-                  { label: 'Add your first service', done: !!user?.onboarding?.firstServiceAdded, href: '/dashboard/services' },
-                  { label: 'Set your availability', done: false, href: '/dashboard/settings' },
-                  { label: 'Add your business logo', done: !!(user?.logo || user?.profileImage), href: '/dashboard/profile' },
-                  { label: 'Preview your website', done: false, href: user?.slug ? getStorefrontUrl(user.slug) : null, external: true },
-                  { label: 'Share your website link', done: false, href: '/dashboard/marketing' },
+                  {
+                    label: 'Generate your website',
+                    done: setup?.websiteGenerated ?? Boolean(user?.slug || user?.onboarding?.websiteGenerated),
+                    href: null,
+                  },
+                  {
+                    label: 'Add your first service',
+                    done: setup?.firstServiceAdded ?? Boolean(user?.onboarding?.firstServiceAdded),
+                    href: '/dashboard/services',
+                  },
+                  {
+                    label: 'Set your availability',
+                    done: setup?.availabilityConfigured ?? Boolean(user?.onboarding?.availabilityConfigured),
+                    href: '/dashboard/settings',
+                  },
+                  {
+                    label: 'Add your business logo',
+                    done: setup?.logoAdded ?? Boolean(user?.logo || user?.profileImage),
+                    href: '/dashboard/profile',
+                  },
+                  {
+                    label: 'Preview your website',
+                    done: setup?.websitePreviewed ?? Boolean(user?.onboarding?.websitePreviewed),
+                    href: user?.slug ? getStorefrontUrl(user.slug) : null,
+                    external: true,
+                    onClick: () => void markChecklistStep({ websitePreviewed: true }),
+                  },
+                  {
+                    label: 'Share your website link',
+                    done: setup?.websiteShared ?? Boolean(user?.onboarding?.websiteShared),
+                    href: '/dashboard/marketing',
+                  },
                 ];
                 const completedSteps = steps.filter((step) => step.done).length;
                 const progress = Math.round((completedSteps / steps.length) * 100);
@@ -205,9 +255,9 @@ export const Dashboard: React.FC = () => {
 
                         if (item.href && !item.done) {
                           return item.external ? (
-                            <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" className={className}>{content}</a>
+                            <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer" onClick={item.onClick} className={className}>{content}</a>
                           ) : (
-                            <Link key={item.label} to={item.href} className={className}>{content}</Link>
+                            <Link key={item.label} to={item.href} onClick={item.onClick} className={className}>{content}</Link>
                           );
                         }
                         return <div key={item.label} className={className}>{content}</div>;

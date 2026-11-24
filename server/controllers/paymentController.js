@@ -7,6 +7,7 @@ import {
   applyGatewaySuccess,
   verifyBookingPayment,
 } from '../services/paymentLifecycleService.js';
+import { processRenewalPayment } from '../services/domain/domainService.js';
 
 const lifecycleError = (res, error) => {
   if (error instanceof PaymentLifecycleError) {
@@ -80,6 +81,30 @@ export const paystackWebhook = async (req, res) => {
 
     if (event.event === 'charge.success') {
       const { reference, amount, currency } = event.data;
+      let metadata = event.data.metadata || {};
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata);
+        } catch {
+          metadata = {};
+        }
+      }
+
+      if (metadata.purpose === 'domain-renewal') {
+        try {
+          await processRenewalPayment({ ...event.data, metadata });
+        } catch (error) {
+          // A mismatched amount or reference is not retryable; acknowledge it so
+          // Paystack does not hammer the endpoint. Transient registrar failures
+          // bubble up and are retried by Paystack.
+          if (error.statusCode && error.statusCode < 500) {
+            return res.json({ received: true, ignored: true });
+          }
+          throw error;
+        }
+        return res.json({ received: true });
+      }
+
       await applyGatewaySuccess({
         reference,
         gateway: 'paystack',

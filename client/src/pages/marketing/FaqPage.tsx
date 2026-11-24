@@ -17,7 +17,7 @@ export const FaqPage: React.FC = () => {
     },
     {
       q: 'Can I use my own domain?',
-      a: 'Yes. Growth and Premium plans include custom domain connection support (e.g., yourname.com).',
+      a: 'Yes. Premium includes one standard custom domain for the first year, and you can connect a domain you already own. Renewals are paid by the merchant.',
     },
     {
       q: 'Can I manage my business on mobile?',

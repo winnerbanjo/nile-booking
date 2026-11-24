@@ -22,6 +22,8 @@ export const seedModernBarber = async () => {
         email: demoEmail,
         password: 'password123',
         role: 'provider',
+        plan: 'premium',
+        planStatus: 'active',
         businessName: 'The Modern Barber',
         slug: slug,
         phone: '+234 812 345 6789',
@@ -99,6 +101,8 @@ export const seedModernBarber = async () => {
       console.log('✅ Demo user created:', demoEmail);
     } else {
       // Update existing user with social handles, gallery, and testimonials
+      demoUser.plan = 'premium';
+      demoUser.planStatus = 'active';
       demoUser.socialHandles = {
         instagram: '@themodernbarber',
         twitter: '@themodernbarber',

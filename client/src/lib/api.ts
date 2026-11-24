@@ -10,6 +10,10 @@ import type {
   PublicBooking,
   BookingStats,
   Transaction,
+  CustomDomainRecord,
+  DomainOverview,
+  DomainSuggestion,
+  DomainAvailability,
 } from '../types';
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -17,9 +21,12 @@ const isLocalhost =
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
+// Vite's dev server proxies `/api` to the local backend. Use that proxy even
+// when the preview is opened through a forwarded hostname (Codespaces, tunnels),
+// otherwise the browser would call the deployed API instead.
 const API_BASE_URL = configuredApiBaseUrl
   ? configuredApiBaseUrl.replace(/\/+$/, '')
-  : isLocalhost
+  : import.meta.env.DEV || isLocalhost
     ? '/api'
     : 'https://api.nilebooking.co/api';
 
@@ -211,7 +218,6 @@ export const authApi = {
     paymentMethods?: any;
     bankAccount?: any;
     slug?: string;
-    customDomain?: string;
   }) => {
     return request<User>('/auth/profile', {
       method: 'PUT',
@@ -227,6 +233,8 @@ export const authApi = {
     firstServiceAdded?: boolean;
     firstServiceSkipped?: boolean;
     availabilityConfigured?: boolean;
+    websitePreviewed?: boolean;
+    websiteShared?: boolean;
     onboardingCompleted?: boolean;
     setupChecklistDismissed?: boolean;
   }) => {
@@ -511,9 +519,28 @@ const updateProviderStatus = async (providerId: string, status: string) => {
   });
 };
 
+const updateProviderPlan = async (
+  providerId: string,
+  data: { plan: string; planStatus?: string; planExpiresAt?: string | null }
+) => {
+  return request<{ message: string; provider: any }>(`/admin/providers/${providerId}/plan`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};
+
 export const dashboardApi = {
   getSummary: async () => {
     return request<{
+      setup?: {
+        accountCreated: boolean;
+        websiteGenerated: boolean;
+        firstServiceAdded: boolean;
+        availabilityConfigured: boolean;
+        logoAdded: boolean;
+        websitePreviewed: boolean;
+        websiteShared: boolean;
+      };
       metrics: {
         totalBookings: number;
         confirmedBookings: number;
@@ -546,6 +573,7 @@ export const adminApi = {
   },
   getProviders,
   updateProviderStatus,
+  updateProviderPlan,
   getBookings: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
     const query = new URLSearchParams(params as any).toString();
     return request<{ data: any[]; pagination: any }>(`/admin/bookings${query ? `?${query}` : ''}`);
@@ -599,21 +627,27 @@ export const staffApi = {
 };
 
 export const domainApi = {
-  checkAvailability: async (domain: string) => {
-    return request<{
-      domain: string;
-      available: boolean;
-      priceNGN: number;
-      description: string;
-      simulation: boolean;
-    }>(`/domains/check?domain=${encodeURIComponent(domain)}`);
-  },
-  purchase: async (data: {
+  getOverview: async () => request<DomainOverview>('/domains'),
+
+  getSuggestions: async (keyword: string) =>
+    request<{ suggestions: DomainSuggestion[] }>('/domains/suggestions', {
+      method: 'POST',
+      body: JSON.stringify({ keyword }),
+    }),
+
+  checkAvailability: async (domain: string) =>
+    request<DomainAvailability>('/domains/availability', {
+      method: 'POST',
+      body: JSON.stringify({ domain }),
+    }),
+
+  claim: async (data: {
     domain: string;
-    reference: string;
-    contactInfo: {
+    acceptedTerms: boolean;
+    registrant: {
       firstName: string;
       lastName: string;
+      company?: string;
       address: string;
       city: string;
       state: string;
@@ -622,16 +656,58 @@ export const domainApi = {
       phone: string;
       email: string;
     };
-  }) => {
-    return request<{
-      success: boolean;
-      message: string;
-      user: any;
-    }>('/domains/purchase', {
+  }) =>
+    request<{ success: boolean; message: string; domain: CustomDomainRecord }>('/domains/claim', {
       method: 'POST',
       body: JSON.stringify(data),
-    });
-  },
+    }, 60000),
+
+  connect: async (domain: string) =>
+    request<{ success: boolean; message: string; domain: CustomDomainRecord }>('/domains/connect', {
+      method: 'POST',
+      body: JSON.stringify({ domain }),
+    }),
+
+  verify: async (id: string) =>
+    request<{ success: boolean; message: string; domain: CustomDomainRecord }>(`/domains/${id}/verify`, {
+      method: 'POST',
+    }),
+
+  refresh: async (id: string) =>
+    request<{ success: boolean; domain: CustomDomainRecord }>(`/domains/${id}/refresh`, {
+      method: 'POST',
+    }),
+
+  retry: async (id: string) =>
+    request<{ success: boolean; domain: CustomDomainRecord }>(`/domains/${id}/retry`, {
+      method: 'POST',
+    }, 60000),
+
+  renew: async (id: string) =>
+    request<{
+      success: boolean;
+      reference: string;
+      amountNGN: number;
+      authorizationUrl: string | null;
+      accessCode: string | null;
+      domain: CustomDomainRecord;
+    }>(`/domains/${id}/renew`, { method: 'POST' }),
+
+  verifyRenewal: async (reference: string) =>
+    request<{ success: boolean; domain?: CustomDomainRecord; message?: string }>(
+      '/domains/renewals/verify',
+      { method: 'POST', body: JSON.stringify({ reference }) }
+    ),
+
+  remove: async (id: string) =>
+    request<{ success: boolean; domain: CustomDomainRecord }>(`/domains/${id}`, {
+      method: 'DELETE',
+    }),
+
+  getPublicTenant: async (host: string) =>
+    request<{ slug: string; businessName: string; logo?: string | null; domain: string }>(
+      `/public/tenant?host=${encodeURIComponent(host)}`
+    ),
 };
 
 // Portfolio API

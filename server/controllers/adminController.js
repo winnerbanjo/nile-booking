@@ -159,7 +159,7 @@ export const getProviders = async (req, res) => {
       });
     }
     const providers = await User.find({ role: 'provider' })
-      .select('name businessName email phone address location isVerified isActive createdAt')
+      .select('name businessName email phone address location isVerified isActive createdAt plan planStatus planExpiresAt')
       .lean();
     
     const enrichedProviders = providers.map(p => ({
@@ -203,6 +203,61 @@ export const updateProviderStatus = async (req, res) => {
     res.json(provider);
   } catch (error) {
     res.status(500).json({ message: 'Error updating provider status', error: error.message });
+  }
+};
+
+// @desc    Set a provider's subscription plan (admin grant for Premium domains)
+// @route   PUT /api/admin/providers/:providerId/plan
+// @access  Admin only
+export const updateProviderPlan = async (req, res) => {
+  try {
+    if (getMockMode()) {
+      return res.status(503).json({ message: 'Plan changes are unavailable in mock mode.' });
+    }
+
+    const { providerId } = req.params;
+    const { plan, planStatus, planExpiresAt } = req.body || {};
+    const allowedPlans = ['none', 'starter', 'growth', 'premium'];
+    const allowedStatuses = ['active', 'past_due', 'cancelled'];
+
+    if (!allowedPlans.includes(plan)) {
+      return res.status(400).json({ message: 'Invalid plan.' });
+    }
+    if (planStatus && !allowedStatuses.includes(planStatus)) {
+      return res.status(400).json({ message: 'Invalid plan status.' });
+    }
+
+    const provider = await User.findOne({ _id: providerId, role: 'provider' });
+    if (!provider) return res.status(404).json({ message: 'Provider not found' });
+
+    let expiresAt = null;
+    if (planExpiresAt) {
+      expiresAt = new Date(planExpiresAt);
+      if (Number.isNaN(expiresAt.getTime())) {
+        return res.status(400).json({ message: 'Invalid plan expiry date.' });
+      }
+    }
+
+    provider.plan = plan;
+    provider.planStatus = planStatus || 'active';
+    provider.planExpiresAt = expiresAt || undefined;
+    provider.planUpdatedBy = req.user._id;
+    provider.planUpdatedAt = new Date();
+    await provider.save();
+
+    res.json({
+      message: 'Provider plan updated.',
+      provider: {
+        _id: provider._id,
+        name: provider.name,
+        businessName: provider.businessName,
+        plan: provider.plan,
+        planStatus: provider.planStatus,
+        planExpiresAt: provider.planExpiresAt,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating provider plan', error: error.message });
   }
 };
 

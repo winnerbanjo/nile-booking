@@ -7,6 +7,16 @@ export interface User {
   slug?: string;
   businessName?: string;
   phone?: string;
+  customDomain?: string;
+  plan?: 'none' | 'starter' | 'growth' | 'premium';
+  planStatus?: 'active' | 'past_due' | 'cancelled';
+  planExpiresAt?: string | null;
+  address?: {
+    street?: string;
+    city?: string;
+    country?: string;
+    zipCode?: string;
+  };
   bio?: string;
   location?: string;
   logo?: string;
@@ -39,9 +49,84 @@ export interface User {
     firstServiceAdded?: boolean;
     firstServiceSkipped?: boolean;
     availabilityConfigured?: boolean;
+    websitePreviewed?: boolean;
+    websiteShared?: boolean;
     onboardingCompleted?: boolean;
     completedAt?: string;
+    setupChecklistDismissed?: boolean;
   };
+}
+
+export interface CustomDomainRecord {
+  _id: string;
+  domain: string;
+  source: 'purchased' | 'connected';
+  provider?: string;
+  status:
+    | 'PENDING_REGISTRATION'
+    | 'REGISTERING'
+    | 'REGISTERED'
+    | 'PENDING_VERIFICATION'
+    | 'CONNECTING'
+    | 'DNS_PENDING'
+    | 'ACTIVE'
+    | 'FAILED'
+    | 'EXPIRED'
+    | 'SUSPENDED'
+    | 'REMOVED';
+  active: boolean;
+  failureReason?: string | null;
+  isPremiumDomain?: boolean;
+  priceNGN?: number | null;
+  priceUSD?: number | null;
+  retailValueNGN?: number | null;
+  verificationRecord?: { type: string; host: string; value: string } | null;
+  registration?: {
+    expiryDate?: string | null;
+    registeredAt?: string | null;
+    autoRenew?: boolean;
+  };
+  hosting?: {
+    attached?: boolean;
+    verified?: boolean;
+    misconfigured?: boolean;
+    verificationRecords?: Array<{ type: string; host: string; value: string }>;
+  };
+  dnsRecords?: Array<{ type: string; host: string; value: string; status?: string }>;
+  renewal?: {
+    status?: string;
+    priceNGN?: number | null;
+    lastError?: string | null;
+    lastReminderAt?: string | null;
+  };
+  createdAt?: string;
+}
+
+export interface DomainOverview {
+  isPremium: boolean;
+  plan: string;
+  planStatus: string;
+  planExpiresAt?: string | null;
+  domains: CustomDomainRecord[];
+  limits: { includedDomains: number; activeDomains: number };
+}
+
+export interface DomainSuggestion {
+  domain: string;
+  available: boolean;
+  included: boolean;
+  isPremiumDomain: boolean;
+  priceNGN: number;
+  retailValueNGN: number;
+  priceUSD: number;
+  description?: string;
+  quoteRequired?: boolean;
+}
+
+export interface DomainAvailability extends DomainSuggestion {
+  quoteRequired: boolean;
+  markupNGN?: number;
+  fxRate?: number;
 }
 
 export interface AuthResponse {

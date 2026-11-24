@@ -1,4 +1,5 @@
 import Schedule from '../models/Schedule.js';
+import User from '../models/User.js';
 import { getMockMode, mockSchedules, mockUsers } from '../utils/mockMode.js';
 import { isValidTimezone, DEFAULT_BOOKING_WINDOW_DAYS, DEFAULT_MINIMUM_LEAD_TIME_MINUTES, MAX_BOOKING_WINDOW_DAYS } from '../services/availabilityService.js';
 import jwt from 'jsonwebtoken';
@@ -162,6 +163,20 @@ export const updateSchedule = async (req, res) => {
       }
 
       await schedule.save();
+    }
+
+    try {
+      await User.updateOne(
+        { _id: req.user._id },
+        {
+          $set: {
+            'onboarding.availabilityConfigured': true,
+            'onboarding.websiteGenerated': true,
+          },
+        }
+      );
+    } catch {
+      // Progress tracking must never block saving availability.
     }
 
     res.json(schedule);

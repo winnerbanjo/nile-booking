@@ -113,7 +113,7 @@ export const Pricing: React.FC = () => {
                 </li>
                 <li className="flex items-center gap-2 font-medium text-white">
                   <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Custom domain included
+                  Advanced booking & marketing tools
                 </li>
                 <li className="flex items-center gap-2 font-medium text-white">
                   <Check className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -152,7 +152,7 @@ export const Pricing: React.FC = () => {
                 </li>
                 <li className="flex items-center gap-2 font-medium text-zinc-900">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  Custom domain included
+                  One domain included with first-year activation
                 </li>
                 <li className="flex items-center gap-2 font-medium text-zinc-900">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />

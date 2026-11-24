@@ -82,7 +82,7 @@ export const Landing: React.FC = () => {
     { title: 'Client history', desc: 'Track customer booking frequency & lifetime spend' },
     { title: 'Service catalogue', desc: 'Organize prices, durations & service categories' },
     { title: 'Custom branding', desc: 'Upload your own business logo, colors & hero banner' },
-    { title: 'Custom domain', desc: 'Connect your own domain name (e.g. yourname.com)' },
+    { title: 'Custom domain', desc: 'Premium: register or connect your own domain (e.g. yourname.com)' },
     { title: 'Mobile dashboard', desc: 'Manage bookings, clients & schedule from any device' },
     { title: 'Analytics', desc: 'Real-time booking revenue & client performance data' },
     { title: 'Invoices', desc: 'Generate & send printable digital client invoices' },
@@ -102,7 +102,7 @@ export const Landing: React.FC = () => {
     },
     {
       q: 'Can I use my own domain?',
-      a: 'Yes. Growth and Premium plans include custom domain connection support (e.g., yourname.com).',
+      a: 'Yes. Premium includes one standard custom domain for the first year, and you can connect a domain you already own. Renewals are paid by the merchant.',
     },
     {
       q: 'Can I manage my business on mobile?',
@@ -483,7 +483,7 @@ export const Landing: React.FC = () => {
                 </li>
                 <li className="flex items-center gap-2 font-medium text-white">
                   <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                  Custom domain included
+                  Advanced booking & marketing tools
                 </li>
                 <li className="flex items-center gap-2 font-medium text-white">
                   <Check className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -518,7 +518,7 @@ export const Landing: React.FC = () => {
                 </li>
                 <li className="flex items-center gap-2 font-medium text-zinc-900">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  Custom domain included
+                  One domain included with first-year activation
                 </li>
                 <li className="flex items-center gap-2 font-medium text-zinc-900">
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />

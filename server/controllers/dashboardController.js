@@ -1,6 +1,6 @@
 import Booking from '../models/Booking.js';
+import Schedule from '../models/Schedule.js';
 import Service from '../models/Service.js';
-import User from '../models/User.js';
 
 // @desc    Get merchant dashboard summary in a single query
 // @route   GET /api/dashboard/summary
@@ -16,7 +16,9 @@ export const getDashboardSummary = async (req, res) => {
       recentBookings,
       upcomingAppointments,
       activeServicesCount,
+      totalServicesCount,
       bookingsStats,
+      schedule,
     ] = await Promise.all([
       // 1. Recent 6 bookings with projected fields
       Booking.find({ provider: providerId })
@@ -38,8 +40,9 @@ export const getDashboardSummary = async (req, res) => {
         .populate('service', 'name price duration')
         .lean(),
 
-      // 3. Count active services
+      // 3. Count active and total services
       Service.countDocuments({ provider: providerId, isActive: true }),
+      Service.countDocuments({ provider: providerId }),
 
       // 4. Aggregated booking metrics
       Booking.aggregate([
@@ -76,6 +79,9 @@ export const getDashboardSummary = async (req, res) => {
           },
         },
       ]),
+
+      // 5. Saved availability, used for the setup checklist.
+      Schedule.findOne({ provider: providerId }).lean(),
     ]);
 
     const stats = bookingsStats[0] || {
@@ -87,7 +93,26 @@ export const getDashboardSummary = async (req, res) => {
       uniqueCustomers: [],
     };
 
+    const onboarding = req.user.onboarding || {};
+    const hasSavedAvailability = Boolean(
+      schedule &&
+        Object.values(schedule.weeklySchedule || {}).some(
+          (day) => day?.enabled && Array.isArray(day.timeSlots) && day.timeSlots.length > 0
+        )
+    );
+
+    const setup = {
+      accountCreated: true,
+      websiteGenerated: Boolean(onboarding.websiteGenerated || req.user.slug),
+      firstServiceAdded: Boolean(onboarding.firstServiceAdded || totalServicesCount > 0),
+      availabilityConfigured: Boolean(onboarding.availabilityConfigured || hasSavedAvailability),
+      logoAdded: Boolean(req.user.logo || req.user.profileImage),
+      websitePreviewed: Boolean(onboarding.websitePreviewed),
+      websiteShared: Boolean(onboarding.websiteShared),
+    };
+
     res.json({
+      setup,
       metrics: {
         totalBookings: stats.totalBookings || 0,
         confirmedBookings: stats.confirmedBookings || 0,

@@ -18,7 +18,7 @@ const requiredCallback = (name, gateway) => {
 
 // Paystack integration
 export const paystackService = {
-  initializePayment: async (amount, email, reference, metadata = {}) => {
+  initializePayment: async (amount, email, reference, metadata = {}, options = {}) => {
     try {
       const response = await axios.post(
         'https://api.paystack.co/transaction/initialize',
@@ -27,7 +27,7 @@ export const paystackService = {
           email,
           reference,
           metadata,
-          callback_url: requiredCallback('PAYSTACK_CALLBACK_URL', 'Paystack'),
+          callback_url: options.callbackUrl || requiredCallback('PAYSTACK_CALLBACK_URL', 'Paystack'),
         },
         {
           headers: {

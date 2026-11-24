@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
+import CustomDomain from './models/CustomDomain.js';
 import { getMockMode } from './utils/mockMode.js';
 import { correlationMiddleware, logEvent } from './utils/logger.js';
 
@@ -23,6 +24,7 @@ import systemRoutes from './routes/systemRoutes.js';
 import domainRoutes from './routes/domainRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import publicRoutes from './routes/publicRoutes.js';
 
 const app = express();
 const isProduction = process.env.NODE_ENV === 'production';
@@ -49,6 +51,43 @@ if (isProduction && configuredOrigins.length === 0) {
   console.warn('CORS_ORIGINS is empty; cross-origin browser requests will be rejected.');
 }
 
+// Custom-domain origins are verified against active domain records. The cache
+// keeps the CORS path cheap while bounding how long a detached domain is honoured.
+const customOriginCache = new Map();
+const CUSTOM_ORIGIN_TTL_MS = 60 * 1000;
+
+const isVerifiedCustomOrigin = async (normalizedOrigin) => {
+  let url;
+  try {
+    url = new URL(normalizedOrigin);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:') return false;
+  const host = url.hostname.toLowerCase();
+
+  const cached = customOriginCache.get(host);
+  if (cached && cached.expiresAt > Date.now()) return cached.allowed;
+
+  try {
+    await connectDB();
+    const candidates = host.startsWith('www.')
+      ? [host, host.replace(/^www\./, '')]
+      : [host];
+    const exists = await CustomDomain.exists({
+      domain: { $in: candidates },
+      status: 'ACTIVE',
+      active: true,
+    });
+    const allowed = Boolean(exists);
+    customOriginCache.set(host, { allowed, expiresAt: Date.now() + CUSTOM_ORIGIN_TTL_MS });
+    if (customOriginCache.size > 5000) customOriginCache.clear();
+    return allowed;
+  } catch {
+    return false;
+  }
+};
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Native/server-to-server requests have no Origin header.
@@ -61,6 +100,13 @@ const corsOptions = {
 
     if (!isProduction && /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(normalized)) {
       return callback(null, true);
+    }
+
+    if (isProduction) {
+      isVerifiedCustomOrigin(normalized)
+        .then((allowed) => callback(null, allowed))
+        .catch(() => callback(null, false));
+      return;
     }
 
     // No CORS headers for unlisted origins. The browser fails the request
@@ -192,6 +238,7 @@ app.use('/api/system', systemRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/public', publicRoutes);
 
 // Global 404 Handler
 app.use((req, res) => {

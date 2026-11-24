@@ -553,6 +553,13 @@ export const getMe = async (req, res) => {
 // @access  Private
 export const updateProfile = async (req, res) => {
   try {
+    if (req.body?.customDomain !== undefined) {
+      return res.status(400).json({
+        message: 'Custom domains are managed from the Domains page.',
+        code: 'DOMAIN_MANAGED_SEPARATELY',
+      });
+    }
+
     if (getMockMode()) {
       const mockUser = mockUsers.get(req.user.email);
       if (mockUser) {
@@ -582,7 +589,6 @@ export const updateProfile = async (req, res) => {
       socialHandles,
       paymentMethods,
       slug,
-      customDomain,
     } = req.body;
 
     if (name) user.name = name;
@@ -603,18 +609,6 @@ export const updateProfile = async (req, res) => {
         return res.status(400).json({ message: 'Subdomain is already taken' });
       }
       user.slug = cleanSlug;
-    }
-    if (customDomain !== undefined) {
-      if (customDomain) {
-        const cleanDomain = customDomain.toLowerCase().trim();
-        const existingUser = await User.findOne({ customDomain: cleanDomain, _id: { $ne: req.user._id } });
-        if (existingUser) {
-          return res.status(400).json({ message: 'Custom domain is already mapped by another store' });
-        }
-        user.customDomain = cleanDomain;
-      } else {
-        user.customDomain = undefined;
-      }
     }
     if (phone) user.phone = phone;
     if (bio) user.bio = bio;
@@ -696,7 +690,15 @@ export const deletePortfolioItem = async (req, res) => {
 // @access  Private
 export const updateOnboarding = async (req, res) => {
   try {
-    const { firstServiceAdded, firstServiceSkipped, availabilityConfigured, onboardingCompleted, setupChecklistDismissed } = req.body;
+    const {
+      firstServiceAdded,
+      firstServiceSkipped,
+      availabilityConfigured,
+      websitePreviewed,
+      websiteShared,
+      onboardingCompleted,
+      setupChecklistDismissed,
+    } = req.body;
 
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -705,6 +707,8 @@ export const updateOnboarding = async (req, res) => {
     if (firstServiceAdded !== undefined) user.onboarding.firstServiceAdded = firstServiceAdded;
     if (firstServiceSkipped !== undefined) user.onboarding.firstServiceSkipped = firstServiceSkipped;
     if (availabilityConfigured !== undefined) user.onboarding.availabilityConfigured = availabilityConfigured;
+    if (websitePreviewed !== undefined) user.onboarding.websitePreviewed = websitePreviewed;
+    if (websiteShared !== undefined) user.onboarding.websiteShared = websiteShared;
     if (onboardingCompleted !== undefined) {
       user.onboarding.onboardingCompleted = onboardingCompleted;
       if (onboardingCompleted && !user.onboarding.completedAt) {
