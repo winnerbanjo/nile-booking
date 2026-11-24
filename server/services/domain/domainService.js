@@ -32,6 +32,15 @@ import { logEvent } from '../../utils/logger.js';
 
 const SUGGESTED_TLDS = ['store', 'shop'];
 const RESERVED_DOMAIN = /(^|\.)nilebooking\.(co|com)$/i;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const EXPIRY_REMINDER_DAYS = 7;
+
+export const isWithinRenewalReminderWindow = (expiryDate, now = new Date()) => {
+  const expiry = new Date(expiryDate).getTime();
+  const current = now.getTime();
+  if (!Number.isFinite(expiry)) return false;
+  return expiry > current && expiry - current <= EXPIRY_REMINDER_DAYS * DAY_MS;
+};
 
 const escapeHtml = (value) =>
   String(value ?? '')
@@ -900,6 +909,12 @@ export const processRenewalPayment = async (data) => {
       status: 'renewed',
       paidAt: claimed.paidAt,
       lastError: null,
+      expiryReminderStatus: 'idle',
+      expiryReminderSentAt: null,
+      expiryReminderLastAttemptAt: null,
+      expiryReminderLeaseUntil: null,
+      expiryReminderAttempts: 0,
+      expiryReminderError: null,
     };
     if (domainDoc.status === 'EXPIRED') {
       domainDoc.status = 'DNS_PENDING';
@@ -997,12 +1012,137 @@ export const resolvePublicTenant = async (host) => {
   };
 };
 
+const expiryReminderEligibility = (now) => ({
+  $or: [
+    { 'renewal.expiryReminderStatus': 'idle' },
+    { 'renewal.expiryReminderStatus': { $exists: false } },
+    {
+      'renewal.expiryReminderStatus': 'failed',
+      'renewal.expiryReminderLastAttemptAt': {
+        $lte: new Date(now.getTime() - 6 * 60 * 60 * 1000),
+      },
+    },
+    {
+      'renewal.expiryReminderStatus': 'failed',
+      'renewal.expiryReminderLastAttemptAt': { $exists: false },
+    },
+    {
+      'renewal.expiryReminderStatus': 'sending',
+      'renewal.expiryReminderLeaseUntil': { $lte: now },
+    },
+  ],
+});
+
+/**
+ * Send one reminder when a registered domain enters its final seven days.
+ * Each domain is atomically claimed before email delivery, and the sent marker
+ * is only written after the mail provider succeeds. A failed send remains
+ * retryable on a later run instead of being silently marked complete.
+ */
+export const runDomainExpiryReminders = async ({ now = new Date() } = {}) => {
+  const windowEnd = new Date(now.getTime() + EXPIRY_REMINDER_DAYS * DAY_MS);
+  const statuses = ['ACTIVE', 'DNS_PENDING', 'REGISTERED'];
+
+  const candidates = await CustomDomain.find({
+    status: { $in: statuses },
+    'registration.expiryDate': { $gt: now, $lte: windowEnd },
+    ...expiryReminderEligibility(now),
+  })
+    .limit(100)
+    .select('_id');
+
+  const result = { scanned: candidates.length, sent: 0, failed: 0 };
+
+  for (const candidate of candidates) {
+    const claimed = await CustomDomain.findOneAndUpdate(
+      {
+        _id: candidate._id,
+        status: { $in: statuses },
+        'registration.expiryDate': { $gt: now, $lte: windowEnd },
+        ...expiryReminderEligibility(now),
+      },
+      {
+        $set: {
+          'renewal.expiryReminderStatus': 'sending',
+          'renewal.expiryReminderLeaseUntil': new Date(now.getTime() + 10 * 60 * 1000),
+          'renewal.expiryReminderLastAttemptAt': now,
+          'renewal.expiryReminderError': null,
+        },
+        $inc: { 'renewal.expiryReminderAttempts': 1 },
+      },
+      { new: true }
+    );
+
+    if (!claimed) continue;
+
+    const merchant = await User.findById(claimed.merchant);
+    const expiry = new Date(claimed.registration.expiryDate);
+    const daysRemaining = Math.max(1, Math.ceil((expiry.getTime() - now.getTime()) / DAY_MS));
+    const dashboardUrl = `${(process.env.CLIENT_URL || 'https://app.nilebooking.co').replace(/\/$/, '')}/dashboard/domains`;
+
+    try {
+      const delivery = await notifyMerchant(
+        merchant,
+        `Your domain ${claimed.domain} expires in ${daysRemaining} day${daysRemaining === 1 ? '' : 's'}`,
+        domainEmailShell(
+          'Domain renewal due soon',
+          `<p><strong>${escapeHtml(claimed.domain)}</strong> will expire on <strong>${expiry.toDateString()}</strong>.</p>
+           <p>That is ${daysRemaining} day${daysRemaining === 1 ? '' : 's'} from now. Renew from your dashboard to keep the domain and storefront online.</p>
+           <p>Renewal is paid by you and is not included in the Premium plan.</p>
+           <p><a href="${escapeHtml(dashboardUrl)}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:10px 16px;border-radius:6px;font-weight:600;">Review domain</a></p>`
+        ),
+        'Domain Expiry Reminder'
+      );
+
+      if (!delivery?.success) {
+        throw new Error(delivery?.error || 'Email delivery failed');
+      }
+
+      await CustomDomain.updateOne(
+        { _id: claimed._id },
+        {
+          $set: {
+            'renewal.expiryReminderStatus': 'sent',
+            'renewal.expiryReminderSentAt': new Date(),
+            'renewal.expiryReminderLeaseUntil': null,
+            'renewal.expiryReminderError': null,
+          },
+        }
+      );
+      result.sent += 1;
+      logEvent('domain_expiry_reminder_sent', {
+        domainId: String(claimed._id),
+        domain: claimed.domain,
+        daysRemaining,
+      });
+    } catch (error) {
+      await CustomDomain.updateOne(
+        { _id: claimed._id },
+        {
+          $set: {
+            'renewal.expiryReminderStatus': 'failed',
+            'renewal.expiryReminderLeaseUntil': null,
+            'renewal.expiryReminderError': String(error.message || 'Email delivery failed').slice(0, 500),
+          },
+        }
+      );
+      result.failed += 1;
+      logEvent('domain_expiry_reminder_failed', {
+        domainId: String(claimed._id),
+        domain: claimed.domain,
+        error: error.message,
+      });
+    }
+  }
+
+  return result;
+};
+
 export const runDomainMaintenance = async () => {
   const now = new Date();
   const result = {
     hostingChecked: 0,
     expired: 0,
-    remindersSent: 0,
     failed: 0,
   };
 
@@ -1066,40 +1206,8 @@ export const runDomainMaintenance = async () => {
     result.failed += 1;
   }
 
-  const reminderCutoff = new Date(now.getTime() + 45 * 24 * 60 * 60 * 1000);
-  const reminderWindow = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-  const renewals = await CustomDomain.find({
-    status: { $in: ['ACTIVE', 'DNS_PENDING', 'REGISTERED'] },
-    'registration.expiryDate': { $gt: reminderWindow, $lte: reminderCutoff },
-    $or: [
-      { 'renewal.lastReminderAt': null },
-      { 'renewal.lastReminderAt': { $exists: false } },
-      { 'renewal.lastReminderAt': { $lt: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } },
-    ],
-  }).limit(50);
-
-  for (const domainDoc of renewals) {
-    const merchant = await User.findById(domainDoc.merchant);
-    if (!merchant?.email) continue;
-    const expiry = domainDoc.registration?.expiryDate;
-    await notifyMerchant(
-      merchant,
-      `Renewal reminder for ${domainDoc.domain}`,
-      domainEmailShell(
-        'Your domain renews soon',
-        `<p><strong>${escapeHtml(domainDoc.domain)}</strong> is registered until <strong>${expiry ? new Date(expiry).toDateString() : 'soon'}</strong>.</p>
-         <p>Renew from your Nile Booking dashboard to keep the domain and storefront online. Renewal is paid by you; it is not included in the Premium plan.</p>`
-      ),
-      'Domain Renewal Reminder'
-    );
-    domainDoc.renewal = {
-      ...plain(domainDoc.renewal),
-      lastReminderAt: new Date(),
-    };
-    await domainDoc.save();
-    result.remindersSent += 1;
-  }
-
+  // Expiry reminders are a dedicated daily job so the seven-day message is
+  // independent of the more frequent hosting/reconciliation maintenance run.
   return result;
 };
 

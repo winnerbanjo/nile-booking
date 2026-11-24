@@ -9,6 +9,7 @@ import {
   refreshDomain,
   resolvePublicTenant,
   retryDomain,
+  runDomainExpiryReminders,
   runDomainMaintenance,
   serializeMerchantDomain,
   suggestDomains,
@@ -221,6 +222,15 @@ export const getPublicTenant = async (req, res) => {
 export const runDomainCron = async (req, res) => {
   try {
     const result = await runDomainMaintenance();
+    res.json({ success: true, ...result });
+  } catch (error) {
+    fail(res, error);
+  }
+};
+
+export const runDomainRenewalReminderCron = async (req, res) => {
+  try {
+    const result = await runDomainExpiryReminders();
     res.json({ success: true, ...result });
   } catch (error) {
     fail(res, error);

@@ -15,6 +15,7 @@ import {
   renewDomainNow,
   retryDomainSetup,
   runDomainCron,
+  runDomainRenewalReminderCron,
   verifyDomainOwnership,
   verifyRenewalPayment,
 } from '../controllers/domainController.js';
@@ -43,6 +44,9 @@ const renewLimit = rateLimit({
 });
 
 router.post('/cron/maintenance', requireCronSecret, runDomainCron);
+// Vercel Cron issues GET requests; POST remains available for manual runs.
+router.get('/cron/renewal-reminders', requireCronSecret, runDomainRenewalReminderCron);
+router.post('/cron/renewal-reminders', requireCronSecret, runDomainRenewalReminderCron);
 
 // Emergency kill switch. Registration and renewal remain off until explicitly
 // re-enabled, while the cron endpoint above can still reconcile existing rows.

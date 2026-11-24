@@ -24,7 +24,7 @@ CLIENT_URL=https://app.nilebooking.co
 
 `JWT_SECRET` already existed, but the branch now rejects missing or short values instead of using a fallback. If the current value is shorter than 32 characters or was ever a known/public fallback, replace it with a new random value. Changing it invalidates existing login tokens. `ADMIN_MASTER_KEY` is newly mandatory and must be at least 24 characters. Changing it invalidates admin portal access.
 
-`CRON_SECRET` protects the Vercel scheduled endpoints (`/api/availability/sweep`, `/api/notifications/reminders/check`, and `/api/domains/cron/maintenance`). Set it in the same Vercel project/environment as the deployed backend so Vercel Cron can send it as a Bearer token. Without it, cron-protected routes fail closed.
+`CRON_SECRET` protects the Vercel scheduled endpoints (`/api/availability/sweep`, `/api/notifications/reminders/check`, `/api/domains/cron/maintenance`, and the daily `/api/domains/cron/renewal-reminders` job). Set it in the same Vercel project/environment as the deployed backend so Vercel Cron can send it as a Bearer token. Without it, cron-protected routes fail closed.
 
 `CORS_ORIGINS` must contain every actual browser-facing frontend origin, comma-separated, without trailing slashes. Include both app and public-site origins only if both call the API from the browser. Incorrect or missing origins cause browser API calls to be rejected by CORS.
 

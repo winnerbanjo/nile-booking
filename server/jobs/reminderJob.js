@@ -10,6 +10,7 @@
 
 import cron from 'node-cron';
 import { scheduleReminders, retryFailedNotifications } from '../services/notificationService.js';
+import { runDomainExpiryReminders } from '../services/domain/domainService.js';
 
 /**
  * Run reminder check every hour
@@ -28,7 +29,19 @@ export const startReminderJob = () => {
     }
   });
 
-  console.log('✅ Reminder job started. Checking every hour for 24-hour reminders.');
+  // One daily pass for domains entering their final seven days. The service
+  // claims each domain atomically so an overlapping run cannot resend.
+  cron.schedule('0 8 * * *', async () => {
+    console.log('\n⏰ Running domain expiry reminder check...');
+    try {
+      const result = await runDomainExpiryReminders();
+      console.log(`✅ Domain expiry reminder check completed. Sent ${result.sent || 0}, failed ${result.failed || 0}.`);
+    } catch (error) {
+      console.error('❌ Domain expiry reminder job error:', error);
+    }
+  }, { timezone: 'UTC' });
+
+  console.log('✅ Reminder job started. Checking every hour for 24-hour reminders and daily for domain expiry reminders.');
 };
 
 /**
