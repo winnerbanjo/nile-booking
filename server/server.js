@@ -3,13 +3,29 @@ import { connectDB } from './config/db.js';
 import User from './models/User.js';
 import Service from './models/Service.js';
 import Booking from './models/Booking.js';
+import { validateRequiredSecrets } from './config/secrets.js';
 
 const PORT = Number(process.env.PORT) || 5050;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const ENABLE_DEMO_SEEDING = process.env.ENABLE_DEMO_SEEDING === 'true';
-const PURGE_DEMO_DATA = process.env.PURGE_DEMO_DATA
-  ? process.env.PURGE_DEMO_DATA === 'true'
-  : IS_PRODUCTION;
+// Never purge by default. Production refuses the flag entirely.
+const PURGE_DEMO_DATA = process.env.PURGE_DEMO_DATA === 'true';
+
+if (IS_PRODUCTION && PURGE_DEMO_DATA) {
+  console.error('Refusing to start: PURGE_DEMO_DATA is not permitted in production.');
+  process.exit(1);
+}
+if (IS_PRODUCTION && ENABLE_DEMO_SEEDING) {
+  console.error('Refusing to start: ENABLE_DEMO_SEEDING is not permitted in production.');
+  process.exit(1);
+}
+
+try {
+  validateRequiredSecrets();
+} catch (error) {
+  console.error(`Refusing to start: ${error.message}`);
+  process.exit(1);
+}
 
 const purgeDemoData = async () => {
   const demoEmails = ['barber@nile.ng', 'admin@nile.ng'];
@@ -59,9 +75,15 @@ const startServer = async () => {
     console.log(`
   🚀 NILE ENGINE LIVE ON PORT ${PORT}
   🎨 LOGO: River N (Green)
-  🏦 BANK: Providus | 8123843076
   `);
   });
+
+  // Vercel Cron is the production scheduler. This in-process fallback is only
+  // for a long-lived host and must be opted into explicitly.
+  if (process.env.ENABLE_IN_PROCESS_CRON === 'true') {
+    const { startReminderJob } = await import('./jobs/reminderJob.js');
+    startReminderJob();
+  }
 };
 
 startServer();

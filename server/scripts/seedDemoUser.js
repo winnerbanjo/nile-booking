@@ -14,6 +14,12 @@ export const seedDemoUser = async () => {
     const existingUser = await User.findOne({ email: demoEmail });
     
     if (existingUser) {
+      if (existingUser.plan !== 'premium') {
+        existingUser.plan = 'premium';
+        existingUser.planStatus = 'active';
+        existingUser.planExpiresAt = undefined;
+        await existingUser.save();
+      }
       console.log('✅ Demo user already exists:', demoEmail);
       return existingUser;
     }
@@ -24,6 +30,8 @@ export const seedDemoUser = async () => {
       email: demoEmail,
       password: 'password123',
       role: 'provider',
+      plan: 'premium',
+      planStatus: 'active',
       businessName: 'The Modern Barber',
       slug: 'the-modern-barber',
       phone: '+234 812 345 6789',

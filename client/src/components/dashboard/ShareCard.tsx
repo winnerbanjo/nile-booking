@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAuth } from '../../contexts/AuthContext';
+import { authApi } from '../../lib/api';
 import { motion } from 'framer-motion';
 import { NileLogo } from '../ui/NileLogo';
 import * as html2canvas from 'html2canvas';
@@ -70,6 +71,12 @@ export const ShareCard: React.FC<ShareCardProps> = ({ industry = 'barber' }) => 
         link.click();
         document.body.removeChild(link);
         console.log('Download initiated successfully');
+
+        try {
+          await authApi.updateOnboarding({ websiteShared: true });
+        } catch {
+          // The flyer downloaded successfully; progress tracking is best-effort.
+        }
       } catch (captureError: any) {
         // Log specific CSS property issues
         console.error('Capture failed - checking CSS properties...');

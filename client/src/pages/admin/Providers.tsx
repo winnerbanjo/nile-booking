@@ -16,6 +16,31 @@ export const Providers: React.FC = () => {
     queryFn: () => adminApi.getProviders(),
   });
 
+  const updatePlanMutation = useMutation({
+    mutationFn: ({ id, plan }: { id: string; plan: string }) =>
+      adminApi.updateProviderPlan(id, { plan, planStatus: 'active' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminProviders'] });
+    },
+    onError: (error) => {
+      console.error('Failed to update provider plan:', error);
+      alert('Failed to update plan');
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => adminApi.updateProviderStatus(id, status),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['adminProviders'] });
+      alert(`Provider status changed to ${variables.status}`);
+      setSelectedProvider(null);
+    },
+    onError: (error) => {
+      console.error('Failed to update provider status:', error);
+      alert('Failed to update status');
+    }
+  });
+
   if (isError) {
     return (
       <AdminLocalErrorState
@@ -28,19 +53,6 @@ export const Providers: React.FC = () => {
 
   const normalised = normaliseApiResponse(data, 'providers');
   const providers = normalised.data;
-
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) => adminApi.updateProviderStatus(id, status),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['adminProviders'] });
-      alert(`Provider status changed to ${variables.status}`);
-      setSelectedProvider(null);
-    },
-    onError: (error) => {
-      console.error('Failed to update provider status:', error);
-      alert('Failed to update status');
-    }
-  });
 
   const handleUpdateStatus = (providerId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
@@ -113,6 +125,7 @@ export const Providers: React.FC = () => {
                 <th className="px-6 py-4">Location</th>
                 <th className="px-6 py-4">Performance</th>
                 <th className="px-6 py-4">Revenue</th>
+                <th className="px-6 py-4">Plan</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4"></th>
               </tr>
@@ -120,14 +133,14 @@ export const Providers: React.FC = () => {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     <Loader2 className="w-8 h-8 text-emerald-500 animate-spin mx-auto mb-2" />
                     <p>Loading providers...</p>
                   </td>
                 </tr>
               ) : filteredProviders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     <Store className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                     <p className="text-sm font-semibold text-gray-900">No providers found.</p>
                     <p className="text-xs text-gray-500 mt-0.5">Registered providers will appear here.</p>
@@ -161,6 +174,22 @@ export const Providers: React.FC = () => {
                   </td>
                   <td className="px-6 py-4">
                     <p className="font-bold text-emerald-600">₦{(provider?.totalRevenue || 0).toLocaleString()}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <select
+                      value={provider?.plan || 'none'}
+                      onChange={(event) =>
+                        updatePlanMutation.mutate({ id: provider._id, plan: event.target.value })
+                      }
+                      disabled={updatePlanMutation.isPending}
+                      className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 focus:border-emerald-500 focus:outline-none"
+                      aria-label={`Plan for ${provider?.businessName || provider?.name || 'provider'}`}
+                    >
+                      <option value="none">None</option>
+                      <option value="starter">Starter</option>
+                      <option value="growth">Growth</option>
+                      <option value="premium">Premium</option>
+                    </select>
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold ${

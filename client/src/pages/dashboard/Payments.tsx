@@ -10,6 +10,8 @@ import { format } from 'date-fns';
 import { safeDate } from '../../lib/utils';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MetricCardSkeleton, TableSkeleton } from '../../components/ui/SkeletonLoader';
+import { Input } from '../../components/ui/input';
+import { useAuth } from '../../contexts/AuthContext';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -45,12 +47,17 @@ const glassCardClass = "bg-white/40 backdrop-blur-xl border border-white/40 roun
 
 export const Payments: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const bankAccount = user?.bankAccount;
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedTransactionForRefund, setSelectedTransactionForRefund] = useState<any>(null);
   const [refundAmount, setRefundAmount] = useState<number>(0);
   const [refundReason, setRefundReason] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [verifyTransaction, setVerifyTransaction] = useState<any>(null);
+  const [verifyAmount, setVerifyAmount] = useState('');
+  const [verifyOverride, setVerifyOverride] = useState('');
 
   const { data: statsData, isLoading: isStatsLoading, isError: isStatsError, refetch: refetchStats } = useQuery({
     queryKey: queryKeys.merchant.dashboard, // or a specific stats key if it existed, but we'll use a new one
@@ -76,11 +83,21 @@ export const Payments: React.FC = () => {
   const isError = isStatsError || isTxError;
 
   const verifyMutation = useMutation({
-    mutationFn: (id: string) => paymentApi.verifyManualTransaction(id),
-    onSuccess: () => {
+    mutationFn: (id: string) =>
+      paymentApi.verifyManualTransaction(id, {
+        amountReceived: Number(verifyAmount),
+        overrideReason: verifyOverride.trim() || undefined,
+      }),
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['merchant', 'transactions'] });
+      setVerifyTransaction(null);
+      if (response.confirmationEmail?.status === 'failed') {
+        alert(`Payment verified, but the confirmation email failed: ${response.confirmationEmail.error || 'unknown error'}`);
+      } else {
+        alert('Payment verified and booking confirmed');
+      }
     },
-    onError: () => alert('Failed to verify receipt')
+    onError: (error: any) => alert(error.message || 'Failed to verify payment')
   });
 
   const refundMutation = useMutation({
@@ -94,13 +111,21 @@ export const Payments: React.FC = () => {
   });
 
   const handleCopyAccountNumber = () => {
-    navigator.clipboard.writeText('8123843076');
+    if (!bankAccount?.accountNumber) return;
+    navigator.clipboard.writeText(bankAccount.accountNumber);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleVerifyReceipt = (transactionId: string) => {
-    verifyMutation.mutate(transactionId);
+  const handleVerifyReceipt = (transaction: any) => {
+    setVerifyTransaction(transaction);
+    setVerifyAmount(String(transaction.amount ?? ''));
+    setVerifyOverride('');
+  };
+
+  const submitVerification = () => {
+    if (!verifyTransaction) return;
+    verifyMutation.mutate(verifyTransaction._id);
   };
 
   const openRefundModal = (transaction: any) => {
@@ -212,40 +237,49 @@ export const Payments: React.FC = () => {
               </div>
               <div className="mb-6">
                 <p className="text-sm text-white/60 mb-2 font-light">Account Number</p>
-                <div className="flex items-center gap-3">
-                  <p className="text-2xl font-black text-white tracking-tighter font-mono" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                    8123843076
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={handleCopyAccountNumber}
-                    className="rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/30 h-auto py-1 px-3"
-                  >
-                    {copied ? (
-                      <>
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3 h-3 mr-1" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
-                </div>
+                {bankAccount?.accountNumber ? (
+                  <div className="flex items-center gap-3">
+                    <p className="text-2xl font-black text-white tracking-tighter font-mono" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
+                      {bankAccount.accountNumber}
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={handleCopyAccountNumber}
+                      className="rounded-full bg-white/20 hover:bg-white/30 text-white border border-white/30 h-auto py-1 px-3"
+                    >
+                      {copied ? (
+                        <>
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3 mr-1" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-white/70">No payout account configured</p>
+                    <a href="/dashboard/financial" className="text-xs text-emerald-400 underline">
+                      Add bank details in Financial settings
+                    </a>
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-white/60 mb-1 font-light">Bank Name</p>
                   <p className="text-lg font-black text-white tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                    Providus Bank
+                    {bankAccount?.bankName || 'Not configured'}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-white/60 mb-1 font-light">Account Type</p>
-                  <p className="text-lg font-black text-white tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-                    Business
+                  <p className="text-xs text-white/60 mb-1 font-light">Account Name</p>
+                  <p className="text-sm font-bold text-white tracking-tight">
+                    {bankAccount?.accountName || user?.businessName || 'Not configured'}
                   </p>
                 </div>
               </div>
@@ -425,7 +459,7 @@ export const Payments: React.FC = () => {
                           <div className="flex flex-col items-center gap-2">
                             {booking.paymentStatus === 'awaiting_verification' ? (
                               <Button
-                                onClick={() => handleVerifyReceipt(transaction._id)}
+                                onClick={() => handleVerifyReceipt(transaction)}
                                 size="sm"
                                 className="bg-[#22c55e] hover:bg-green-600 text-white text-xs px-3 py-1 h-auto"
                               >
@@ -445,7 +479,7 @@ export const Payments: React.FC = () => {
                                 variant="outline"
                                 className="text-red-500 border-red-200 hover:bg-red-50 text-xs px-3 py-1 h-auto w-full max-w-[120px]"
                               >
-                                Mark Refunded
+                                Record Refund
                               </Button>
                             )}
                           </div>
@@ -510,7 +544,7 @@ export const Payments: React.FC = () => {
                             {format(safeDate(transaction.createdAt) || new Date(), 'MMM d, yyyy')}
                         {booking.paymentStatus === 'awaiting_verification' && (
                           <Button
-                            onClick={() => handleVerifyReceipt(transaction._id)}
+                            onClick={() => handleVerifyReceipt(transaction)}
                             size="sm"
                             className="w-full mt-3 bg-[#22c55e] hover:bg-green-600 text-white text-xs h-auto py-2"
                           >
@@ -525,7 +559,7 @@ export const Payments: React.FC = () => {
                             variant="outline"
                             className="w-full mt-1 text-red-500 border-red-200 hover:bg-red-50 text-xs h-auto py-2"
                           >
-                            Mark as Refunded
+                            Record Refund
                           </Button>
                         )}
                       </div>
@@ -666,6 +700,65 @@ export const Payments: React.FC = () => {
         </AnimatePresence>
       </motion.div>
 
+      {/* Verify Payment Modal */}
+      <AnimatePresence>
+        {verifyTransaction && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 space-y-4">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-1">Verify Payment</h3>
+                  <p className="text-sm text-gray-600">
+                    {verifyTransaction.customerEmail || 'Customer'} · expected ₦{Number(verifyTransaction.amount || 0).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount received (₦)</label>
+                  <Input
+                    type="number"
+                    value={verifyAmount}
+                    onChange={(e) => setVerifyAmount(e.target.value)}
+                    className="h-10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reason for partial payment (required if the amount differs)
+                  </label>
+                  <Input
+                    value={verifyOverride}
+                    onChange={(e) => setVerifyOverride(e.target.value)}
+                    placeholder="e.g. Customer paid a deposit"
+                    className="h-10"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button
+                    onClick={() => setVerifyTransaction(null)}
+                    variant="outline"
+                    className="border-gray-200 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={submitVerification}
+                    disabled={verifyMutation.isPending || !verifyAmount}
+                    className="bg-[#22c55e] hover:bg-green-600 text-white"
+                  >
+                    Confirm Receipt
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Refund Modal */}
       <AnimatePresence>
         {showRefundModal && selectedTransactionForRefund && (
@@ -677,9 +770,10 @@ export const Payments: React.FC = () => {
               className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
             >
               <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Mark as Refunded</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Record Refund (bookkeeping)</h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  Record a manual refund for {selectedTransactionForRefund.customerEmail || 'Customer'}'s transaction of ₦{selectedTransactionForRefund.amount?.toLocaleString()}.
+                  Record a refund for {selectedTransactionForRefund.customerEmail || 'Customer'}'s transaction of ₦{selectedTransactionForRefund.amount?.toLocaleString()}.
+                  This does not move money or change the booking or slot.
                 </p>
 
                 <div className="space-y-4">
@@ -725,7 +819,7 @@ export const Payments: React.FC = () => {
                     className="bg-red-500 hover:bg-red-600 text-white"
                     disabled={!refundAmount || refundAmount <= 0 || refundAmount > selectedTransactionForRefund.amount}
                   >
-                    Confirm Refund
+                    Record Refund
                   </Button>
                 </div>
               </div>

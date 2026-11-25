@@ -60,26 +60,14 @@ export const Contact: React.FC = () => {
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-[#22c55e] flex-shrink-0" />
-                <a href="tel:+2348123843076" className="text-base text-gray-600 hover:text-gray-900 font-light transition-colors">
-                  +234 812 384 3076
+                <a href="mailto:hello@nile.ng" className="text-base text-gray-600 hover:text-gray-900 font-light transition-colors">
+                  hello@nile.ng
                 </a>
               </div>
             </div>
           </motion.div>
 
-          <motion.div variants={fadeInUp} className={`${glassCardClass} p-8`}>
-            <h2 className="text-2xl font-black text-gray-900 mb-6 tracking-tighter" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif', fontWeight: 900 }}>
-              USA HQ
-            </h2>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-[#22c55e] mt-0.5 flex-shrink-0" />
-                <span className="text-base text-gray-600 font-light leading-relaxed">
-                  NILE TECHNOLOGIES INC<br />30 N Gould St Ste R<br />Sheridan, WY 82801, USA
-                </span>
-              </div>
-            </div>
-          </motion.div>
+
         </div>
 
         <motion.div variants={fadeInUp} className={`${glassCardClass} p-8 mt-8`}>

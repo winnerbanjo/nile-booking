@@ -14,7 +14,9 @@ export const AdminLogin: React.FC = () => {
     setLoading(true);
     try {
       await authApi.adminLogin(password);
-      localStorage.setItem('nile_admin_auth', 'true');
+      // Remove the legacy client-only gate; the server role from /auth/me is
+      // now the only admin authorization signal.
+      localStorage.removeItem('nile_admin_auth');
       window.location.href = '/admin/dashboard';
     } catch (err: any) {
       setError(err.message || 'Invalid master key or authentication failed.');

@@ -1,15 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { serviceApi, scheduleApi, bookingApi, reviewApi } from '../lib/api';
+import { serviceApi, scheduleApi, bookingApi, reviewApi, availabilityApi } from '../lib/api';
 import { Calendar } from '../components/ui/calendar';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import type { ProviderWithServices, Schedule, Service } from '../types';
-import { addDays, startOfDay, getDay, format } from 'date-fns';
+import type { ProviderWithServices, Schedule, Service, ProviderAvailability, AvailabilitySlot } from '../types';
+import { format } from 'date-fns';
 import { Star, Clock, MapPin, CheckCircle2, X, Calendar as CalendarIcon, ChevronRight, Upload, Building2, Instagram, Phone, Twitter, Facebook, Shield, FileText, RotateCcw } from 'lucide-react';
 
-const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const createIdempotencyKey = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `bk_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+};
+
+const dateFromKey = (key: string) => {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 const DEFAULT_HEADER_BANNER = 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=1600&h=600&fit=crop';
 
 const BANK_NAMES: Record<string, string> = {
@@ -69,8 +80,15 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const [schedule, setSchedule] = useState<Schedule | null>(null);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlot | null>(null);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<AvailabilitySlot[]>([]);
+  const [availability, setAvailability] = useState<ProviderAvailability | null>(null);
+  const availabilityRequestRef = useRef(0);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [slotNotice, setSlotNotice] = useState<string | null>(null);
+  const [alternatives, setAlternatives] = useState<AvailabilitySlot[]>([]);
+  const [idempotencyKey, setIdempotencyKey] = useState(createIdempotencyKey);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
@@ -78,6 +96,12 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   const [checkoutPaymentType, setCheckoutPaymentType] = useState<'bank_transfer' | 'pay_later'>('bank_transfer');
   const [submitting, setSubmitting] = useState(false);
   const [submitProgress, setSubmitProgress] = useState(0);
+  const [bookingSuccess, setBookingSuccess] = useState<{
+    reference: string;
+    portalUrl: string;
+    whatsappLink: string;
+    receiptError?: string;
+  } | null>(null);
 
   const [checkoutData, setCheckoutData] = useState({
     customer: { name: '', email: '', phone: '' },
@@ -120,11 +144,70 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     return () => clearInterval(timer);
   }, [data]);
 
+  // Calendar availability comes from the server — never computed in the browser.
   useEffect(() => {
-    if (selectedDate && selectedService && schedule) {
-      calculateAvailableSlots();
+    if (!slug || !selectedService) {
+      availabilityRequestRef.current += 1;
+      setAvailability(null);
+      setAvailableTimeSlots([]);
+      return;
     }
-  }, [selectedDate, selectedService, schedule]);
+    let active = true;
+    const requestId = ++availabilityRequestRef.current;
+    setAvailabilityLoading(true);
+    setAvailabilityError(null);
+    availabilityApi
+      .getProviderAvailability({ slug, service: selectedService._id })
+      .then((result) => {
+        if (!active || requestId !== availabilityRequestRef.current) return;
+        setAvailability(result);
+        setAvailableTimeSlots(result.slots);
+      })
+      .catch((error) => {
+        if (!active || requestId !== availabilityRequestRef.current) return;
+        setAvailability(null);
+        setAvailableTimeSlots([]);
+        setAvailabilityError(error.message || 'Could not load availability');
+      })
+      .finally(() => {
+        if (active && requestId === availabilityRequestRef.current) setAvailabilityLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [slug, selectedService]);
+
+  // Slots for the chosen date (server recomputes on every date change).
+  useEffect(() => {
+    if (!selectedDate || !selectedService || !slug) {
+      // Do not invalidate the service-level calendar request when no date is
+      // selected yet; only a real date request should supersede it.
+      setAvailableTimeSlots([]);
+      return;
+    }
+    let active = true;
+    const requestId = ++availabilityRequestRef.current;
+    setAvailabilityLoading(true);
+    setAvailabilityError(null);
+    availabilityApi
+      .getProviderAvailability({ slug, service: selectedService._id, date: format(selectedDate, 'yyyy-MM-dd') })
+      .then((result) => {
+        if (!active || requestId !== availabilityRequestRef.current) return;
+        setAvailability(result);
+        setAvailableTimeSlots(result.slots);
+      })
+      .catch((error) => {
+        if (!active || requestId !== availabilityRequestRef.current) return;
+        setAvailableTimeSlots([]);
+        setAvailabilityError(error.message || 'Could not load availability');
+      })
+      .finally(() => {
+        if (active && requestId === availabilityRequestRef.current) setAvailabilityLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [selectedDate, selectedService, slug]);
 
   const loadData = async () => {
     if (!slug) return;
@@ -181,64 +264,44 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
   };
 
 
-  const calculateAvailableSlots = () => {
-    if (!selectedDate || !selectedService || !schedule) return;
-
-    const dayOfWeek = DAY_NAMES[getDay(selectedDate)];
-    const daySchedule = schedule.weeklySchedule[dayOfWeek as keyof typeof schedule.weeklySchedule];
-
-    if (!daySchedule || !daySchedule.enabled || daySchedule.timeSlots.length === 0) {
-      setAvailableTimeSlots([]);
-      return;
-    }
-
-    const slots: string[] = [];
-    const bufferMinutes = schedule.bufferTime || 15;
-    const serviceDurationMinutes = selectedService.duration * 60;
-
-    daySchedule.timeSlots.forEach((slot) => {
-      const [startHour, startMin] = slot.startTime.split(':').map(Number);
-      const [endHour, endMin] = slot.endTime.split(':').map(Number);
-
-      const startTime = new Date(selectedDate);
-      startTime.setHours(startHour, startMin, 0, 0);
-
-      const endTime = new Date(selectedDate);
-      endTime.setHours(endHour, endMin, 0, 0);
-
-      let currentTime = new Date(startTime);
-      while (currentTime.getTime() + serviceDurationMinutes * 60000 <= endTime.getTime()) {
-        slots.push(format(currentTime, 'HH:mm'));
-        currentTime = new Date(currentTime.getTime() + (serviceDurationMinutes + bufferMinutes) * 60000);
-      }
-    });
-
-    setAvailableTimeSlots(slots);
+  const getAvailableDates = (): Date[] => {
+    if (!availability) return [];
+    return availability.days.filter((day) => day.available).map((day) => dateFromKey(day.date));
   };
 
-  const getAvailableDates = (): Date[] => {
-    if (!schedule) return [];
-    const dates: Date[] = [];
-    const today = startOfDay(new Date());
-
-    for (let i = 0; i < 60; i++) {
-      const date = addDays(today, i);
-      const dayOfWeek = DAY_NAMES[getDay(date)];
-      const daySchedule = schedule.weeklySchedule[dayOfWeek as keyof typeof schedule.weeklySchedule];
-
-      if (daySchedule && daySchedule.enabled && daySchedule.timeSlots.length > 0) {
-        dates.push(date);
-      }
+  const refreshAvailability = async (forDate?: Date) => {
+    if (!slug || !selectedService) return;
+    try {
+      const result = await availabilityApi.getProviderAvailability({
+        slug,
+        service: selectedService._id,
+        date: forDate ? format(forDate, 'yyyy-MM-dd') : undefined,
+      });
+      setAvailability(result);
+      if (forDate) setAvailableTimeSlots(result.slots);
+    } catch {
+      // A failed refresh must not erase the calendar silently.
     }
+  };
 
-    return dates;
+  const selectSlot = (slot: AvailabilitySlot) => {
+    setSelectedSlot(slot);
+    setSlotNotice(null);
+    setIdempotencyKey(createIdempotencyKey());
+  };
+
+  const handleAlternativeSelect = (slot: AvailabilitySlot) => {
+    const nextDate = dateFromKey(slot.date);
+    setSelectedDate(nextDate);
+    selectSlot(slot);
+    setAlternatives([]);
   };
 
   const handleReceiptUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!['image/jpeg', 'image/png', 'application/pdf'].includes(file.type)) {
-        alert('Invalid file format. Please upload a JPG, PNG, or PDF.');
+      if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) {
+        alert('Invalid file format. Please upload a JPG, PNG, WebP, or PDF.');
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
@@ -254,31 +317,49 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     }
   };
 
+  const hasBankDetails = Boolean(
+    data?.provider?.bankAccount?.accountNumber && data?.provider?.bankAccount?.accountName
+  );
+  const transferEnabled = Boolean(data?.provider) && data.provider.paymentMethods?.transfer !== false && hasBankDetails;
+  const cashEnabled = Boolean(data?.provider) && data.provider.paymentMethods?.cash !== false;
+  const noPaymentMethod = Boolean(data?.provider) && !transferEnabled && !cashEnabled;
+
+  useEffect(() => {
+    if (!data) return;
+    if (!transferEnabled && cashEnabled) setCheckoutPaymentType('pay_later');
+    if (transferEnabled && !cashEnabled) setCheckoutPaymentType('bank_transfer');
+  }, [data, transferEnabled, cashEnabled]);
+
   const handleServiceSelect = (service: Service) => {
     setSelectedService(service);
     setSelectedDate(undefined);
-    setSelectedTime(null);
+    setSelectedSlot(null);
+    setSlotNotice(null);
+    setAlternatives([]);
     setShowDatePicker(true);
   };
 
   const handleProceedToCheckout = () => {
-    if (selectedService && selectedDate && selectedTime) {
+    if (noPaymentMethod) {
+      alert('This business has not enabled an online payment method yet. Please contact them to book.');
+      return;
+    }
+    if (selectedService && selectedDate && selectedSlot) {
       setShowCheckout(true);
       setShowDatePicker(false);
-      if (data?.provider?.paymentMethods) {
-        if (data.provider.paymentMethods.transfer === false && data.provider.paymentMethods.cash !== false) {
-          setCheckoutPaymentType('pay_later');
-        } else {
-          setCheckoutPaymentType('bank_transfer');
-        }
-      }
+      if (!transferEnabled && cashEnabled) setCheckoutPaymentType('pay_later');
+      if (transferEnabled && !cashEnabled) setCheckoutPaymentType('bank_transfer');
     }
   };
 
   const handleCheckoutSubmit = async () => {
-    if (!selectedService || !selectedDate || !selectedTime) return;
+    if (!selectedService || !selectedDate || !selectedSlot) return;
     if (!checkoutData.customer.name || !checkoutData.customer.phone) {
       alert('Please enter your name and WhatsApp phone number');
+      return;
+    }
+    if (noPaymentMethod) {
+      alert('This business has not enabled a payment method yet. Please contact them to book.');
       return;
     }
     if (submitting) return;
@@ -286,42 +367,69 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
     setSubmitProgress(20);
 
     try {
-      const [startHour, startMin] = selectedTime.split(':').map(Number);
-      const startDate = new Date(selectedDate);
-      startDate.setHours(startHour, startMin, 0, 0);
-      const endDate = new Date(startDate.getTime() + selectedService.duration * 60 * 60 * 1000);
-      const endTime = format(endDate, 'HH:mm');
-
       setSubmitProgress(50);
 
-      const response = await bookingApi.createBooking({
-        customer: checkoutData.customer,
-        serviceId: selectedService._id,
-        providerSlug: slug || undefined,
-        date: selectedDate.toISOString(),
-        timeSlot: { startTime: selectedTime, endTime },
-        paymentType: checkoutPaymentType,
-        receiptImage: receiptImage || undefined,
-        notes: checkoutData.notes,
-      });
+      const response = await bookingApi.createBooking(
+        {
+          customer: checkoutData.customer,
+          serviceId: selectedService._id,
+          providerSlug: slug || undefined,
+          startAt: selectedSlot.start,
+          paymentType: checkoutPaymentType,
+          receiptImage: receiptImage || undefined,
+          notes: checkoutData.notes,
+        },
+        idempotencyKey
+      );
 
       setSubmitProgress(90);
 
       const whatsappMessage = encodeURIComponent(
-        `Hello ${data?.provider.businessName}! I've submitted a booking for ${selectedService.name} on ${format(selectedDate, 'MMMM d, yyyy')} at ${selectedTime}. Booking #${response.booking.bookingNumber}`
+        `Hello ${data?.provider.businessName}! I've submitted a booking for ${selectedService.name} on ${format(selectedDate, 'MMMM d, yyyy')} at ${selectedSlot.localStart} (${availability?.timezone || ''}). Booking #${response.booking.bookingNumber}`
       );
       const whatsappLink = `https://wa.me/${data?.provider.phone?.replace(/\D/g, '')}?text=${whatsappMessage}`;
+
+      const portalUrl = response.portalUrl
+        || (response.booking.publicToken
+          ? `${window.location.origin}/bookings/${response.booking.publicToken}`
+          : `${window.location.origin}/`);
 
       setSubmitProgress(100);
       setTimeout(() => {
         setSubmitting(false);
         setSubmitProgress(0);
         setShowCheckout(false);
-        window.open(whatsappLink, '_blank');
+        setSelectedSlot(null);
+        setIdempotencyKey(createIdempotencyKey());
+        setBookingSuccess({
+          reference: response.booking.bookingNumber,
+          portalUrl,
+          whatsappLink,
+          receiptError: response.receiptUpload?.status === 'failed' ? response.receiptUpload.error : undefined,
+        });
       }, 400);
     } catch (error: any) {
       setSubmitting(false);
       setSubmitProgress(0);
+
+      const isSlotConflict =
+        error?.status === 409 ||
+        error?.code === 'SLOT_UNAVAILABLE' ||
+        error?.code === 'SLOT_NOT_AVAILABLE' ||
+        error?.code === 'INVALID_START';
+
+      if (isSlotConflict) {
+        // The slot is gone: send the customer back to a freshly refreshed picker.
+        setShowCheckout(false);
+        setSelectedSlot(null);
+        setSlotNotice(error.message || 'That time is no longer available. Please pick another slot.');
+        setAlternatives(Array.isArray(error.details?.alternatives) ? error.details.alternatives : []);
+        setShowDatePicker(true);
+        setIdempotencyKey(createIdempotencyKey());
+        await refreshAvailability(selectedDate);
+        return;
+      }
+
       alert('Failed to create booking: ' + (error.message || 'Unknown error'));
     }
   };
@@ -845,51 +953,98 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               </button>
             </div>
 
+            {availability && (
+              <p className="text-[11px] text-zinc-500 flex items-center gap-1.5 -mt-1">
+                <Clock className="w-3 h-3" />
+                Times shown in {availability.timezoneLabel}
+              </p>
+            )}
+
+            {slotNotice && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 leading-relaxed">
+                {slotNotice}
+                {alternatives.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {alternatives.slice(0, 3).map((slot) => (
+                      <button
+                        key={slot.start}
+                        type="button"
+                        onClick={() => handleAlternativeSelect(slot)}
+                        className="px-2 py-1 rounded-md border border-amber-300 bg-white text-[11px] font-medium text-amber-900 hover:bg-amber-100"
+                      >
+                        {slot.date} at {slot.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {availabilityError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                {availabilityError}{' '}
+                <button type="button" className="underline font-medium" onClick={() => refreshAvailability(selectedDate)}>
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {availability && !availability.hasAvailability && (
+              <p className="text-xs text-zinc-500 text-center py-2">
+                No availability in the next {availability.horizonDays} days. Please contact the provider directly.
+              </p>
+            )}
+
             {/* Calendar */}
             <div className="border border-zinc-200/80 rounded-xl p-3 bg-zinc-50/40">
               <Calendar
                 selected={selectedDate}
                 onSelect={(date) => {
                   setSelectedDate(date);
-                  if (date) setSelectedTime(null);
+                  setSelectedSlot(null);
+                  setSlotNotice(null);
                 }}
                 availableDates={getAvailableDates()}
               />
             </div>
 
             {/* Time Slots */}
-            {selectedDate && availableTimeSlots.length > 0 && (
+            {selectedDate && availabilityLoading && (
+              <p className="text-xs text-zinc-500 text-center py-3">Checking live availability...</p>
+            )}
+
+            {selectedDate && !availabilityLoading && availableTimeSlots.length > 0 && (
               <div className="space-y-2">
                 <label className="text-xs font-medium text-zinc-700 block">Available Time Slots</label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {availableTimeSlots.map((time) => (
+                  {availableTimeSlots.map((slot) => (
                     <button
-                      key={time}
+                      key={slot.start}
                       type="button"
-                      onClick={() => setSelectedTime(time)}
+                      onClick={() => selectSlot(slot)}
                       className={`h-9 text-xs font-medium rounded-lg border transition-all ${
-                        selectedTime === time
+                        selectedSlot?.start === slot.start
                           ? 'bg-zinc-900 text-white border-zinc-900'
                           : 'bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300'
                       }`}
                     >
-                      {time}
+                      {slot.localStart}
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {selectedDate && availableTimeSlots.length === 0 && (
-              <p className="text-xs text-zinc-500 text-center py-3">No available slots on this date.</p>
+            {selectedDate && !availabilityLoading && availableTimeSlots.length === 0 && (
+              <p className="text-xs text-zinc-500 text-center py-3">No open times on this date. Try another date.</p>
             )}
 
-            {selectedTime && (
+            {selectedSlot && (
               <Button
                 onClick={handleProceedToCheckout}
                 className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-11 text-xs font-medium shadow-sm"
               >
-                Proceed to Checkout
+                Proceed to Checkout · {selectedSlot.localStart}
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             )}
@@ -899,7 +1054,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
       )}
 
       {/* Checkout Modal */}
-      {showCheckout && selectedService && (
+      {showCheckout && selectedService && selectedDate && selectedSlot && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white w-full max-w-lg rounded-t-2xl sm:rounded-2xl border border-zinc-200 p-6 shadow-xl max-h-[90vh] overflow-y-auto space-y-5">
             
@@ -935,8 +1090,9 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               </div>
               <div className="flex justify-between text-zinc-700">
                 <span className="font-normal">Date & Time</span>
-                <span className="font-semibold text-zinc-900">
-                  {selectedDate && format(selectedDate, 'MMM d, yyyy')} at {selectedTime}
+                <span className="font-semibold text-zinc-900 text-right">
+                  {format(selectedDate, 'MMM d, yyyy')} at {selectedSlot.localStart}
+                  <span className="block text-[10px] font-normal text-zinc-500">{availability?.timezoneLabel}</span>
                 </span>
               </div>
               <div className="flex justify-between text-zinc-700 pt-2 border-t border-zinc-200/60 font-bold text-zinc-900 text-sm">
@@ -949,7 +1105,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
             <div className="space-y-2">
               <Label className="text-xs font-medium text-zinc-700 mb-1 block">Payment Method</Label>
               <div className="flex flex-col gap-2 sm:grid sm:grid-cols-2">
-                {(data?.provider?.paymentMethods?.transfer !== false) && (
+                {transferEnabled && (
                   <button
                     type="button"
                     onClick={() => setCheckoutPaymentType('bank_transfer')}
@@ -962,7 +1118,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                     Bank Transfer
                   </button>
                 )}
-                {(data?.provider?.paymentMethods?.cash !== false) && (
+                {cashEnabled && (
                   <button
                     type="button"
                     onClick={() => setCheckoutPaymentType('pay_later')}
@@ -978,8 +1134,20 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               </div>
             </div>
 
+            {!transferEnabled && cashEnabled && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800 leading-relaxed">
+                Online bank transfer is not available for this business yet. Choose Pay in Person or contact the business directly.
+              </div>
+            )}
+
+            {noPaymentMethod && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700 leading-relaxed">
+                This business has not enabled a payment method yet. Please contact the business to book.
+              </div>
+            )}
+
             {/* Bank Settlement Account Box */}
-            {checkoutPaymentType === 'bank_transfer' && (
+            {checkoutPaymentType === 'bank_transfer' && transferEnabled && (
               <div className="bg-zinc-900 text-white rounded-xl p-4 text-xs space-y-2">
                 <div className="flex items-center justify-between text-zinc-400">
                   <span className="flex items-center gap-1 font-medium">
@@ -990,8 +1158,8 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                 </div>
                 <div className="pt-1">
                   <p className="text-sm font-bold text-white">{getBankName(data?.provider?.bankAccount?.bankName)}</p>
-                  <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">{data?.provider?.bankAccount?.accountNumber || '8123843076'}</p>
-                  <p className="text-xs text-zinc-300">{data?.provider?.bankAccount?.accountName || data?.provider?.businessName || 'Nile Technologies Inc'}</p>
+                  <p className="font-mono text-base font-bold text-emerald-400 tracking-wider">{data?.provider?.bankAccount?.accountNumber}</p>
+                  <p className="text-xs text-zinc-300">{data?.provider?.bankAccount?.accountName}</p>
                 </div>
               </div>
             )}
@@ -1043,13 +1211,13 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
                   <div className="flex flex-col gap-2">
                     <input
                       type="file"
-                      accept="image/jpeg, image/png, application/pdf"
+                      accept="image/jpeg,image/png,image/webp,application/pdf"
                       onChange={handleReceiptUpload}
                       className="text-xs text-zinc-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
                     />
                     {!receiptImage && (
                       <p className="text-[10px] text-zinc-500 leading-tight">
-                        You can skip this step and complete your booking now. If you do, please send your receipt to {data.provider.businessName} via WhatsApp or reply to the confirmation email later.
+                        You can skip this step and complete your booking now. Your success screen and confirmation email will include a private booking link where you can upload the receipt later.
                       </p>
                     )}
                     {receiptImage && (
@@ -1065,7 +1233,7 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
              {/* Submit Action */}
             <Button
               onClick={handleCheckoutSubmit}
-              disabled={submitting}
+              disabled={submitting || noPaymentMethod}
               className="w-full bg-zinc-900 text-white hover:bg-zinc-800 rounded-lg h-10 text-xs font-medium shadow-sm flex items-center justify-center gap-2 disabled:opacity-75 disabled:cursor-not-allowed"
             >
               {submitting ? (
@@ -1078,6 +1246,60 @@ export const PublicProvider: React.FC<PublicProviderProps> = ({ slug: propSlug }
               )}
             </Button>
 
+          </div>
+        </div>
+      )}
+
+      {/* Durable booking success screen */}
+      {bookingSuccess && (
+        <div className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl border border-zinc-200 p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle2 className="h-5 w-5" />
+                <h3 className="text-base font-semibold">Booking received</h3>
+              </div>
+              <button
+                onClick={() => setBookingSuccess(null)}
+                className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="rounded-xl bg-zinc-50 border border-zinc-200 p-4 text-xs space-y-1.5">
+              <p className="text-zinc-500">Your booking reference</p>
+              <p className="font-mono text-sm font-bold text-zinc-900 break-all">{bookingSuccess.reference}</p>
+              <p className="text-zinc-500 pt-1">Keep this private link to view payment details, upload a receipt later, or cancel:</p>
+              <a
+                href={bookingSuccess.portalUrl}
+                className="block break-all font-medium text-emerald-700 underline underline-offset-2"
+              >
+                {bookingSuccess.portalUrl}
+              </a>
+            </div>
+
+            {bookingSuccess.receiptError && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+                {bookingSuccess.receiptError}
+              </div>
+            )}
+
+            <a
+              href={bookingSuccess.portalUrl}
+              className="flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800"
+            >
+              View booking page
+            </a>
+            <a
+              href={bookingSuccess.whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
+            >
+              Send booking note on WhatsApp
+            </a>
           </div>
         </div>
       )}

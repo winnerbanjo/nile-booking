@@ -14,7 +14,8 @@ router
   .get(protect, getNotificationPreferences)
   .put(protect, updateNotificationPreferences);
 
-// Reminder check route (for cron jobs)
+// Reminder check route (Vercel Cron uses GET; manual callers may use POST).
+router.get('/reminders/check', checkReminders);
 router.post('/reminders/check', checkReminders);
 
 export default router;

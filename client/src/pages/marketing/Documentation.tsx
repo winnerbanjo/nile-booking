@@ -95,8 +95,8 @@ const DOC_SECTIONS = [
         description: 'Share your [yourname].nilebooking.co link on social media, WhatsApp, business cards, or anywhere you want customers to book appointments.',
       },
       {
-        title: 'Custom Domain (Growth & Empire Plans)',
-        description: 'Upgrade to Growth or Empire plans to connect your own domain (e.g., bookings.yourbusiness.com). We provide DNS configuration instructions.',
+        title: 'Custom Domain (Premium)',
+        description: 'Premium includes one standard custom domain for the first year. Open Dashboard > Domains to register a new domain or connect one you already own; we provide the DNS instructions and handle SSL. Renewals are paid by the merchant.',
       },
     ],
   },

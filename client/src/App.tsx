@@ -1,11 +1,12 @@
-import { lazy, Suspense, Component, ErrorInfo, ReactNode } from 'react';
-import { Routes, Route, Link, Navigate } from 'react-router-dom';
+import { lazy, Suspense, Component, ErrorInfo, ReactNode, useEffect, useState } from 'react';
+import { Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ProtectedAdminRoute } from './components/ProtectedAdminRoute';
 import { DashboardLayout } from './components/layouts/DashboardLayout';
 import { AdminLayout } from './components/admin/AdminLayout';
+import { domainApi } from './lib/api';
 
 // Core routes kept static for instant rendering
 import { Login } from './pages/Login';
@@ -14,6 +15,7 @@ import { VerifyOtp } from './pages/VerifyOtp';
 import { Dashboard } from './pages/Dashboard';
 import { PublicProvider } from './pages/PublicProvider';
 import { Checkout } from './pages/Checkout';
+import { BookingPortal } from './pages/BookingPortal';
 
 // Lazy-loaded Merchant Sub-routes
 export const servicesImport = () => import('./pages/Services').then((m) => ({ default: m.Services }));
@@ -94,17 +96,77 @@ function getMerchantSlug(): string | null {
     return null;
   }
 
+  if (host === 'nilebooking.co' || host === 'www.nilebooking.co') {
+    return null;
+  }
+
   const match = host.match(/^([a-z0-9][a-z0-9-]*)\.nilebooking\.co$/);
-  if (match && match[1] !== 'www' && match[1] !== 'app') {
+  if (match && !['www', 'app', 'api'].includes(match[1])) {
     return match[1];
   }
 
-  if (host !== 'localhost' && !host.includes('.') === false && host.endsWith('.localhost')) {
+  if (host.endsWith('.localhost')) {
     const sub = host.split('.')[0];
-    if (sub && sub !== 'www' && sub !== 'app') return sub;
+    if (sub && !['www', 'app', 'api'].includes(sub)) return sub;
   }
 
   return null;
+}
+
+const isPlatformHost = (host: string) =>
+  host === 'localhost' ||
+  host === '127.0.0.1' ||
+  host.endsWith('.localhost') ||
+  host.endsWith('.vercel.app') ||
+  host === 'nilebooking.co' ||
+  host === 'www.nilebooking.co' ||
+  host === 'app.nilebooking.co' ||
+  host === 'api.nilebooking.co';
+
+function CustomHostGate() {
+  const [state, setState] = useState<'loading' | 'found' | 'missing'>('loading');
+  const [slug, setSlug] = useState<string | null>(null);
+  const host = window.location.hostname.toLowerCase();
+
+  useEffect(() => {
+    let cancelled = false;
+    domainApi
+      .getPublicTenant(host)
+      .then((tenant) => {
+        if (cancelled) return;
+        setSlug(tenant.slug);
+        setState(tenant.slug ? 'found' : 'missing');
+      })
+      .catch(() => {
+        if (!cancelled) setState('missing');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [host]);
+
+  if (state === 'loading') return <PageLoader />;
+  if (state === 'found' && slug) return <StorefrontApp slug={slug} />;
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F7] px-4">
+      <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
+          <span className="text-lg font-semibold text-zinc-500">N</span>
+        </div>
+        <h1 className="mt-4 text-lg font-semibold tracking-tight text-zinc-900">Domain not configured</h1>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+          This domain is not connected to a Nile Booking storefront yet. If you are the owner, finish the domain setup from your dashboard.
+        </p>
+        <a
+          href="https://app.nilebooking.co/dashboard/domains"
+          className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800"
+        >
+          Go to Domains
+        </a>
+      </div>
+    </div>
+  );
 }
 
 const PageLoader = () => (
@@ -117,8 +179,8 @@ const PageLoader = () => (
 
 interface ErrorBoundaryProps {
   children: ReactNode;
-  location: any;
-  user: any;
+  location: ReturnType<typeof useLocation>;
+  user: ReturnType<typeof useAuth>['user'];
   logout?: () => void;
 }
 
@@ -228,6 +290,7 @@ class AppErrorBoundaryInner extends Component<
                       import('./lib/queryClient').then(({ queryClient }) => queryClient.clear());
                       localStorage.removeItem('token');
                       localStorage.removeItem('nile_user');
+                      localStorage.removeItem('nile_admin_auth');
                       localStorage.removeItem('nile_dashboard_bookings');
                       localStorage.removeItem('nile_crm_cache');
                       sessionStorage.clear();
@@ -250,17 +313,7 @@ class AppErrorBoundaryInner extends Component<
 
 function AppErrorBoundary({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
-  
-  // Custom hook usage for location since useLocation is inside router
-  // We need to conditionally use it if router context exists, but since we are inside BrowserRouter, we can just use window.location as fallback or use a hook inside another wrapper if needed.
-  // Actually, useLocation() will work because we are in BrowserRouter in main.tsx
-  let location: any = {};
-  try {
-    const reactRouterDom = require('react-router-dom');
-    location = reactRouterDom.useLocation();
-  } catch (e) {
-    location = { pathname: window.location.pathname, search: window.location.search };
-  }
+  const location = useLocation();
 
   return <AppErrorBoundaryInner user={user} location={location} logout={logout}>{children}</AppErrorBoundaryInner>;
 }
@@ -279,6 +332,7 @@ function StorefrontApp({ slug }: { slug: string }) {
             }
           />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/bookings/:token" element={<BookingPortal />} />
           <Route
             path="/checkout/success"
             element={
@@ -349,6 +403,7 @@ function MainApp() {
               }
             />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/bookings/:token" element={<BookingPortal />} />
 
             {/* Dashboard */}
             <Route
@@ -532,11 +587,28 @@ function MainApp() {
 }
 
 function App() {
+  const host = window.location.hostname.toLowerCase();
+  const path = window.location.pathname;
   const merchantSlug = getMerchantSlug();
 
   if (merchantSlug) {
     return <StorefrontApp slug={merchantSlug} />;
   }
+
+  if (!isPlatformHost(host)) {
+    if (
+      path.startsWith('/dashboard') ||
+      path.startsWith('/admin') ||
+      path.startsWith('/login') ||
+      path.startsWith('/register') ||
+      path.startsWith('/verify-otp')
+    ) {
+      window.location.href = `https://app.nilebooking.co${path}${window.location.search}`;
+      return null;
+    }
+    return <CustomHostGate />;
+  }
+
   return <MainApp />;
 }
 

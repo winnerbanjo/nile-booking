@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { getMockMode, mockUsers } from '../utils/mockMode.js';
+import { getJwtSecret } from '../config/secrets.js';
 
 export const protect = async (req, res, next) => {
   try {
@@ -15,7 +16,7 @@ export const protect = async (req, res, next) => {
     }
 
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
+      const decoded = jwt.verify(token, getJwtSecret());
 
       if (getMockMode()) {
         const mockUser = Array.from(mockUsers.values()).find((user) => user._id === decoded.id);

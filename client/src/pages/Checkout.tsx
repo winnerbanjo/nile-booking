@@ -73,6 +73,7 @@ export const Checkout: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showTransferSheet, setShowTransferSheet] = useState(false);
   const [showPendingVerification, setShowPendingVerification] = useState(false);
+  const [createdBooking, setCreatedBooking] = useState<{ reference: string; portalUrl: string } | null>(null);
   const [receiptUploaded, setReceiptUploaded] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -125,6 +126,15 @@ export const Checkout: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) {
+        setError('Receipt must be a JPG, PNG, WebP, or PDF file.');
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Receipt must be 5 MB or smaller.');
+        return;
+      }
+      setError('');
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData({ ...formData, receiptImage: reader.result as string });
@@ -156,6 +166,10 @@ export const Checkout: React.FC = () => {
   };
 
   const handleSubmit = async () => {
+    if (!hasBankDetails) {
+      setError('This business has not configured a bank account yet. Please contact them to complete payment.');
+      return;
+    }
     setLoading(true);
     setError('');
 
@@ -170,7 +184,12 @@ export const Checkout: React.FC = () => {
         receiptImage: formData.receiptImage, // Optional: might be undefined
       });
 
-      // Navigate to success page
+      const portalUrl = response.portalUrl
+        || (response.booking.publicToken
+          ? `${window.location.origin}/bookings/${response.booking.publicToken}`
+          : `${window.location.origin}/`);
+
+      setCreatedBooking({ reference: response.booking.bookingNumber, portalUrl });
       setShowPendingVerification(true);
       setLoading(false);
     } catch (err: any) {
@@ -181,7 +200,7 @@ export const Checkout: React.FC = () => {
 
   const calculatePricing = () => {
     const servicePrice = (service as Service).price;
-    const depositAmount = formData.paymentType === 'deposit' ? servicePrice * 0.3 : 0;
+    const depositAmount = formData.paymentType === 'deposit' ? servicePrice * 0.5 : 0;
     const totalAmount = formData.paymentType === 'pay_later' ? 0 : (formData.paymentType === 'deposit' ? depositAmount : servicePrice);
     return { servicePrice, depositAmount, totalAmount };
   };
@@ -190,10 +209,11 @@ export const Checkout: React.FC = () => {
 
   // Bank Transfer Details
   const provider = typeof service === 'object' && service ? (service as any).provider : null;
+  const hasBankDetails = Boolean(provider?.bankAccount?.accountNumber && provider?.bankAccount?.accountName);
   const bankDetails = {
-    bankName: getBankName(provider?.bankAccount?.bankName) || 'Providus Bank',
-    accountName: provider?.bankAccount?.accountName || provider?.businessName || 'Nile Technologies Inc',
-    accountNumber: provider?.bankAccount?.accountNumber || '8123843076',
+    bankName: getBankName(provider?.bankAccount?.bankName),
+    accountName: provider?.bankAccount?.accountName || '',
+    accountNumber: provider?.bankAccount?.accountNumber || '',
     amount: pricing.totalAmount || pricing.servicePrice,
   };
 
@@ -345,6 +365,11 @@ export const Checkout: React.FC = () => {
               <div className="space-y-4">
                 <div className="p-6 bg-white/50 rounded-xl border border-white/50">
                   <h3 className="text-lg font-semibold mb-4">Bank Transfer Details</h3>
+                  {!hasBankDetails ? (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                      This business has not configured a bank account yet. Please contact them to complete payment.
+                    </div>
+                  ) : (
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Bank Name:</span>
@@ -363,10 +388,12 @@ export const Checkout: React.FC = () => {
                       <span className="text-xl font-black">₦{bankDetails.amount.toLocaleString()}</span>
                     </div>
                   </div>
+                  )}
                 </div>
                 <Button
                   onClick={() => setShowTransferSheet(true)}
-                  className="w-full bg-[#22c55e] hover:bg-green-600 text-white h-12"
+                  disabled={!hasBankDetails}
+                  className="w-full bg-[#22c55e] hover:bg-green-600 text-white h-12 disabled:opacity-50"
                 >
                   <Camera className="h-5 w-5 mr-2" />
                   Snap & Upload Receipt
@@ -381,7 +408,7 @@ export const Checkout: React.FC = () => {
                 )}
                 {!receiptUploaded && (
                   <div className="text-center mt-4 text-sm text-gray-500">
-                    <p>You can upload your receipt later. Your booking will be marked as "Awaiting Payment".</p>
+                    <p>You can upload your receipt later from the private booking link shown after submission. Your booking will be marked as "Awaiting Payment".</p>
                   </div>
                 )}
               </div>
@@ -457,7 +484,7 @@ export const Checkout: React.FC = () => {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
                 capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
@@ -510,18 +537,43 @@ export const Checkout: React.FC = () => {
                   Your booking is pending verification. We'll notify you once your payment receipt has been confirmed.
                 </p>
               </div>
+              {createdBooking && (
+                <div className="p-4 bg-gray-50 rounded-xl mb-4 text-left">
+                  <p className="text-xs text-gray-500 mb-1">Booking reference</p>
+                  <p className="font-mono text-sm font-bold text-gray-900 break-all mb-3">{createdBooking.reference}</p>
+                  <p className="text-xs text-gray-500 mb-2">Save this private link to upload a receipt later, check payment status, or cancel:</p>
+                  <a
+                    href={createdBooking.portalUrl}
+                    className="block break-all text-sm font-semibold text-[#22c55e] underline underline-offset-2"
+                  >
+                    {createdBooking.portalUrl}
+                  </a>
+                </div>
+              )}
               <div className="p-4 bg-gray-50 rounded-xl mb-6">
                 <p className="text-sm text-gray-600 mb-2">Need help?</p>
-                <a
-                  href="https://wa.me/2348123843076"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-[#22c55e] font-semibold hover:underline"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  Contact Support on WhatsApp
-                </a>
+                {provider?.phone ? (
+                  <a
+                    href={`https://wa.me/${String(provider.phone).replace(/\D/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-[#22c55e] font-semibold hover:underline"
+                  >
+                    <MessageCircle className="h-5 w-5" />
+                    Contact the business on WhatsApp
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-600">Contact the business directly for help.</p>
+                )}
               </div>
+              {createdBooking && (
+                <a
+                  href={createdBooking.portalUrl}
+                  className="mb-3 flex w-full items-center justify-center rounded-md bg-[#22c55e] px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-600"
+                >
+                  View booking page
+                </a>
+              )}
               <Button
                 onClick={() => navigate('/')}
                 className="w-full bg-gray-900 hover:bg-gray-800 text-white"

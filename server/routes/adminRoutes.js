@@ -5,6 +5,7 @@ import {
   verifyReceipt,
   getProviders,
   updateProviderStatus,
+  updateProviderPlan,
   getAdminBookings,
   getAdminCustomers,
   getAdminTransactions,
@@ -30,6 +31,7 @@ router.post('/verifications/:bookingId/verify', verifyReceipt);
 // Provider management routes
 router.get('/providers', getProviders);
 router.put('/providers/:providerId/status', updateProviderStatus);
+router.put('/providers/:providerId/plan', updateProviderPlan);
 
 // Resource listing routes
 router.get('/bookings', getAdminBookings);

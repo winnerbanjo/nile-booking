@@ -40,7 +40,7 @@ export const Staff: React.FC = () => {
   });
 
   const { data: servicesData = [], isLoading: isServicesLoading } = useQuery({
-    queryKey: queryKeys.merchant.services,
+    queryKey: queryKeys.merchant.services(),
     queryFn: serviceApi.getServices,
   });
 

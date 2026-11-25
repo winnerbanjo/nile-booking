@@ -1,8 +1,27 @@
-import Booking from '../models/Booking.js';
 import Transaction from '../models/Transaction.js';
 import User from '../models/User.js';
 import { paystackService, flutterwaveService, bankService } from '../services/paymentService.js';
-import { notifyPaymentConfirmation } from '../services/notificationService.js';
+import {
+  PaymentLifecycleError,
+  applyGatewayFailure,
+  applyGatewaySuccess,
+  verifyBookingPayment,
+} from '../services/paymentLifecycleService.js';
+import { processRenewalPayment } from '../services/domain/domainService.js';
+
+const lifecycleError = (res, error) => {
+  if (error instanceof PaymentLifecycleError) {
+    return res.status(error.statusCode).json({ message: error.message, code: error.code, ...error.details });
+  }
+  return res.status(500).json({ message: 'Server error', error: error.message });
+};
+
+const defaultAdminAmount = async ({ transactionId, bookingId }) => {
+  const transaction = transactionId
+    ? await Transaction.findById(transactionId).lean()
+    : await Transaction.findOne({ booking: bookingId }).sort({ createdAt: 1 }).lean();
+  return transaction?.amount;
+};
 
 // @desc    Verify payment (Paystack)
 // @route   POST /api/payments/paystack/verify
@@ -18,53 +37,31 @@ export const verifyPaystackPayment = async (req, res) => {
     const verification = await paystackService.verifyPayment(reference);
 
     if (verification.data.status === 'success') {
-      const transaction = await Transaction.findOne({ transactionReference: reference }).populate('booking');
-      
-      if (transaction) {
-        // Idempotency check
-        if (transaction.status === 'successful') {
-          return res.json({ success: true, booking: transaction.booking, message: 'Payment already verified' });
-        }
+      const result = await applyGatewaySuccess({
+        reference: verification.data.reference || reference,
+        gateway: 'paystack',
+        amount: verification.data.amount / 100, // Paystack reports kobo
+        currency: verification.data.currency,
+        metadata: verification.data,
+      });
 
-        const expectedAmount = transaction.amount * 100; // Paystack is in kobo
-        const actualAmount = verification.data.amount;
-        const actualCurrency = verification.data.currency;
-
-        if (actualAmount >= expectedAmount && actualCurrency === transaction.currency) {
-          transaction.status = 'successful';
-          transaction.verifiedAt = new Date();
-          transaction.paidAt = new Date();
-          transaction.gatewayReference = verification.data.reference || reference;
-          transaction.metadata = verification.data;
-          await transaction.save();
-
-          const booking = await Booking.findById(transaction.booking._id).populate('service');
-          if (booking) {
-            booking.status = 'confirmed';
-            booking.paymentStatus = booking.paymentType === 'deposit' ? 'partial' : 'paid';
-            booking.paymentReference = reference;
-            booking.paymentGateway = 'paystack';
-            await booking.save();
-            await notifyPaymentConfirmation(booking._id);
-          }
-
-          return res.json({
-            success: true,
-            booking,
-            message: 'Payment verified and booking confirmed',
-          });
-        } else {
-          transaction.status = 'failed';
-          transaction.failureReason = 'Amount or currency mismatch';
-          await transaction.save();
-          return res.json({ success: false, message: 'Amount or currency mismatch' });
-        }
+      if (result.mismatch) {
+        return res.json({ success: false, message: 'Amount or currency mismatch' });
       }
+
+      return res.json({
+        success: true,
+        booking: result.booking,
+        alreadyProcessed: !!result.alreadyProcessed,
+        confirmationEmail: result.email,
+        message: result.alreadyProcessed ? 'Payment already verified' : 'Payment verified and booking confirmed',
+      });
     }
 
+    await applyGatewayFailure({ reference, reason: 'Paystack verification did not report success' });
     res.json({ success: false, message: 'Payment verification failed' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    lifecycleError(res, error);
   }
 };
 
@@ -74,7 +71,7 @@ export const verifyPaystackPayment = async (req, res) => {
 export const paystackWebhook = async (req, res) => {
   try {
     const signature = req.headers['x-paystack-signature'];
-    const isValid = paystackService.verifyWebhook(signature, req.body);
+    const isValid = paystackService.verifyWebhook(signature, req.rawBody || req.body);
 
     if (!isValid) {
       return res.status(400).json({ message: 'Invalid signature' });
@@ -84,40 +81,43 @@ export const paystackWebhook = async (req, res) => {
 
     if (event.event === 'charge.success') {
       const { reference, amount, currency } = event.data;
-
-      const transaction = await Transaction.findOne({ transactionReference: reference }).populate('booking');
-
-      if (transaction && transaction.status !== 'successful') {
-        const expectedAmount = transaction.amount * 100;
-        
-        if (amount >= expectedAmount && currency === transaction.currency) {
-          transaction.status = 'successful';
-          transaction.verifiedAt = new Date();
-          transaction.paidAt = new Date();
-          transaction.gatewayReference = reference;
-          transaction.metadata = event.data;
-          await transaction.save();
-
-          const booking = await Booking.findById(transaction.booking._id).populate('service');
-          if (booking && booking.status === 'pending') {
-            booking.status = 'confirmed';
-            booking.paymentStatus = booking.paymentType === 'deposit' ? 'partial' : 'paid';
-            booking.paymentReference = reference;
-            booking.paymentGateway = 'paystack';
-            await booking.save();
-            await notifyPaymentConfirmation(booking._id);
-          }
-        } else {
-          transaction.status = 'failed';
-          transaction.failureReason = 'Webhook: Amount or currency mismatch';
-          await transaction.save();
+      let metadata = event.data.metadata || {};
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata);
+        } catch {
+          metadata = {};
         }
       }
+
+      if (metadata.purpose === 'domain-renewal') {
+        try {
+          await processRenewalPayment({ ...event.data, metadata });
+        } catch (error) {
+          // A mismatched amount or reference is not retryable; acknowledge it so
+          // Paystack does not hammer the endpoint. Transient registrar failures
+          // bubble up and are retried by Paystack.
+          if (error.statusCode && error.statusCode < 500) {
+            return res.json({ received: true, ignored: true });
+          }
+          throw error;
+        }
+        return res.json({ received: true });
+      }
+
+      await applyGatewaySuccess({
+        reference,
+        gateway: 'paystack',
+        amount: amount / 100,
+        currency,
+        metadata: event.data,
+      });
     }
 
+    // Duplicate successes are idempotent inside applyGatewaySuccess.
     res.json({ received: true });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    lifecycleError(res, error);
   }
 };
 
@@ -135,42 +135,32 @@ export const verifyFlutterwavePayment = async (req, res) => {
     const verification = await flutterwaveService.verifyPayment(transaction_id);
 
     if (verification.data.status === 'successful') {
-      const reference = verification.data.tx_ref;
-      const booking = await Booking.findOne({ bookingNumber: reference })
-        .populate('service');
+      const result = await applyGatewaySuccess({
+        reference: String(transaction_id),
+        bookingNumber: verification.data.tx_ref,
+        gateway: 'flutterwave',
+        amount: verification.data.amount,
+        currency: verification.data.currency,
+        metadata: verification.data,
+      });
 
-      if (booking) {
-        booking.status = 'confirmed';
-        booking.paymentStatus = booking.paymentType === 'deposit' ? 'partial' : 'paid';
-        booking.paymentReference = transaction_id;
-        booking.paymentGateway = 'flutterwave';
-        await booking.save();
-
-        await Transaction.create({
-          booking: booking._id,
-          provider: booking.provider,
-          type: booking.paymentType === 'deposit' ? 'deposit' : 'payment',
-          amount: verification.data.amount,
-          currency: verification.data.currency || 'USD',
-          paymentGateway: 'flutterwave',
-          gatewayReference: transaction_id,
-          status: 'success',
-          metadata: verification.data,
-        });
-
-        await notifyPaymentConfirmation(booking._id);
-
-        return res.json({
-          success: true,
-          booking,
-          message: 'Payment verified and booking confirmed',
-        });
+      if (result.mismatch) {
+        return res.json({ success: false, message: 'Amount or currency mismatch' });
       }
+
+      return res.json({
+        success: true,
+        booking: result.booking,
+        alreadyProcessed: !!result.alreadyProcessed,
+        confirmationEmail: result.email,
+        message: result.alreadyProcessed ? 'Payment already verified' : 'Payment verified and booking confirmed',
+      });
     }
 
+    await applyGatewayFailure({ reference: String(transaction_id), reason: 'Flutterwave verification did not report success' });
     res.json({ success: false, message: 'Payment verification failed' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    lifecycleError(res, error);
   }
 };
 
@@ -180,7 +170,7 @@ export const verifyFlutterwavePayment = async (req, res) => {
 export const flutterwaveWebhook = async (req, res) => {
   try {
     const signature = req.headers['verif-hash'];
-    const isValid = flutterwaveService.verifyWebhook(signature, req.body);
+    const isValid = flutterwaveService.verifyWebhook(signature);
 
     if (!isValid) {
       return res.status(400).json({ message: 'Invalid signature' });
@@ -188,38 +178,27 @@ export const flutterwaveWebhook = async (req, res) => {
 
     const event = req.body;
 
-    if (event.event === 'charge.completed' && event.data.status === 'successful') {
-      const { tx_ref, id, amount } = event.data;
-
-      const booking = await Booking.findOne({ bookingNumber: tx_ref })
-        .populate('service');
-
-      if (booking && booking.status === 'pending') {
-        booking.status = 'confirmed';
-        booking.paymentStatus = booking.paymentType === 'deposit' ? 'partial' : 'paid';
-        booking.paymentReference = id.toString();
-        booking.paymentGateway = 'flutterwave';
-        await booking.save();
-
-        await Transaction.create({
-          booking: booking._id,
-          provider: booking.provider,
-          type: booking.paymentType === 'deposit' ? 'deposit' : 'payment',
-          amount,
-          currency: 'USD',
-          paymentGateway: 'flutterwave',
-          gatewayReference: id.toString(),
-          status: 'success',
+    if (event.event === 'charge.completed') {
+      if (event.data.status === 'successful') {
+        await applyGatewaySuccess({
+          reference: String(event.data.id),
+          bookingNumber: event.data.tx_ref,
+          gateway: 'flutterwave',
+          amount: event.data.amount,
+          currency: event.data.currency,
           metadata: event.data,
         });
-
-        await notifyPaymentConfirmation(booking._id);
+      } else {
+        await applyGatewayFailure({
+          reference: String(event.data.id || event.data.tx_ref),
+          reason: `Flutterwave status: ${event.data.status}`,
+        });
       }
     }
 
     res.json({ received: true });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    lifecycleError(res, error);
   }
 };
 
@@ -336,49 +315,60 @@ export const getTransactions = async (req, res) => {
 // @access  Private (Provider)
 export const verifyManualPayment = async (req, res) => {
   try {
-    const transactionId = req.params.id;
-    const transaction = await Transaction.findOne({ _id: transactionId, provider: req.user._id });
-
-    if (!transaction) {
-      return res.status(404).json({ message: 'Transaction not found' });
+    let amountReceived = req.body?.amountReceived;
+    if (req.user.role === 'admin' && amountReceived === undefined) {
+      amountReceived = await defaultAdminAmount({ transactionId: req.params.id });
     }
 
-    if (transaction.status === 'successful') {
-      return res.status(400).json({ message: 'Transaction is already verified' });
-    }
+    const result = await verifyBookingPayment({
+      transactionId: req.params.id,
+      actor: req.user,
+      amountReceived,
+      overrideReason: req.body?.overrideReason,
+      cashAcknowledged: req.body?.cashAcknowledged,
+    });
 
-    const booking = await Booking.findById(transaction.booking).populate('service customer');
-    if (!booking) {
-      return res.status(404).json({ message: 'Associated booking not found' });
-    }
-
-    if (booking.provider.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'You are not authorized to verify this booking' });
-    }
-
-    if (booking.status === 'cancelled') {
-      return res.status(400).json({ message: 'Cannot verify a cancelled booking' });
-    }
-
-    transaction.status = 'successful';
-    transaction.verifiedAt = new Date();
-    await transaction.save();
-
-    booking.status = 'confirmed';
-    booking.paymentStatus = 'confirmed';
-    await booking.save();
-
-    // Send confirmation email
-    if (booking.customer?.email) {
-      // Basic email send without waiting
-      // We assume sendEmail is already imported, wait, let's check if it is imported...
-      // Actually, bookingController has sendEmail. Let's just respond success for now
-      // Or we can just log that it's confirmed.
-    }
-
-    res.json({ message: 'Payment verified successfully', transaction, booking });
+    res.json({
+      message: result.alreadyVerified ? 'Payment already verified' : 'Payment verified successfully',
+      alreadyVerified: result.alreadyVerified,
+      partial: !!result.partial,
+      transaction: result.transaction,
+      booking: result.booking,
+      confirmationEmail: result.email,
+    });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    lifecycleError(res, error);
+  }
+};
+
+// @desc    Verify payment for a booking (provider receipt modal / admin queue)
+// @route   PUT /api/payments/bookings/:bookingId/verify
+// @access  Private (Provider or Admin)
+export const verifyBookingPaymentController = async (req, res) => {
+  try {
+    let amountReceived = req.body?.amountReceived;
+    if (req.user.role === 'admin' && amountReceived === undefined) {
+      amountReceived = await defaultAdminAmount({ bookingId: req.params.bookingId });
+    }
+
+    const result = await verifyBookingPayment({
+      bookingId: req.params.bookingId,
+      actor: req.user,
+      amountReceived,
+      overrideReason: req.body?.overrideReason,
+      cashAcknowledged: req.body?.cashAcknowledged,
+    });
+
+    res.json({
+      message: result.alreadyVerified ? 'Payment already verified' : 'Payment verified successfully',
+      alreadyVerified: result.alreadyVerified,
+      partial: !!result.partial,
+      transaction: result.transaction,
+      booking: result.booking,
+      confirmationEmail: result.email,
+    });
+  } catch (error) {
+    lifecycleError(res, error);
   }
 };
 
@@ -419,7 +409,11 @@ export const processRefund = async (req, res) => {
     transaction.refundStatus = newRefundAmount < transaction.amount ? 'refund_pending' : 'refunded';
     await transaction.save();
 
-    res.json({ message: 'Refund recorded successfully', transaction });
+    res.json({
+      message: 'Refund recorded successfully (bookkeeping only — no money was moved)',
+      bookkeepingOnly: true,
+      transaction,
+    });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }

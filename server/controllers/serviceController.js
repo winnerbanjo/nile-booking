@@ -1,5 +1,15 @@
+import mongoose from 'mongoose';
 import Service from '../models/Service.js';
+import User from '../models/User.js';
 import { getMockMode, mockServices, mockUsers } from '../utils/mockMode.js';
+
+const markOnboardingStep = async (userId, update) => {
+  try {
+    await User.updateOne({ _id: userId }, { $set: update });
+  } catch {
+    // Onboarding progress must never block the merchant's primary action.
+  }
+};
 
 const defaultMockServicesList = [
   {
@@ -84,6 +94,12 @@ export const createService = async (req, res) => {
       });
     }
 
+    if (!(Number(duration) > 0)) {
+      return res.status(400).json({
+        message: 'Duration must be greater than zero (in hours).',
+      });
+    }
+
     if (getMockMode()) {
       const newMockService = {
         _id: `mock_service_${Date.now()}`,
@@ -116,6 +132,11 @@ export const createService = async (req, res) => {
       features: features || [],
     });
 
+    await markOnboardingStep(req.user._id, {
+      'onboarding.firstServiceAdded': true,
+      'onboarding.websiteGenerated': true,
+    });
+
     res.status(201).json(service);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -146,6 +167,10 @@ export const updateService = async (req, res) => {
     }
 
     const { name, description, category, price, duration, capacity, images, location, features, isActive } = req.body;
+
+    if (duration !== undefined && !(Number(duration) > 0)) {
+      return res.status(400).json({ message: 'Duration must be greater than zero (in hours).' });
+    }
 
     if (name) service.name = name;
     if (description) service.description = description;

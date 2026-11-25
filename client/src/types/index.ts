@@ -7,6 +7,16 @@ export interface User {
   slug?: string;
   businessName?: string;
   phone?: string;
+  customDomain?: string;
+  plan?: 'none' | 'starter' | 'growth' | 'premium';
+  planStatus?: 'active' | 'past_due' | 'cancelled';
+  planExpiresAt?: string | null;
+  address?: {
+    street?: string;
+    city?: string;
+    country?: string;
+    zipCode?: string;
+  };
   bio?: string;
   location?: string;
   logo?: string;
@@ -39,9 +49,84 @@ export interface User {
     firstServiceAdded?: boolean;
     firstServiceSkipped?: boolean;
     availabilityConfigured?: boolean;
+    websitePreviewed?: boolean;
+    websiteShared?: boolean;
     onboardingCompleted?: boolean;
     completedAt?: string;
+    setupChecklistDismissed?: boolean;
   };
+}
+
+export interface CustomDomainRecord {
+  _id: string;
+  domain: string;
+  source: 'purchased' | 'connected';
+  provider?: string;
+  status:
+    | 'PENDING_REGISTRATION'
+    | 'REGISTERING'
+    | 'REGISTERED'
+    | 'PENDING_VERIFICATION'
+    | 'CONNECTING'
+    | 'DNS_PENDING'
+    | 'ACTIVE'
+    | 'FAILED'
+    | 'EXPIRED'
+    | 'SUSPENDED'
+    | 'REMOVED';
+  active: boolean;
+  failureReason?: string | null;
+  isPremiumDomain?: boolean;
+  priceNGN?: number | null;
+  priceUSD?: number | null;
+  retailValueNGN?: number | null;
+  verificationRecord?: { type: string; host: string; value: string } | null;
+  registration?: {
+    expiryDate?: string | null;
+    registeredAt?: string | null;
+    autoRenew?: boolean;
+  };
+  hosting?: {
+    attached?: boolean;
+    verified?: boolean;
+    misconfigured?: boolean;
+    verificationRecords?: Array<{ type: string; host: string; value: string }>;
+  };
+  dnsRecords?: Array<{ type: string; host: string; value: string; status?: string }>;
+  renewal?: {
+    status?: string;
+    priceNGN?: number | null;
+    lastError?: string | null;
+    lastReminderAt?: string | null;
+  };
+  createdAt?: string;
+}
+
+export interface DomainOverview {
+  isPremium: boolean;
+  plan: string;
+  planStatus: string;
+  planExpiresAt?: string | null;
+  domains: CustomDomainRecord[];
+  limits: { includedDomains: number; activeDomains: number };
+}
+
+export interface DomainSuggestion {
+  domain: string;
+  available: boolean;
+  included: boolean;
+  isPremiumDomain: boolean;
+  priceNGN: number;
+  retailValueNGN: number;
+  priceUSD: number;
+  description?: string;
+  quoteRequired?: boolean;
+}
+
+export interface DomainAvailability extends DomainSuggestion {
+  quoteRequired: boolean;
+  markupNGN?: number;
+  fxRate?: number;
 }
 
 export interface AuthResponse {
@@ -101,6 +186,7 @@ export interface WeeklySchedule {
 
 export interface UnavailableDate {
   date: string;
+  endDate?: string | null;
   reason?: string;
 }
 
@@ -110,9 +196,42 @@ export interface Schedule {
   timezone: string;
   weeklySchedule: WeeklySchedule;
   bufferTime: number;
+  bookingWindowDays?: number;
+  minimumLeadTimeMinutes?: number;
   unavailableDates: UnavailableDate[];
   createdAt: string;
   updatedAt: string;
+}
+
+// Server-computed availability
+export interface AvailabilitySlot {
+  date: string;
+  start: string;
+  end: string;
+  localStart: string;
+  localEnd: string;
+  label: string;
+  timezone: string;
+}
+
+export interface AvailabilityDay {
+  date: string;
+  available: boolean;
+  slotCount: number;
+}
+
+export interface ProviderAvailability {
+  provider: { _id: string; slug: string; businessName: string; timezone: string };
+  service: { _id: string; name: string; durationMinutes: number; price: number };
+  timezone: string;
+  timezoneLabel: string;
+  horizonDays: number;
+  minimumLeadTimeMinutes: number;
+  date: string;
+  days: AvailabilityDay[];
+  slots: AvailabilitySlot[];
+  alternatives: AvailabilitySlot[];
+  hasAvailability: boolean;
 }
 
 // Provider Types
@@ -174,13 +293,27 @@ export interface Booking {
   provider: string | { _id: string; businessName: string; email: string };
   service: Service | string | { _id: string; name: string };
   date: string;
+  startAt?: string;
+  endAt?: string;
+  holdExpiresAt?: string | null;
   timeSlot: {
     startTime: string;
     endTime: string;
   };
   status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled';
-  paymentStatus: 'pending' | 'pending_verification' | 'partial' | 'paid' | 'refunded';
-  paymentType: 'bank_transfer' | 'full' | 'deposit';
+  paymentStatus: 'awaiting_payment' | 'awaiting_verification' | 'confirmed' | 'cancelled';
+  paymentType: 'bank_transfer' | 'full' | 'deposit' | 'pay_later';
+  paymentMethod?: 'bank_transfer' | 'pay_later' | 'card';
+  totalPrice?: number;
+  depositAmount?: number;
+  balanceDue?: number;
+  amountReceived?: number;
+  verifiedAt?: string | null;
+  confirmationEmail?: {
+    status: 'not_sent' | 'pending' | 'sent' | 'failed';
+    sentAt?: string | null;
+    error?: string | null;
+  };
   pricing: {
     servicePrice: number;
     depositAmount: number;
@@ -190,8 +323,45 @@ export interface Booking {
   notes?: string;
   whatsappLink?: string;
   receiptImageUrl?: string;
+  paymentReference?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PublicBooking {
+  reference: string;
+  status: Booking['status'];
+  paymentStatus: Booking['paymentStatus'];
+  paymentMethod?: string;
+  service: { name: string; duration?: number | null };
+  startAt: string;
+  endAt?: string | null;
+  timeSlot: { startTime: string; endTime: string };
+  timezone: string;
+  dateLabel: string | null;
+  timeLabel: string | null;
+  amount: {
+    total: number;
+    deposit: number;
+    dueNow: number;
+    received: number;
+    balanceDue: number;
+    currency: string;
+  };
+  receipt: {
+    uploaded: boolean;
+    status: 'missing' | 'awaiting_verification' | 'verified';
+  };
+  provider: { name: string; phone: string | null; email: string | null };
+  bankDetails: {
+    bankName: string | null;
+    accountName: string | null;
+    accountNumber: string | null;
+  } | null;
+  holdExpiresAt: string | null;
+  canUploadReceipt: boolean;
+  canCancel: boolean;
+  portalPath: string;
 }
 
 // Booking Stats Types

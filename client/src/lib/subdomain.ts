@@ -34,15 +34,13 @@ export const getSubdomain = (): string | null => {
       return null;
     }
 
-    // Production wildcard subdomains (*.nilebooking.co)
-    if (host.endsWith('nilebooking.co')) {
-      const parts = host.split('.');
-      // e.g. ['the-modern-barber', 'nilebooking', 'co']
-      if (parts.length > 2) {
-        const sub = parts[0];
-        if (sub && sub !== 'www' && sub !== 'nilebooking') {
-          return sub;
-        }
+    // Production wildcard subdomains (*.nilebooking.co). The label boundary is
+    // explicit so lookalikes such as evilnilebooking.co never resolve a tenant.
+    const productionMatch = host.match(/^([a-z0-9][a-z0-9-]*)\.nilebooking\.co$/);
+    if (productionMatch) {
+      const sub = productionMatch[1];
+      if (!['www', 'app', 'api'].includes(sub)) {
+        return sub;
       }
     }
 
@@ -54,8 +52,9 @@ export const getSubdomain = (): string | null => {
       }
     }
 
-    // Local development subdomains (*.localhost)
-    if (host.includes('.') && !host.startsWith('www.')) {
+    // Local development subdomains (*.localhost) only. A generic dotted host is
+    // a custom domain, not a tenant slug.
+    if (host.endsWith('.localhost')) {
       const sub = host.split('.')[0];
       if (sub && sub !== 'localhost' && sub !== '127' && sub !== 'www') {
         return sub;
@@ -102,14 +101,16 @@ export const isTenantSubdomain = (): boolean => {
 /**
  * Returns full URL to merchant storefront (subdomain on production, path on local/dev)
  */
-export const getStorefrontUrl = (slug?: string | null): string => {
+export const getStorefrontUrl = (slug?: string | null, customDomain?: string | null): string => {
+  if (customDomain) return `https://${customDomain}`;
+
   const merchantSlug = slug || 'the-modern-barber';
   if (typeof window === 'undefined') return `/p/${merchantSlug}`;
-  
+
   const host = window.location.hostname;
   const protocol = window.location.protocol;
 
-  if (host.includes('nilebooking.co')) {
+  if (host === 'nilebooking.co' || host.endsWith('.nilebooking.co')) {
     return `${protocol}//${merchantSlug}.nilebooking.co`;
   }
   return `/p/${merchantSlug}`;

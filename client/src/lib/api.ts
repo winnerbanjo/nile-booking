@@ -4,10 +4,16 @@ import type {
   Schedule,
   WeeklySchedule,
   UnavailableDate,
+  ProviderAvailability,
   ProviderWithServices,
   Booking,
+  PublicBooking,
   BookingStats,
   Transaction,
+  CustomDomainRecord,
+  DomainOverview,
+  DomainSuggestion,
+  DomainAvailability,
 } from '../types';
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
@@ -15,14 +21,22 @@ const isLocalhost =
   typeof window !== 'undefined' &&
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
+// Vite's dev server proxies `/api` to the local backend. Use that proxy even
+// when the preview is opened through a forwarded hostname (Codespaces, tunnels),
+// otherwise the browser would call the deployed API instead.
 const API_BASE_URL = configuredApiBaseUrl
   ? configuredApiBaseUrl.replace(/\/+$/, '')
-  : isLocalhost
+  : import.meta.env.DEV || isLocalhost
     ? '/api'
     : 'https://api.nilebooking.co/api';
 
 class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+    public code?: string,
+    public details?: Record<string, any>
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -34,7 +48,8 @@ const getAuthToken = (): string | null => {
 
 const request = async <T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutOverrideMs?: number
 ): Promise<T> => {
   const token = getAuthToken();
   const headers: HeadersInit = {
@@ -48,7 +63,7 @@ const request = async <T>(
 
   // Use a longer timeout for auth endpoints to handle cold starts in production.
   const isAuthEndpoint = endpoint.startsWith('/auth/');
-  const timeoutMs = isAuthEndpoint ? 45000 : 20000;
+  const timeoutMs = timeoutOverrideMs || (isAuthEndpoint ? 45000 : 20000);
 
   // Create AbortController for timeout
   const controller = new AbortController();
@@ -68,7 +83,12 @@ const request = async <T>(
       const error = await response.json().catch(() => ({
         message: response.statusText,
       }));
-      throw new ApiError(response.status, error.message || 'Request failed');
+      throw new ApiError(
+        response.status,
+        error.message || 'Request failed',
+        error.code,
+        error
+      );
     }
 
     // Handle empty responses
@@ -198,7 +218,6 @@ export const authApi = {
     paymentMethods?: any;
     bankAccount?: any;
     slug?: string;
-    customDomain?: string;
   }) => {
     return request<User>('/auth/profile', {
       method: 'PUT',
@@ -214,6 +233,8 @@ export const authApi = {
     firstServiceAdded?: boolean;
     firstServiceSkipped?: boolean;
     availabilityConfigured?: boolean;
+    websitePreviewed?: boolean;
+    websiteShared?: boolean;
     onboardingCompleted?: boolean;
     setupChecklistDismissed?: boolean;
   }) => {
@@ -234,6 +255,8 @@ export const scheduleApi = {
     weeklySchedule?: WeeklySchedule;
     bufferTime?: number;
     timezone?: string;
+    bookingWindowDays?: number;
+    minimumLeadTimeMinutes?: number;
     unavailableDates?: UnavailableDate[];
   }) => {
     return request<Schedule>('/schedule', {
@@ -326,23 +349,44 @@ export const serviceApi = {
   },
 };
 
+// Availability API
+export const availabilityApi = {
+  getProviderAvailability: async (params: { provider?: string; slug?: string; service: string; date?: string }) => {
+    const query = new URLSearchParams();
+    if (params.provider) query.append('provider', params.provider);
+    if (params.slug) query.append('slug', params.slug);
+    query.append('service', params.service);
+    if (params.date) query.append('date', params.date);
+    return request<ProviderAvailability>(`/availability?${query.toString()}`);
+  },
+};
+
 // Booking API
 export const bookingApi = {
   createBooking: async (data: {
     customer: { name: string; email: string; phone: string };
     serviceId: string;
     providerSlug?: string;
-    date: string;
-    timeSlot: { startTime: string; endTime: string };
+    startAt: string;
+    date?: string;
+    timeSlot?: { startTime: string; endTime: string };
     paymentType: 'full' | 'deposit' | 'pay_later' | 'bank_transfer';
     paymentGateway?: 'paystack' | 'flutterwave';
     notes?: string;
     receiptImage?: string;
-  }) => {
-    return request<{ booking: Booking; paymentData: any }>('/bookings', {
+  }, idempotencyKey?: string) => {
+    return request<{
+      booking: Booking & { publicToken?: string };
+      paymentData?: any;
+      holdExpiresAt?: string | null;
+      portalUrl?: string;
+      receiptUpload?: { status: 'uploaded' | 'failed' | 'pending' | 'not_provided'; error?: string };
+      idempotent?: boolean;
+    }>('/bookings', {
       method: 'POST',
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
       body: JSON.stringify(data),
-    });
+    }, 60000);
   },
 
   getBookings: async (params?: { status?: string; page?: number; limit?: number }) => {
@@ -359,15 +403,34 @@ export const bookingApi = {
     return request<Booking>(`/bookings/${id}`);
   },
 
-  updateBookingStatus: async (id: string, status: string) => {
+  updateBookingStatus: async (id: string, status: string, reason?: string) => {
     return request<Booking>(`/bookings/${id}/status`, {
       method: 'PUT',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, reason }),
     });
   },
 
   getBookingStats: async () => {
     return request<BookingStats>('/bookings/stats');
+  },
+
+  getPublicBooking: async (token: string) => {
+    return request<{ booking: PublicBooking }>(`/bookings/public/${encodeURIComponent(token)}`);
+  },
+
+  uploadPublicReceipt: async (token: string, receiptImage: string) => {
+    return request<{ success: boolean; paymentStatus: string; receipt: { uploaded: boolean; status: string } }>(
+      `/bookings/public/${encodeURIComponent(token)}/receipt`,
+      { method: 'POST', body: JSON.stringify({ receiptImage }) },
+      60000
+    );
+  },
+
+  cancelPublicBooking: async (token: string, reason?: string) => {
+    return request<{ success: boolean; status: string; paymentStatus: string }>(
+      `/bookings/public/${encodeURIComponent(token)}/cancel`,
+      { method: 'POST', body: JSON.stringify({ reason }) }
+    );
   },
 };
 
@@ -408,10 +471,24 @@ export const paymentApi = {
     );
   },
 
-  verifyManualTransaction: async (transactionId: string) => {
-    return request<{ message: string; transaction: any; booking: any }>(`/payments/transactions/${transactionId}/verify`, {
-      method: 'PUT',
-    });
+  verifyManualTransaction: async (
+    transactionId: string,
+    data: { amountReceived: number; overrideReason?: string; cashAcknowledged?: boolean }
+  ) => {
+    return request<{ message: string; transaction: any; booking: Booking; alreadyVerified?: boolean; partial?: boolean; confirmationEmail?: any }>(
+      `/payments/transactions/${transactionId}/verify`,
+      { method: 'PUT', body: JSON.stringify(data) }
+    );
+  },
+
+  verifyBookingPayment: async (
+    bookingId: string,
+    data: { amountReceived: number; overrideReason?: string; cashAcknowledged?: boolean }
+  ) => {
+    return request<{ message: string; transaction: any; booking: Booking; alreadyVerified?: boolean; partial?: boolean; confirmationEmail?: any }>(
+      `/payments/bookings/${bookingId}/verify`,
+      { method: 'PUT', body: JSON.stringify(data) }
+    );
   },
 
   processRefund: async (transactionId: string, data: { amount: number; reason?: string }) => {
@@ -442,9 +519,28 @@ const updateProviderStatus = async (providerId: string, status: string) => {
   });
 };
 
+const updateProviderPlan = async (
+  providerId: string,
+  data: { plan: string; planStatus?: string; planExpiresAt?: string | null }
+) => {
+  return request<{ message: string; provider: any }>(`/admin/providers/${providerId}/plan`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};
+
 export const dashboardApi = {
   getSummary: async () => {
     return request<{
+      setup?: {
+        accountCreated: boolean;
+        websiteGenerated: boolean;
+        firstServiceAdded: boolean;
+        availabilityConfigured: boolean;
+        logoAdded: boolean;
+        websitePreviewed: boolean;
+        websiteShared: boolean;
+      };
       metrics: {
         totalBookings: number;
         confirmedBookings: number;
@@ -465,14 +561,19 @@ export const adminApi = {
   getPendingVerifications: async () => {
     return request<{ bookings: any[]; data: any[]; pagination: any }>('/admin/verifications');
   },
-  verifyReceipt: async (bookingId: string, action: 'approve' | 'reject') => {
+  verifyReceipt: async (
+    bookingId: string,
+    action: 'approve' | 'reject',
+    data: { amountReceived?: number; overrideReason?: string; reason?: string } = {}
+  ) => {
     return request<{ message: string; booking: Booking }>(`/admin/verifications/${bookingId}/verify`, {
       method: 'POST',
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, ...data }),
     });
   },
   getProviders,
   updateProviderStatus,
+  updateProviderPlan,
   getBookings: async (params?: { page?: number; limit?: number; search?: string; status?: string }) => {
     const query = new URLSearchParams(params as any).toString();
     return request<{ data: any[]; pagination: any }>(`/admin/bookings${query ? `?${query}` : ''}`);
@@ -526,21 +627,27 @@ export const staffApi = {
 };
 
 export const domainApi = {
-  checkAvailability: async (domain: string) => {
-    return request<{
-      domain: string;
-      available: boolean;
-      priceNGN: number;
-      description: string;
-      simulation: boolean;
-    }>(`/domains/check?domain=${encodeURIComponent(domain)}`);
-  },
-  purchase: async (data: {
+  getOverview: async () => request<DomainOverview>('/domains'),
+
+  getSuggestions: async (keyword: string) =>
+    request<{ suggestions: DomainSuggestion[] }>('/domains/suggestions', {
+      method: 'POST',
+      body: JSON.stringify({ keyword }),
+    }),
+
+  checkAvailability: async (domain: string) =>
+    request<DomainAvailability>('/domains/availability', {
+      method: 'POST',
+      body: JSON.stringify({ domain }),
+    }),
+
+  claim: async (data: {
     domain: string;
-    reference: string;
-    contactInfo: {
+    acceptedTerms: boolean;
+    registrant: {
       firstName: string;
       lastName: string;
+      company?: string;
       address: string;
       city: string;
       state: string;
@@ -549,16 +656,58 @@ export const domainApi = {
       phone: string;
       email: string;
     };
-  }) => {
-    return request<{
-      success: boolean;
-      message: string;
-      user: any;
-    }>('/domains/purchase', {
+  }) =>
+    request<{ success: boolean; message: string; domain: CustomDomainRecord }>('/domains/claim', {
       method: 'POST',
       body: JSON.stringify(data),
-    });
-  },
+    }, 60000),
+
+  connect: async (domain: string) =>
+    request<{ success: boolean; message: string; domain: CustomDomainRecord }>('/domains/connect', {
+      method: 'POST',
+      body: JSON.stringify({ domain }),
+    }),
+
+  verify: async (id: string) =>
+    request<{ success: boolean; message: string; domain: CustomDomainRecord }>(`/domains/${id}/verify`, {
+      method: 'POST',
+    }),
+
+  refresh: async (id: string) =>
+    request<{ success: boolean; domain: CustomDomainRecord }>(`/domains/${id}/refresh`, {
+      method: 'POST',
+    }),
+
+  retry: async (id: string) =>
+    request<{ success: boolean; domain: CustomDomainRecord }>(`/domains/${id}/retry`, {
+      method: 'POST',
+    }, 60000),
+
+  renew: async (id: string) =>
+    request<{
+      success: boolean;
+      reference: string;
+      amountNGN: number;
+      authorizationUrl: string | null;
+      accessCode: string | null;
+      domain: CustomDomainRecord;
+    }>(`/domains/${id}/renew`, { method: 'POST' }),
+
+  verifyRenewal: async (reference: string) =>
+    request<{ success: boolean; domain?: CustomDomainRecord; message?: string }>(
+      '/domains/renewals/verify',
+      { method: 'POST', body: JSON.stringify({ reference }) }
+    ),
+
+  remove: async (id: string) =>
+    request<{ success: boolean; domain: CustomDomainRecord }>(`/domains/${id}`, {
+      method: 'DELETE',
+    }),
+
+  getPublicTenant: async (host: string) =>
+    request<{ slug: string; businessName: string; logo?: string | null; domain: string }>(
+      `/public/tenant?host=${encodeURIComponent(host)}`
+    ),
 };
 
 // Portfolio API

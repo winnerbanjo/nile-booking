@@ -64,6 +64,27 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    plan: {
+      type: String,
+      enum: ['none', 'starter', 'growth', 'premium'],
+      default: 'none',
+      index: true,
+    },
+    planStatus: {
+      type: String,
+      enum: ['active', 'past_due', 'cancelled'],
+      default: 'active',
+    },
+    planExpiresAt: {
+      type: Date,
+    },
+    planUpdatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    planUpdatedAt: {
+      type: Date,
+    },
     otpCode: {
       type: String,
       trim: true,
@@ -227,6 +248,8 @@ const userSchema = new mongoose.Schema(
       firstServiceAdded: { type: Boolean, default: false },
       firstServiceSkipped: { type: Boolean, default: false },
       availabilityConfigured: { type: Boolean, default: false },
+      websitePreviewed: { type: Boolean, default: false },
+      websiteShared: { type: Boolean, default: false },
       onboardingCompleted: { type: Boolean, default: false },
       completedAt: { type: Date },
       setupChecklistDismissed: { type: Boolean, default: false },

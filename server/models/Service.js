@@ -41,7 +41,10 @@ const serviceSchema = new mongoose.Schema(
     duration: {
       type: Number, // Duration in hours
       required: [true, 'Please provide duration'],
-      min: [0, 'Duration must be positive'],
+      validate: {
+        validator: (value) => Number(value) > 0,
+        message: 'Duration must be greater than zero',
+      },
     },
     capacity: {
       type: Number,
