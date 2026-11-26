@@ -252,7 +252,7 @@ const activateIfReady = async (domainDoc) => {
     domainDoc.active = false;
     domainDoc.failureReason = hosting.configured
       ? 'Waiting for the domain to finish pointing at Nile hosting. This can take a few minutes.'
-      : 'DNS is set. Hosting activation is pending until Vercel credentials are configured.';
+      : 'Hosting activation requires VERCEL_TOKEN and NILE_STOREFRONT_PROJECT_ID in the API project.';
   }
 
   await domainDoc.save();
@@ -718,7 +718,7 @@ export const refreshDomain = async ({ merchantId, domainId }) => {
   }
 
   if (['REGISTERED', 'DNS_PENDING', 'ACTIVE', 'CONNECTING'].includes(domainDoc.status)) {
-    const hosting = await describeDomain(domainDoc.domain).catch(() => null);
+    const hosting = await describeDomain(domainDoc.domain);
     if (hosting) {
       domainDoc.hosting = {
         provider: 'vercel',
