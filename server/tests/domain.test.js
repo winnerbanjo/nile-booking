@@ -3,7 +3,12 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import app from '../app.js';
 import { setMockMode, mockUsers } from '../utils/mockMode.js';
-import { normalizeHostname, formatNamecheapPhone } from '../utils/domain.js';
+import {
+  normalizeHostname,
+  formatNamecheapPhone,
+  registrarHost,
+  verificationTxtHosts,
+} from '../utils/domain.js';
 import { buildQuote } from '../services/domain/domainPricing.js';
 import { requirePremium } from '../middleware/entitlement.js';
 
@@ -51,6 +56,19 @@ describe('Domain validation and pricing', () => {
   it('formats Nigerian registrant phones for Namecheap', () => {
     expect(formatNamecheapPhone('08012345678', 'NG')).toBe('+234.8012345678');
     expect(formatNamecheapPhone('+234.8012345678', 'NG')).toBe('+234.8012345678');
+  });
+
+  it('shows TXT hosts relative to the domain for registrar entry', () => {
+    expect(registrarHost('_nilebooking.acme.com', 'acme.com')).toBe('_nilebooking');
+    expect(registrarHost('www.acme.com', 'acme.com')).toBe('www');
+    expect(registrarHost('@', 'acme.com')).toBe('@');
+  });
+
+  it('checks the TXT record at both the correct and double-suffixed hosts', () => {
+    expect(verificationTxtHosts('acme.com')).toEqual([
+      '_nilebooking.acme.com',
+      '_nilebooking.acme.com.acme.com',
+    ]);
   });
 
   it('keeps the first year included and adds capped 20% on renewal', async () => {

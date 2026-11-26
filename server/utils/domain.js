@@ -23,6 +23,28 @@ const BLOCKED_SUFFIXES = [
   '.vercel.app',
 ];
 
+/**
+ * Registrars such as Namecheap expect a relative host (`_nilebooking`), not
+ * the fully qualified DNS name. Keep API output in the form merchants must
+ * enter in the registrar's Host field.
+ */
+export const registrarHost = (host, domain) => {
+  const value = String(host || '').trim();
+  const suffix = `.${String(domain || '').trim().toLowerCase()}`;
+  if (!value || !domain) return value;
+  return value.toLowerCase().endsWith(suffix) ? value.slice(0, -suffix.length) : value;
+};
+
+/**
+ * Some registrars append the domain to a fully qualified host, producing
+ * `_nilebooking.example.com.example.com`. Check both forms so an already
+ * created record can still verify without asking the merchant to edit DNS.
+ */
+export const verificationTxtHosts = (hostname) => [
+  `_nilebooking.${hostname}`,
+  `_nilebooking.${hostname}.${hostname}`,
+];
+
 export class DomainValidationError extends Error {
   constructor(message, code = 'INVALID_DOMAIN') {
     super(message);

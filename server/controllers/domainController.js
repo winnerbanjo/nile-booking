@@ -100,7 +100,7 @@ export const connectExistingDomain = async (req, res) => {
     });
     res.status(201).json({
       success: true,
-      message: 'Add the TXT record below, then verify the domain.',
+      message: 'Add the TXT record below using the host shown (do not append your domain again), then verify the domain.',
       domain: serializeMerchantDomain(domain),
     });
   } catch (error) {
