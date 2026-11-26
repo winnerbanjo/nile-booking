@@ -2,15 +2,21 @@ import axios from 'axios';
 
 export class VercelNotConfiguredError extends Error {
   constructor() {
-    super('Vercel hosting is not configured for custom domains.');
+    super('Custom-domain hosting requires VERCEL_TOKEN and NILE_STOREFRONT_PROJECT_ID for the storefront project.');
     this.name = 'VercelNotConfiguredError';
     this.code = 'VERCEL_NOT_CONFIGURED';
   }
 }
 
+// VERCEL_PROJECT_ID identifies this API deployment on Vercel, not the client.
+// Only retain the legacy name for integrations running outside Vercel.
+const storefrontProjectId = () =>
+  process.env.NILE_STOREFRONT_PROJECT_ID?.trim() ||
+  (!process.env.VERCEL ? process.env.VERCEL_PROJECT_ID?.trim() : null);
+
 const config = () => {
   const token = process.env.VERCEL_TOKEN;
-  const projectId = process.env.VERCEL_PROJECT_ID;
+  const projectId = storefrontProjectId();
   if (!token || !projectId) throw new VercelNotConfiguredError();
   return {
     token,
@@ -20,9 +26,9 @@ const config = () => {
 };
 
 export const isVercelConfigured = () =>
-  Boolean(process.env.VERCEL_TOKEN && process.env.VERCEL_PROJECT_ID);
+  Boolean(process.env.VERCEL_TOKEN && storefrontProjectId());
 
-const request = async (method, path, data) => {
+const request = async (method, path, data, { allowMissing = false } = {}) => {
   const { token, projectId, teamId } = config();
   const query = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
   try {
@@ -38,7 +44,7 @@ const request = async (method, path, data) => {
     });
     return response.data;
   } catch (error) {
-    if (error.response?.status === 404) return null;
+    if (allowMissing && error.response?.status === 404) return null;
     const message =
       error.response?.data?.error?.message ||
       error.response?.data?.message ||
@@ -58,7 +64,7 @@ const normaliseVerification = (domain) =>
   }));
 
 export const attachDomain = async (hostname) => {
-  const existing = await request('GET', `/v9/projects/{project}/domains/${encodeURIComponent(hostname)}`);
+  const existing = await getDomain(hostname);
   if (existing) return existing;
 
   const created = await request('POST', '/v10/projects/{project}/domains', { name: hostname });
@@ -66,7 +72,7 @@ export const attachDomain = async (hostname) => {
 };
 
 export const getDomain = async (hostname) =>
-  request('GET', `/v9/projects/{project}/domains/${encodeURIComponent(hostname)}`);
+  request('GET', `/v9/projects/{project}/domains/${encodeURIComponent(hostname)}`, undefined, { allowMissing: true });
 
 export const verifyDomain = async (hostname) => {
   const result = await request(
