@@ -8,6 +8,8 @@ import {
   decryptJson,
   encryptJson,
   normalizeHostname,
+  registrarHost,
+  verificationTxtHosts,
 } from '../../utils/domain.js';
 import {
   DomainProviderError,
@@ -72,6 +74,20 @@ const serializeDomain = (doc) => {
   const value = doc.toObject ? doc.toObject({ virtuals: true }) : { ...doc };
   delete value.registrantEncrypted;
   delete value.__v;
+
+  // Registrars expect relative host names. Older records were stored as fully
+  // qualified names, which made merchants append the domain a second time.
+  if (value.verificationRecord) {
+    value.verificationRecord = {
+      ...plain(value.verificationRecord),
+      host: registrarHost(value.verificationRecord.host, value.domain),
+    };
+  }
+  value.dnsRecords = (value.dnsRecords || []).map((record) => ({
+    ...plain(record),
+    host: registrarHost(record.host, value.domain),
+  }));
+
   return value;
 };
 
@@ -640,14 +656,17 @@ export const connectDomain = async ({ merchant, domain: input }) => {
 };
 
 const txtContainsToken = async (hostname, token) => {
-  try {
-    const records = await dns.resolveTxt(`_nilebooking.${hostname}`);
-    return records
-      .map((parts) => parts.join(''))
-      .some((value) => value.includes(`nile-verify=${token}`));
-  } catch {
-    return false;
+  for (const name of verificationTxtHosts(hostname)) {
+    try {
+      const records = await dns.resolveTxt(name);
+      if (records.map((parts) => parts.join('')).some((value) => value.includes(`nile-verify=${token}`))) {
+        return true;
+      }
+    } catch {
+      // Try the next form. Missing records and NXDOMAIN are expected here.
+    }
   }
+  return false;
 };
 
 export const verifyConnectedDomain = async ({ merchantId, domainId }) => {
@@ -664,8 +683,9 @@ export const verifyConnectedDomain = async ({ merchantId, domainId }) => {
     : false;
 
   if (!verified) {
+    const host = registrarHost(domainDoc.verificationRecord?.host, domainDoc.domain) || '_nilebooking';
     const error = new Error(
-      `We could not find the TXT record yet. Add ${domainDoc.verificationRecord?.value || 'the verification record'} at ${domainDoc.verificationRecord?.host || `_nilebooking.${domainDoc.domain}`} and try again.`
+      `We could not find the TXT record yet. Add ${domainDoc.verificationRecord?.value || 'the verification record'} as a TXT record with host "${host}" (do not append the domain again) and try again.`
     );
     error.statusCode = 409;
     error.code = 'DOMAIN_TXT_NOT_FOUND';
